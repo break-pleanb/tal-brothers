@@ -16,7 +16,7 @@ import { hasAttribute, hasJudgment } from '../../scenario/scenarioTypes'
 import type { Choice, ScenarioEvent } from '../../scenario/scenarioTypes'
 import { SEAT_ORDER } from '../state/gameState'
 import type { GameState, JudgmentState } from '../state/gameState'
-import { baseDiceValue, findScenarioEvent, judgmentFinalValue } from '../steps/rollStep'
+import { findScenarioEvent, judgmentFinalValue } from '../steps/rollStep'
 
 /**
  * Display 투영 (룰북 §17, 아키텍처 §7.3).
@@ -175,6 +175,3 @@ export function projectPublic(state: GameState): PublicView {
 export function projectDisplay(state: GameState): DisplaySnapshot {
   return projectPublic(state)
 }
-
-/** 협동·대립 판정의 현재 최고값. 투영 밖에서도 쓰는 계산이라 재사용한다 */
-export { baseDiceValue }

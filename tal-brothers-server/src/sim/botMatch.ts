@@ -6,7 +6,7 @@ import { ENDINGS } from '../scenario/endings'
 import { LOG_CODE } from '../engine/engineTypes'
 import type { LogEntry } from '../engine/engineTypes'
 import { SEAT_ORDER } from '../engine/state/gameState'
-import { ROLE_LABEL, VARIANT_LABEL, formatDuration, runGame } from './playGame'
+import { VARIANT_LABEL, formatDuration, runGame } from './playGame'
 import type { GameRunResult } from './playGame'
 
 /**
@@ -583,5 +583,3 @@ function main(): void {
 if (process.argv[1] !== undefined && process.argv[1].includes('botMatch')) {
   main()
 }
-
-export { ROLE_LABEL }
