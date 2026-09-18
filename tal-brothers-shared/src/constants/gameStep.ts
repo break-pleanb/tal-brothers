@@ -18,20 +18,20 @@ export const GAME_STEP = {
   INTERVENTION_FORCE: 'interventionForce',
   /** 연습 개입 창 — 튜토리얼 판정 성공 시, 단일 단계 12초 (룰북 §12) */
   PRACTICE_INTERVENTION: 'practiceIntervention',
-  /** 14A 부적 제출 창 8초. M2 */
+  /** 14A 부적 제출 창 8초 (룰북 §13.5) */
   TALISMAN_WINDOW: 'talismanWindow',
   /** 결과 적용 — 타이머 없이 즉시 전이 */
   RESOLUTION: 'resolution',
-  /** Phase 3 타겟 지정. M2 */
+  /** Phase 2 진입 환청과 슬롯 배치 (룰북 §13.1, §13.3) */
+  PHASE2_ENTRY: 'phase2Entry',
+  /** Phase 3 타겟 지정 (룰북 §14.1) */
   P3_TARGETING: 'p3Targeting',
-  /** Phase 3 투표. M2 */
+  /** Phase 3 A 루트 투표 — 마감 = 시계 0 (룰북 §14.4) */
   P3_VOTING: 'p3Voting',
   /** 일시정지. M3 */
   PAUSED: 'paused',
-  /** 엔딩. M2 */
+  /** 엔딩 — 종료 상태 (룰북 §15) */
   ENDING: 'ending',
-  /** M1 임시 종료 단계. M2에서 Phase 2 진입으로 교체한다 */
-  PHASE1_COMPLETE: 'phase1Complete',
 } as const
 
 export type GameStep = (typeof GAME_STEP)[keyof typeof GAME_STEP]

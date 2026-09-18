@@ -1,4 +1,4 @@
-import type { BrotherRole, Command, GameStep } from 'tal-brothers-shared'
+import type { BrotherRole, Command, CueKind, GameStep } from 'tal-brothers-shared'
 
 import type { Rng } from './random'
 import type { GameState } from './state/gameState'
@@ -39,36 +39,6 @@ export type EngineContext = {
   now: number
   rng: Rng
 }
-
-/** 일회성 연출 신호 (아키텍처 §7.2) */
-export const CUE_KIND = {
-  /** 이벤트 진입 */
-  EVENT_INTRO: 'eventIntro',
-  /** 튜토리얼 부적 지급 (룰북 §9.2) */
-  TUTORIAL_TALISMAN_GRANTED: 'tutorialTalismanGranted',
-  /** 귓속말 수신 — 수신 좌석에만 (룰북 §16) */
-  WHISPER_RECEIVED: 'whisperReceived',
-  /** 절대 시야 열람 결과 — 셋째에게만 (룰북 §3.4) */
-  TRUE_SIGHT_RESULT: 'trueSightResult',
-  /** 주사위 굴림 연출 */
-  DICE_ROLLED: 'diceRolled',
-  /** 공개 판정 결과 */
-  JUDGMENT_RESULT: 'judgmentResult',
-  /** 비공개 판정 — "판정 완료"만 표시 (룰북 §5.4) */
-  HIDDEN_JUDGMENT_DONE: 'hiddenJudgmentDone',
-  /** 개입 수단 사용 (룰북 §7.2) */
-  INTERVENTION_USED: 'interventionUsed',
-  /** 연습 개입 창의 설명 팝업 — 상태 변화 없음 (룰북 §12) */
-  PRACTICE_EXPLAIN: 'practiceExplain',
-  /** 튜토리얼에서 첫째가 본인 판정이라 강제 성공을 쓸 수 없을 때의 설명 (룰북 §12) */
-  FORCE_SUCCESS_EXPLAIN: 'forceSuccessExplain',
-  /** 결과 적용 */
-  RESOLUTION: 'resolution',
-  /** Phase 1 종료 — M2에서 Phase 2 진입으로 교체 */
-  PHASE1_COMPLETE: 'phase1Complete',
-} as const
-
-export type CueKind = (typeof CUE_KIND)[keyof typeof CUE_KIND]
 
 export const CUE_AUDIENCE = {
   DISPLAY: 'display',

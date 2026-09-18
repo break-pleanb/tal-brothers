@@ -53,9 +53,8 @@ export type StepHandler = {
 
 /**
  * 단계별 처리기.
- * 여기에 없는 단계(`LOBBY`, `TALISMAN_WINDOW`, Phase 3, `PAUSED`, `ENDING`)는 M2·M3 범위이며
- * 그 단계로 들어온 액션은 `unhandledStep`으로 거절한다.
- * `PHASE1_COMPLETE`는 종료 단계라 처리기를 두지 않는다.
+ * 여기에 없는 단계(`LOBBY`, `PAUSED` 등)로 들어온 액션은 `unhandledStep`으로 거절한다.
+ * `ENDING`은 종료 단계라 처리기 조회 전에 `gameFinished`로 거절한다.
  */
 const STEP_HANDLERS: Partial<Record<GameStep, StepHandler>> = {
   [GAME_STEP.EVENT_INTRO]: EVENT_INTRO_HANDLER,
@@ -118,8 +117,6 @@ export function finishDispatch(draft: GameState, out: StepOutput): DispatchSucce
 }
 
 function nextTimer(draft: GameState, out: StepOutput): TimerDeadline | null {
-  if (draft.progress.step === GAME_STEP.PHASE1_COMPLETE) return null
-
   // 입력 유예 0.3초는 타이머를 마감 시각 + 0.3초에 발화시키는 것으로 처리한다 (아키텍처 §5.3)
   const at =
     out.timerAt ??
@@ -136,8 +133,8 @@ export function dispatch(
   action: EngineAction,
   context: EngineContext,
 ): DispatchResult {
-  if (state.progress.step === GAME_STEP.PHASE1_COMPLETE) {
-    return reject(REJECTION_REASON.GAME_FINISHED, 'Phase 1이 끝난 상태다')
+  if (state.progress.step === GAME_STEP.ENDING) {
+    return reject(REJECTION_REASON.GAME_FINISHED, '엔딩에 도달한 상태다')
   }
 
   const handler = STEP_HANDLERS[state.progress.step]

@@ -8,7 +8,7 @@
 |---|---|---|
 | M0 | 개발 환경 구성 | 완료 |
 | M1 | 엔진 핵심 + Phase 1 | 완료 |
-| M2 | Phase 2·3, 엔딩, 투영, 봇 자동 대전 | 대기 |
+| M2 | Phase 2·3, 엔딩, 투영, 봇 자동 대전 | 진행 중 |
 | M3 | 런타임, 통신, 인증, 로비, 운영 규칙 | 대기 |
 | M4 | Display·Controller 화면 (임시 그래픽) | 대기 |
 | M5 | 에셋·연출, 세이브/불러오기, 배포 | 대기 |
@@ -185,6 +185,10 @@ tal-brothers-server/
 
 ## M2. Phase 2·3, 엔딩, 투영, 봇 자동 대전
 
+> 실행 계획은 `docs/m2-plan.md`, 진행 기록은 `docs/m2-notes.md`.
+
+### 범위
+
 - Phase 2: 진입 환청, 분기, 랜덤 슬롯 배치(보스 7번째 고정), 이벤트 풀 01~15, 환경 잠식
 - 잠식 티어 효과: 30% 티어 환청, 60% 티어 가짜 라벨·가짜 붉은 메시지 (발생 시 확정 저장)
 - 14A 부적 제출 창, 부적 보유 상한·양도·버림
@@ -196,6 +200,59 @@ tal-brothers-server/
 - 봇 자동 대전 CLI: 수백 판 실행 후 Phase 2 종료 시 잠식도 분포, 배신자 발생 수, 엔딩 분포 출력
 
 **완료 기준:** 봇 자동 대전 결과로 룰북 §19 설정값 조정 여부를 판단할 수 있다
+
+### M2-1. shared 상수·명령·투영 타입 확장
+
+- [x] `GAME_STEP`에 `PHASE2_ENTRY` 추가, `PHASE1_COMPLETE` 제거
+- [x] `EROSION_TIER`, `ENDING_ID`, `PHASE3_ROUTE` 상수 추가
+- [x] `CUE_KIND`를 엔진에서 shared로 옮김 (클라이언트가 cue를 분기해야 하므로 공용)
+- [x] 명령 타입에 `talisman.submit` / `talisman.transfer` / `talisman.discard` 추가
+- [x] `types/projection.ts` — `DisplaySnapshot`, `SeatSnapshot`과 하위 타입
+- [x] shared·server typecheck 통과, M1 테스트 163건 유지
+
+### M2-2. Phase 2·3 시나리오 데이터와 엔딩표
+
+- [ ] 효과 대상·종류·귓속말 종류 상수 확장 (`SUBMITTER`, `RANDOM_SEAT`, `ALL_EXCEPT_ROLLER`, `JADE_HAIRPIN`, 귓속말 4종)
+- [ ] `scenarioTypes` 확장 — 14A·대립 판정 사양, `isBoss`, `environmentErosion`, `variantExempt`
+- [ ] `phase2Events.ts` — 분기, 풀 01~14, 보스 15
+- [ ] `phase3Scene.ts`, `endings.ts`
+- [ ] 데이터 무결성 테스트 (계획 9절 M2-2)
+
+### M2-3. 상태 확장과 순수 규칙
+
+- [ ] 상태 확장 (계획 2절) — 배신자, 보류함, 옥비녀, 가짜 라벨, Phase 3, 엔딩, 시계 만료
+- [ ] `erosion.ts` 티어 판정과 좌석 잠식 단일 진입점, `traitor.ts`, `target.ts`, `slots.ts`
+- [ ] `variant.ts` 가짜 라벨, `whisper.ts` 귓속말 5종, `effects.ts` 새 대상·옥비녀·보유 상한
+- [ ] 규칙 테스트 5종 (계획 9절 M2-3)
+
+### M2-4. Phase 2 단계 처리기
+
+- [ ] `phase2EntryStep.ts` — 진입 환청, 슬롯 배치
+- [ ] `eventIntroStep` — 티어 환청·가짜 라벨·가짜 붉은 메시지·13번 발목 대상
+- [ ] `talismanWindowStep.ts` — 14A 제출 창 8초
+- [ ] `votingStep` — 보류함 양도·버림, 마감 시 자동 폐기
+- [ ] `resolutionStep` — 환경 잠식, 보유 상한, 배신자 전환 검사, Phase 전환
+- [ ] 봇 100% 방해와 첫째 봇 보스 강제 성공
+- [ ] Phase 2 단계 테스트 (계획 9절 M2-4)
+
+### M2-5. Phase 3와 엔딩
+
+- [ ] `phase3Step.ts` — 판정 순서 0~4, 시계 절삭, A 루트 투표, 1인 플레이
+- [ ] 대립 판정 (`rollStep`), Phase 3 개입 제한 (`interventionStep`)
+- [ ] `endingStep.ts`, `rules/clock.ts` 타임오버
+- [ ] Phase 3·엔딩 테스트 (계획 9절 M2-5)
+
+### M2-6. 투영
+
+- [ ] `projectDisplay.ts`, `projectSeat.ts`
+- [ ] 은닉 테스트 18종 (계획 7.2)
+
+### M2-7. 봇 자동 대전과 전체 흐름
+
+- [ ] `humanPolicy.ts` (가상 입력 지연 포함), `playGame.ts`, `playPhase1.ts` 축소
+- [ ] `botMatch.ts` CLI와 `sim:game` / `sim:bots` 스크립트
+- [ ] 전체 흐름 테스트와 집계 테스트
+- [ ] 300판 결과로 룰북 §19 조정 여부 판단
 
 ## M3. 런타임, 통신, 인증, 로비, 운영 규칙
 

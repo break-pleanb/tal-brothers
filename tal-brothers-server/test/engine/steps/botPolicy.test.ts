@@ -152,7 +152,7 @@ describe('봇의 기본 행동 (룰북 §11)', () => {
     expect(seat(game, BROTHER_ROLE.THIRD).isBot).toBe(true)
 
     const before = seat(game, BROTHER_ROLE.THIRD).erosionPercent
-    game.tickUntil(GAME_STEP.PHASE1_COMPLETE, 10)
+    game.tickUntil(GAME_STEP.PHASE2_ENTRY, 10)
     // 흉 변이가 걸린 이장 B 실패 → 판정자 +30% (앞선 비공개 판정 대가와 별개)
     expect(seat(game, BROTHER_ROLE.THIRD).erosionPercent - before).toBe(30)
   })
@@ -261,7 +261,7 @@ describe('봇 부적 자동 사용 (룰북 §11 확정)', () => {
     ])
 
     // 성공으로 바뀌어 결과까지 진행된다 (이장 B 성공 → 판정자 +5%, 부적 1개)
-    expect(game.state.progress.step).toBe(GAME_STEP.PHASE1_COMPLETE)
+    expect(game.state.progress.step).toBe(GAME_STEP.PHASE2_ENTRY)
     expect(seat(game, BROTHER_ROLE.THIRD).erosionPercent - erosionBefore).toBe(5)
     // 부적 1개를 쓰고 보상으로 1개를 받았다
     expect(seat(game, BROTHER_ROLE.THIRD).talismanCount).toBe(1)
@@ -349,7 +349,7 @@ describe('첫째 봇 강제 성공 (룰북 §11)', () => {
     expect(judgment(game).forcedSuccess).toBe(false)
 
     game.tick()
-    expect(game.state.progress.step).toBe(GAME_STEP.PHASE1_COMPLETE)
+    expect(game.state.progress.step).toBe(GAME_STEP.PHASE2_ENTRY)
     expect(seat(game, BROTHER_ROLE.FIRST).erosionPercent).toBe(0)
     expect(ALL_SEATS.every((role) => !seat(game, role).abilityUsed || role === BROTHER_ROLE.SECOND)).toBe(
       true,

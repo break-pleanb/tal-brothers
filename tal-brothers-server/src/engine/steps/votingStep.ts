@@ -1,10 +1,10 @@
-import { BROTHER_ROLE, COMMAND_TYPE, GAME_STEP } from 'tal-brothers-shared'
+import { BROTHER_ROLE, COMMAND_TYPE, CUE_KIND, GAME_STEP } from 'tal-brothers-shared'
 import type { BrotherRole } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../scenario/gameConfig'
 import { hasJudgment } from '../../scenario/scenarioTypes'
 import type { StepHandler } from '../dispatch'
-import { CUE_KIND, LOG_CODE, REJECTION_REASON, reject } from '../engineTypes'
+import { LOG_CODE, REJECTION_REASON, reject } from '../engineTypes'
 import type { EngineContext, Rejection, StepOutput } from '../engineTypes'
 import { pickOne } from '../random'
 import { applyErosionDelta } from '../rules/erosion'

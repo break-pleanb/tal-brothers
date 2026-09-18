@@ -1,10 +1,10 @@
-import { GAME_STEP, JUDGMENT_KIND } from 'tal-brothers-shared'
+import { CUE_KIND, GAME_STEP, JUDGMENT_KIND } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../scenario/gameConfig'
 import { hasJudgment } from '../../scenario/scenarioTypes'
 import type { Effect } from '../../scenario/scenarioTypes'
 import type { StepHandler } from '../dispatch'
-import { CUE_AUDIENCE, CUE_KIND, LOG_CODE } from '../engineTypes'
+import { CUE_AUDIENCE, LOG_CODE } from '../engineTypes'
 import { applyEffects, stripRewards } from '../rules/effects'
 import { applyErosionDelta } from '../rules/erosion'
 import { clampTeamModifier } from '../rules/modifiers'
@@ -85,7 +85,7 @@ export const RESOLUTION_HANDLER: StepHandler = {
     }
 
     out.cues.push({
-      kind: CUE_KIND.PHASE1_COMPLETE,
+      kind: CUE_KIND.PHASE_ENTERED,
       audience: CUE_AUDIENCE.DISPLAY,
       text: 'Phase 1 종료',
     })
@@ -94,7 +94,7 @@ export const RESOLUTION_HANDLER: StepHandler = {
       code: LOG_CODE.PHASE_COMPLETE,
       message: 'Phase 1 이벤트를 모두 마쳤다',
     })
-    out.next = GAME_STEP.PHASE1_COMPLETE
+    out.next = GAME_STEP.PHASE2_ENTRY
   },
 }
 

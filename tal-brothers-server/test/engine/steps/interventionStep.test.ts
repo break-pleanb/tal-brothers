@@ -146,7 +146,7 @@ describe('개입 창 열림 조건 (룰북 §7.1)', () => {
     chief.send(BROTHER_ROLE.SECOND, roll)
     expect(judgment(chief).succeeded).toBe(true)
     chief.tick()
-    expect(chief.state.progress.step).toBe(GAME_STEP.PHASE1_COMPLETE)
+    expect(chief.state.progress.step).toBe(GAME_STEP.PHASE2_ENTRY)
   })
 })
 
@@ -325,7 +325,7 @@ describe('강제 성공 (룰북 §3.2)', () => {
       GAME_CONFIG.forceSuccessCostPercent,
     )
     expect(game.state.seats[BROTHER_ROLE.FIRST].abilityUsed).toBe(true)
-    expect(game.state.progress.step).toBe(GAME_STEP.PHASE1_COMPLETE)
+    expect(game.state.progress.step).toBe(GAME_STEP.PHASE2_ENTRY)
 
     // 강제 성공은 보상을 제거하고 부작용만 남긴다 (이장 B: 부적 없음, 판정자 +5%)
     expect(game.state.seats[BROTHER_ROLE.THIRD].talismanCount).toBe(0)
@@ -350,7 +350,7 @@ describe('강제 성공 (룰북 §3.2)', () => {
     game.tick()
     game.tick()
     // 첫째 단계를 건너뛰고 결과로 간다 (본게임이므로 설명 표시 없음)
-    expect(game.state.progress.step).toBe(GAME_STEP.PHASE1_COMPLETE)
+    expect(game.state.progress.step).toBe(GAME_STEP.PHASE2_ENTRY)
   })
 
   it('비공개 판정에는 쓸 수 없다', () => {

@@ -372,14 +372,14 @@ export function runPhase1(options: SimOptions): SimResult {
   const stepNow = (): GameStep => last.state.progress.step
 
   for (let guard = 0; guard < MAX_ACTIONS; guard += 1) {
-    if (stepNow() === GAME_STEP.PHASE1_COMPLETE) break
+    if (stepNow() === GAME_STEP.PHASE2_ENTRY) break
 
     const step = stepNow()
     if (step === GAME_STEP.VOTING) actVoting(runner, policyRng)
     else if (step === GAME_STEP.ROLL_WAIT) actRollWait(runner, policyRng)
     else actIntervention(runner, policyRng)
 
-    if (stepNow() === GAME_STEP.PHASE1_COMPLETE) break
+    if (stepNow() === GAME_STEP.PHASE2_ENTRY) break
 
     const deadline = last.nextDeadline
     if (deadline === null) {
@@ -410,7 +410,7 @@ export function runPhase1(options: SimOptions): SimResult {
     lines.push(...formatEvent(record, last.state, events.length, totalEvents, now))
   }
 
-  if (stepNow() !== GAME_STEP.PHASE1_COMPLETE) {
+  if (stepNow() !== GAME_STEP.PHASE2_ENTRY) {
     throw new Error(`Phase 1이 끝나지 않았다: ${stepNow()}`)
   }
 

@@ -23,7 +23,7 @@ const ALLOWED_STEPS: GameStep[] = [
   GAME_STEP.INTERVENTION_FORCE,
   GAME_STEP.PRACTICE_INTERVENTION,
   GAME_STEP.RESOLUTION,
-  GAME_STEP.PHASE1_COMPLETE,
+  GAME_STEP.PHASE2_ENTRY,
 ]
 
 function runWithTrace(seed: number, humans: number) {
@@ -43,12 +43,12 @@ function runWithTrace(seed: number, humans: number) {
 
 describe('Phase 1 전체 흐름 (로드맵 M1 완료 기준)', () => {
   for (const humans of [1, 2, 3]) {
-    it(`인간 ${humans}명 구성이 PHASE1_COMPLETE에 도달한다`, () => {
+    it(`인간 ${humans}명 구성이 Phase 2 진입 단계까지 도달한다`, () => {
       const { result, steps } = runWithTrace(42, humans)
 
-      expect(result.finalState.progress.step).toBe(GAME_STEP.PHASE1_COMPLETE)
+      expect(result.finalState.progress.step).toBe(GAME_STEP.PHASE2_ENTRY)
       expect(result.events).toHaveLength(4)
-      expect(steps[steps.length - 1]).toBe(GAME_STEP.PHASE1_COMPLETE)
+      expect(steps[steps.length - 1]).toBe(GAME_STEP.PHASE2_ENTRY)
       expect(result.finalState.progress.eventIndex).toBe(4)
     })
   }
@@ -128,7 +128,7 @@ describe('게임 시계 (로드맵 M1 범위)', () => {
       },
     })
 
-    expect(result.finalState.progress.step).toBe(GAME_STEP.PHASE1_COMPLETE)
+    expect(result.finalState.progress.step).toBe(GAME_STEP.PHASE2_ENTRY)
     expect(logs.some((log) => log.code === 'clockExpired')).toBe(true)
   })
 })
@@ -261,7 +261,7 @@ describe('액션 검증 (아키 §5.1)', () => {
     expect(game.state.meta.stateVersion).toBe(1)
   })
 
-  it('종료 단계에서는 모든 액션을 거절하고 타이머를 내보내지 않는다', () => {
+  it('처리기가 없는 단계에서는 모든 액션을 거절한다', () => {
     const result = runPhase1({ seed: 42, humans: 3, startedAt: START })
     const finished = result.finalState
 
@@ -274,18 +274,19 @@ describe('액션 검증 (아키 §5.1)', () => {
       },
       { now: START, rng: createSeededRng(1) },
     )
-    expect(command.rejected && command.reason).toBe(REJECTION_REASON.GAME_FINISHED)
+    // Phase 2 진입 처리기는 M2-4에서 채운다. 그때까지는 처리기 없는 단계로 거절된다
+    expect(command.rejected).toBe(true)
 
     const timer = dispatch(
       finished,
       {
         kind: ACTION_KIND.TIMER_EXPIRY,
-        step: GAME_STEP.PHASE1_COMPLETE,
+        step: GAME_STEP.PHASE2_ENTRY,
         stateVersion: finished.meta.stateVersion,
       },
       { now: START, rng: createSeededRng(1) },
     )
-    expect(timer.rejected && timer.reason).toBe(REJECTION_REASON.GAME_FINISHED)
+    expect(timer.rejected).toBe(true)
   })
 })
 
