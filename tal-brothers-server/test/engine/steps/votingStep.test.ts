@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { BROTHER_ROLE, COMMAND_TYPE, GAME_STEP } from 'tal-brothers-shared'
 import type { BrotherRole, Command, GameStep } from 'tal-brothers-shared'
 
+import { GAME_CONFIG } from '../../../src/scenario/gameConfig'
 import { dispatch } from '../../../src/engine/dispatch'
 import { ACTION_KIND, REJECTION_REASON } from '../../../src/engine/engineTypes'
 import type { DispatchResult, DispatchSuccess } from '../../../src/engine/engineTypes'
@@ -186,6 +187,76 @@ describe('투표 (룰북 §8)', () => {
     expect(result.rejected && result.reason).toBe(REJECTION_REASON.WRONG_SEAT)
     expect(game.state.meta.stateVersion).toBe(before)
     expect(game.state.currentEvent?.votes[BROTHER_ROLE.SECOND]).toBeUndefined()
+  })
+})
+
+describe('투표 집계 로그와 게임 시계 (룰북 §2.1, §8)', () => {
+  /** 마지막에 처리된 `VOTE_TALLIED` 로그의 구조화된 값 */
+  function tallyData(logs: readonly { code: string; data?: Record<string, unknown> }[]) {
+    return logs.find((log) => log.code === 'voteTallied')?.data
+  }
+
+  it('만료 마감이면 판정 없는 선택지에서도 소개 30초 + 투표 3분이 흐른다', () => {
+    const game = start(3, LOW)
+    game.tickUntilEvent('t2-2', GAME_STEP.EVENT_INTRO)
+
+    const enteredAt = game.now
+    const remainingBefore = game.state.clock.deadlineAt - game.now
+
+    game.tick()
+    expect(game.state.progress.step).toBe(GAME_STEP.VOTING)
+
+    // 인간 3명 중 2명만 투표 → 조기 마감 조건이 아니다
+    game.send(BROTHER_ROLE.FIRST, vote('t2-2-b'))
+    game.send(BROTHER_ROLE.SECOND, vote('t2-2-b'))
+    expect(game.state.progress.step).toBe(GAME_STEP.VOTING)
+
+    // 투표 마감 → 판정 없는 선택지라 RESOLUTION을 거쳐 다음 이벤트로 간다
+    game.tick()
+    expect(game.state.currentEvent?.eventId).toBe('villageChief')
+
+    const elapsed = game.now - enteredAt
+    const introAndVoting = (GAME_CONFIG.eventIntroSeconds + GAME_CONFIG.votingSeconds) * 1000
+    expect(elapsed).toBe(introAndVoting + GAME_CONFIG.inputGraceMs * 2)
+
+    // 시간 페널티가 없으므로 게임 시계는 흐른 시간만큼만 줄어든다
+    expect(remainingBefore - (game.state.clock.deadlineAt - game.now)).toBe(elapsed)
+    expect(tallyData(game.last.logs)).toMatchObject({ eventId: 't2-2', earlyClosed: false })
+  })
+
+  it('조기 마감이면 마지막 표까지 집계 로그에 담기고 투표 시간은 흐르지 않는다', () => {
+    const game = start(3, LOW)
+    game.tickUntilEvent('t2-2', GAME_STEP.VOTING)
+    const votingStartedAt = game.now
+
+    game.send(BROTHER_ROLE.FIRST, vote('t2-2-b'))
+    game.send(BROTHER_ROLE.SECOND, vote('t2-2-b'))
+    // 마지막 표는 집계·채택·다음 이벤트 진입이 한 처리 안에서 끝나 상태로는 남지 않는다
+    game.send(BROTHER_ROLE.THIRD, vote('t2-2-a'))
+
+    expect(game.state.currentEvent?.eventId).toBe('villageChief')
+    expect(tallyData(game.last.logs)).toEqual({
+      eventId: 't2-2',
+      adoptedChoiceId: 't2-2-b',
+      counts: { 't2-2-b': 2, 't2-2-a': 1 },
+      earlyClosed: true,
+    })
+    expect(game.now).toBe(votingStartedAt)
+  })
+
+  it('기권이 있으면 집계 로그에 던진 표만 담긴다', () => {
+    const game = start(3, LOW)
+    game.tickUntilEvent('t2-2', GAME_STEP.VOTING)
+
+    game.send(BROTHER_ROLE.FIRST, vote('t2-2-b'))
+    game.tick()
+
+    expect(tallyData(game.last.logs)).toEqual({
+      eventId: 't2-2',
+      adoptedChoiceId: 't2-2-b',
+      counts: { 't2-2-b': 1 },
+      earlyClosed: false,
+    })
   })
 })
 

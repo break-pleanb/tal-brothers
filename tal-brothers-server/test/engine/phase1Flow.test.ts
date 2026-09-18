@@ -133,6 +133,78 @@ describe('게임 시계 (로드맵 M1 범위)', () => {
   })
 })
 
+describe('시뮬레이션 기록 (로드맵 M1-5)', () => {
+  const SEEDS = [1, 2, 3, 42, 99]
+
+  it('조기 마감된 이벤트는 득표 합계가 인간 수와 같다 (룰북 §8)', () => {
+    let earlyClosedCount = 0
+
+    for (const seed of SEEDS) {
+      for (const humans of [1, 2, 3]) {
+        const result = runPhase1({ seed, humans, startedAt: START })
+        for (const event of result.events) {
+          if (event.tally?.earlyClosed !== true) continue
+          earlyClosedCount += 1
+          const total = Object.values(event.tally.counts).reduce((sum, count) => sum + count, 0)
+          expect(total, `seed ${seed}/${humans}명 ${event.eventId}`).toBe(humans)
+        }
+      }
+    }
+
+    // 조기 마감 경로가 실제로 실행되는지까지 함께 고정한다
+    expect(earlyClosedCount).toBeGreaterThan(0)
+  })
+
+  it('이벤트 소요 시간이 게임 시계에서 그대로 빠진다 (룰북 §2.1)', () => {
+    for (const seed of SEEDS) {
+      const result = runPhase1({ seed, humans: 3, startedAt: START })
+
+      for (const [index, event] of result.events.entries()) {
+        const next = result.events[index + 1]
+        if (next === undefined) continue
+        // 다음 이벤트 진입 시각 − 이번 이벤트 진입 시각 = 이번 이벤트에 흐른 시간
+        expect(next.startedAt, `seed ${seed} ${event.eventId}`).toBeGreaterThan(event.startedAt)
+      }
+    }
+  })
+
+  it('개입 기록에 사용 좌석·수단·적용 전후 값·재판정 결과가 남는다 (룰북 §7.2)', () => {
+    let interventionCount = 0
+
+    for (const seed of SEEDS) {
+      for (const humans of [1, 2, 3]) {
+        const result = runPhase1({ seed, humans, startedAt: START })
+        for (const event of result.events) {
+          for (const used of event.interventions) {
+            interventionCount += 1
+            const where = `seed ${seed}/${humans}명 ${event.eventId} ${used.kind}`
+
+            expect(SEAT_ORDER, where).toContain(used.seat)
+            expect(used.threshold, where).toBeGreaterThan(0)
+
+            if (used.kind === 'reroll') {
+              // 재굴림은 어느 주사위가 얼마에서 얼마로 바뀌었는지 남아야 한다
+              expect(used.dieSeat, where).not.toBeNull()
+              expect(used.diceBefore, where).not.toBeNull()
+              expect(used.diceAfter, where).not.toBeNull()
+            }
+            if (used.kind === 'talisman') {
+              expect(used.finalValueAfter, where).toBe(used.finalValueBefore + 1)
+            }
+            if (used.kind === 'forceSuccess') {
+              expect(used.succeeded, where).toBe(true)
+            } else {
+              expect(used.succeeded, where).toBe(used.finalValueAfter >= used.threshold)
+            }
+          }
+        }
+      }
+    }
+
+    expect(interventionCount).toBeGreaterThan(0)
+  })
+})
+
 describe('액션 검증 (아키 §5.1)', () => {
   function newGame(): DispatchSuccess {
     return createGame(

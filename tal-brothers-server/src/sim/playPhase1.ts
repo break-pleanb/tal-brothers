@@ -17,7 +17,7 @@ import type { DispatchSuccess } from '../engine/engineTypes'
 import { createSeededRng, rollChance } from '../engine/random'
 import type { Rng } from '../engine/random'
 import { createGame, seatSetupForHumans } from '../engine/state/createGame'
-import { SEAT_ORDER } from '../engine/state/gameState'
+import { INTERVENTION_KIND, SEAT_ORDER } from '../engine/state/gameState'
 import type { GameState, InterventionRecord } from '../engine/state/gameState'
 
 /**
@@ -26,6 +26,9 @@ import type { GameState, InterventionRecord } from '../engine/state/gameState'
  * - 인간 좌석 입력은 시드 기반 랜덤 정책으로 대신한다 (대화형 입력 없음)
  * - 시간은 가상 시계로 진행한다. 다음 마감 시각으로 시계를 옮기고 타이머 만료 액션을 넣는다
  * - 이벤트마다 채택 선택지, 변이, 판정자, 주사위, 개입 내역, 결과, 좌석 상태를 한국어로 출력한다
+ *
+ * 투표 집계와 개입은 이벤트 전환과 같은 처리 안에서 끝날 수 있어 상태로는 관찰되지 않는다.
+ * 그래서 이 둘은 상태가 아니라 엔진 로그의 구조화된 값에서 읽는다.
  */
 
 const ROLE_LABEL: Record<BrotherRole, string> = {
@@ -55,14 +58,15 @@ const VARIANT_LABEL: Record<VariantKind, string> = {
 }
 
 const INTERVENTION_LABEL: Record<string, string> = {
-  reroll: '재굴림',
-  talisman: '부적 +1',
-  forceSuccess: '강제 성공',
+  [INTERVENTION_KIND.REROLL]: '재굴림',
+  [INTERVENTION_KIND.TALISMAN]: '부적 +1',
+  [INTERVENTION_KIND.FORCE_SUCCESS]: '강제 성공',
 }
 
 /** 인간 좌석 정책의 확률 (시뮬레이션 전용 값이며 게임 규칙이 아니다) */
 const POLICY = {
-  votePercent: 80,
+  /** 기권 10% — 조기 마감 경로가 충분히 실행되도록 둔다 */
+  votePercent: 90,
   trueSightPercent: 50,
   healPercent: 40,
   rollPercent: 70,
@@ -80,17 +84,34 @@ export type SimOptions = {
   onStep?: (result: DispatchSuccess) => void
 }
 
+/** 개입 1건 — 엔진 로그에서 읽은 값 */
+export type SimIntervention = InterventionRecord & {
+  /** 재판정 기준 (변이 적용 후) */
+  threshold: number
+  byBot: boolean
+}
+
+/** 마감 후 공개되는 득표 수 (룰북 §8) */
+export type SimTally = {
+  counts: Record<string, number>
+  /** 인간 전원이 투표해 마감 시각 전에 끝났는지 */
+  earlyClosed: boolean
+}
+
 /** 이벤트 1개의 진행 기록 */
 export type SimEventRecord = {
   index: number
   eventId: string
   title: string
+  /** 이벤트 진입 시각 (가상 시계) */
+  startedAt: number
   variants: Record<string, VariantKind>
-  votes: Partial<Record<BrotherRole, string>>
+  tally: SimTally | null
   adoptedChoiceId: string | null
   rollerSeat: BrotherRole | null
   /** 이 이벤트에서 튜토리얼 부적을 받은 좌석 (룰북 §9.2) */
   tutorialTalismanSeat: BrotherRole | null
+  /** 개입 전 최초 판정 — `ROLL_REVEAL` 시점 스냅샷 */
   judgment: {
     kind: JudgmentKind
     threshold: number
@@ -99,10 +120,8 @@ export type SimEventRecord = {
     teamModifierApplied: number
     talismanBonus: number
     succeeded: boolean | null
-    forcedSuccess: boolean
-    isPractice: boolean
-    interventions: InterventionRecord[]
   } | null
+  interventions: SimIntervention[]
   visitedSteps: GameStep[]
 }
 
@@ -116,7 +135,7 @@ export type SimResult = {
 
 const MAX_ACTIONS = 500
 
-function snapshotEvent(state: GameState, index: number): SimEventRecord {
+function snapshotEvent(state: GameState, index: number, now: number): SimEventRecord {
   const current = state.currentEvent
   if (current === null) throw new Error('현재 이벤트가 없다')
   const event = findPhase1Event(current.eventId)
@@ -125,13 +144,15 @@ function snapshotEvent(state: GameState, index: number): SimEventRecord {
     index,
     eventId: current.eventId,
     title: event?.title ?? current.eventId,
+    startedAt: now,
     variants: { ...current.variants },
-    votes: { ...current.votes },
+    tally: null,
     adoptedChoiceId: current.adoptedChoiceId,
     rollerSeat: current.rollerSeat,
     tutorialTalismanSeat:
       SEAT_ORDER.find((role) => state.seats[role].tutorialTalismanCount > 0) ?? null,
     judgment: null,
+    interventions: [],
     visitedSteps: [state.progress.step],
   }
 }
@@ -141,12 +162,13 @@ function updateRecord(record: SimEventRecord, state: GameState): void {
   if (current === null) return
 
   record.variants = { ...current.variants }
-  record.votes = { ...current.votes }
   record.adoptedChoiceId = current.adoptedChoiceId ?? record.adoptedChoiceId
   record.rollerSeat = current.rollerSeat ?? record.rollerSeat
 
+  const step = state.progress.step
   const judgment = state.currentJudgment
-  if (judgment !== null) {
+  // 개입 전 최초 판정만 담는다. 개입 뒤의 변화는 `interventions`가 들고 있다
+  if (step === GAME_STEP.ROLL_REVEAL && judgment !== null) {
     record.judgment = {
       kind: judgment.kind,
       threshold: judgment.threshold,
@@ -155,15 +177,37 @@ function updateRecord(record: SimEventRecord, state: GameState): void {
       teamModifierApplied: judgment.teamModifierApplied,
       talismanBonus: judgment.talismanBonus,
       succeeded: judgment.succeeded,
-      forcedSuccess: judgment.forcedSuccess,
-      isPractice: judgment.isPractice,
-      interventions: judgment.interventions.map((record2) => ({ ...record2 })),
     }
   }
 
-  const step = state.progress.step
   if (record.visitedSteps[record.visitedSteps.length - 1] !== step) {
     record.visitedSteps.push(step)
+  }
+}
+
+/** 한 번의 처리 안에서 끝나 상태로는 볼 수 없는 값을 로그에서 읽는다 */
+function readLogs(record: SimEventRecord, result: DispatchSuccess): void {
+  for (const log of result.logs) {
+    const data = log.data
+    if (data === undefined) continue
+    if (data.eventId !== record.eventId) continue
+
+    if (log.code === LOG_CODE.VOTE_TALLIED) {
+      record.adoptedChoiceId = String(data.adoptedChoiceId)
+      record.tally = {
+        counts: { ...(data.counts as Record<string, number>) },
+        earlyClosed: data.earlyClosed === true,
+      }
+      continue
+    }
+
+    if (log.code === LOG_CODE.INTERVENTION_USED) {
+      record.interventions.push({
+        ...(data.intervention as InterventionRecord),
+        threshold: Number(data.threshold),
+        byBot: data.byBot === true,
+      })
+    }
   }
 }
 
@@ -283,7 +327,7 @@ export function runPhase1(options: SimOptions): SimResult {
   options.onStep?.(last)
 
   const events: SimEventRecord[] = []
-  let record = snapshotEvent(last.state, 0)
+  let record = snapshotEvent(last.state, 0, now)
 
   const lines: string[] = [
     `# Phase 1 시뮬레이션 — seed ${options.seed}, 인간 ${options.humans}명`,
@@ -293,12 +337,7 @@ export function runPhase1(options: SimOptions): SimResult {
 
   /** 액션 처리 뒤마다 기록을 갱신하고, 이벤트가 넘어갔으면 직전 기록을 출력한다 */
   function observe(): void {
-    // 한 번의 처리 안에서 채택과 이벤트 전환이 함께 일어나면 상태로는 볼 수 없으므로 로그에서 읽는다
-    for (const log of last.logs) {
-      if (log.code !== LOG_CODE.VOTE_TALLIED) continue
-      if (log.data?.eventId !== record.eventId) continue
-      record.adoptedChoiceId = String(log.data.adoptedChoiceId)
-    }
+    readLogs(record, last)
 
     const eventId = last.state.currentEvent?.eventId
     if (eventId === undefined) return
@@ -306,7 +345,7 @@ export function runPhase1(options: SimOptions): SimResult {
     if (eventId !== record.eventId) {
       events.push(record)
       lines.push(...formatEvent(record, last.state, events.length, totalEvents, now))
-      record = snapshotEvent(last.state, events.length)
+      record = snapshotEvent(last.state, events.length, now)
       return
     }
     updateRecord(record, last.state)
@@ -401,22 +440,29 @@ function row(label: string, value: string): string {
   return `  ${padLabel(label, 10)}${value}`
 }
 
+/** 밀리초를 `3분 30초` 꼴로 적는다. 분 단위로 반올림하면 30초 차이가 보이지 않는다 */
+function formatDuration(milliseconds: number): string {
+  const totalSeconds = Math.max(0, Math.round(milliseconds / 1000))
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  if (minutes === 0) return `${seconds}초`
+  if (seconds === 0) return `${minutes}분`
+  return `${minutes}분 ${seconds}초`
+}
+
 function voteLine(record: SimEventRecord): string {
   const event = findPhase1Event(record.eventId)
   if (event === undefined) return '알 수 없음'
   if (event.skipVoting) return '생략 (선택지 1개)'
 
-  const counts = new Map<string, number>()
-  for (const choiceId of Object.values(record.votes)) {
-    if (choiceId === undefined) continue
-    counts.set(choiceId, (counts.get(choiceId) ?? 0) + 1)
-  }
+  const counts = record.tally?.counts ?? {}
   const tally = event.choices
-    .map((choice) => `${choice.text} ${counts.get(choice.id) ?? 0}표`)
+    .map((choice) => `${choice.text} ${counts[choice.id] ?? 0}표`)
     .join(' · ')
   const adopted = event.choices.find((choice) => choice.id === record.adoptedChoiceId)
+  const closing = record.tally?.earlyClosed === true ? '조기 마감' : '3분 만료'
 
-  return `${tally} → 채택 「${adopted?.text ?? '-'}」`
+  return `${tally} → 채택 「${adopted?.text ?? '-'}」 (${closing})`
 }
 
 function variantLine(record: SimEventRecord): string {
@@ -483,34 +529,62 @@ function signed(value: number): string {
   return value >= 0 ? `+${value}` : `${value}`
 }
 
+/** 개입까지 반영한 최종 성패. 개입이 없으면 최초 판정 그대로다 */
+function finalOutcome(record: SimEventRecord): boolean | null {
+  const last = record.interventions[record.interventions.length - 1]
+  if (last !== undefined) return last.succeeded
+  return record.judgment?.succeeded ?? null
+}
+
+function outcomeLabel(succeeded: boolean | null): string {
+  if (succeeded === null) return '판정 없음'
+  return succeeded ? '성공' : '실패'
+}
+
 function resultLine(record: SimEventRecord): string {
   if (record.judgment === null) return '판정 없음'
 
-  const outcome = record.judgment.succeeded === true ? '성공' : '실패'
+  const first = outcomeLabel(record.judgment.succeeded)
+  const final = outcomeLabel(finalOutcome(record))
+  const forced = record.interventions.some(
+    (used) => used.kind === INTERVENTION_KIND.FORCE_SUCCESS,
+  )
+
+  const text = record.interventions.length === 0 ? final : `${first} → ${final}`
   if (record.judgment.kind === JUDGMENT_KIND.HIDDEN) {
-    return `${outcome} — 비공개 판정이라 화면에는 "판정 완료"만 표시된다`
+    return `${text} — 비공개 판정이라 화면에는 "판정 완료"만 표시된다`
   }
-  return record.judgment.forcedSuccess ? `${outcome} (강제 성공)` : outcome
+  return forced ? `${text} (강제 성공)` : text
 }
 
-function interventionLine(record: SimEventRecord): string {
+/** 개입 창 내역 — 수단마다 적용 전후 주사위와 재판정 최종값·성패를 한 줄로 적는다 (룰북 §7.2) */
+function interventionLines(record: SimEventRecord): string[] {
   if (record.visitedSteps.includes(GAME_STEP.PRACTICE_INTERVENTION)) {
-    return `연습 개입 창 (${GAME_CONFIG.practiceInterventionSeconds}초, 변화 없음)`
+    return [row('개입', `연습 개입 창 (${GAME_CONFIG.practiceInterventionSeconds}초, 변화 없음)`)]
   }
-  if (record.judgment === null) return '없음'
-  if (record.judgment.interventions.length === 0) {
+
+  if (record.interventions.length === 0) {
     const realWindowSteps: GameStep[] = [
       GAME_STEP.INTERVENTION_REROLL,
       GAME_STEP.INTERVENTION_TALISMAN,
       GAME_STEP.INTERVENTION_FORCE,
     ]
     const opened = record.visitedSteps.some((step) => realWindowSteps.includes(step))
-    return opened ? '창은 열렸으나 아무도 쓰지 않음' : '없음'
+    return [row('개입', opened ? '창은 열렸으나 아무도 쓰지 않음' : '없음')]
   }
 
-  return record.judgment.interventions
-    .map((used) => `${ROLE_LABEL[used.seat]} ${INTERVENTION_LABEL[used.kind] ?? used.kind}`)
-    .join(' · ')
+  return record.interventions.map((used, index) => {
+    const who = `${ROLE_LABEL[used.seat]}${used.byBot ? '(봇)' : ''}`
+    const means = INTERVENTION_LABEL[used.kind] ?? used.kind
+    const dice =
+      used.dieSeat === null || used.diceBefore === null
+        ? ''
+        : ` · ${ROLE_LABEL[used.dieSeat]} 주사위 ${used.diceBefore} → ${used.diceAfter ?? '-'}`
+    const value = ` · 최종값 ${used.finalValueBefore} → ${used.finalValueAfter}`
+    const verdict = ` · 기준 ${used.threshold} ${used.succeeded ? '성공' : '실패'}`
+
+    return row(index === 0 ? '개입' : '', `${who} ${means}${dice}${value}${verdict}`)
+  })
 }
 
 function seatLine(state: GameState): string {
@@ -523,10 +597,13 @@ function seatLine(state: GameState): string {
   }).join(' · ')
 }
 
-function clockLine(state: GameState, now: number): string {
-  const remainingMinutes = Math.round((state.clock.deadlineAt - now) / 60_000)
+function clockLine(record: SimEventRecord, state: GameState, now: number): string {
+  const remaining = state.clock.deadlineAt - now
+  const clock =
+    remaining >= 0 ? `남은 ${formatDuration(remaining)}` : `초과 ${formatDuration(-remaining)}`
+  const spent = `이벤트 소요 ${formatDuration(now - record.startedAt)}`
   const team = state.teamModifier === 0 ? '' : ` · 팀 플래그 ${signed(state.teamModifier)}`
-  return `남은 ${remainingMinutes}분${team}`
+  return `${clock} (${spent})${team}`
 }
 
 function formatEvent(
@@ -543,12 +620,12 @@ function formatEvent(
     row('판정', judgmentLine(record)),
     row('주사위', diceLine(record, state)),
     row('결과', resultLine(record)),
-    row('개입', interventionLine(record)),
+    ...interventionLines(record),
     row('좌석', seatLine(state)),
     ...(record.tutorialTalismanSeat === null
       ? []
       : [row('부적', `튜토리얼 부적 → ${ROLE_LABEL[record.tutorialTalismanSeat]} (T1 종료 시 소멸)`)]),
-    row('시계', clockLine(state, now)),
+    row('시계', clockLine(record, state, now)),
     '',
   ]
 }

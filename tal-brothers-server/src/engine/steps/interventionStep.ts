@@ -9,7 +9,7 @@ import type { EngineContext, Rejection, StepOutput } from '../engineTypes'
 import { rollD6 } from '../random'
 import { applyErosionDelta } from '../rules/erosion'
 import { INTERVENTION_KIND, PUBLIC_NOTICE_KIND } from '../state/gameState'
-import type { GameState, JudgmentState } from '../state/gameState'
+import type { GameState, InterventionKind, InterventionRecord, JudgmentState } from '../state/gameState'
 import {
   baseDiceValue,
   currentScenarioEvent,
@@ -33,6 +33,56 @@ function requireJudgment(state: GameState): JudgmentState {
 
 function usedKind(judgment: JudgmentState, kind: string): boolean {
   return judgment.interventions.some((record) => record.kind === kind)
+}
+
+/**
+ * 개입 1건을 판정에 기록한다 (룰북 §7.2).
+ * 적용 전후 주사위와 재판정 최종값·성패를 함께 남겨, 로그만 보고 룰을 검산할 수 있게 한다.
+ * 호출 시점에는 수단이 이미 판정에 반영돼 있어야 한다.
+ */
+function recordIntervention(
+  judgment: JudgmentState,
+  entry: {
+    step: GameStepValue
+    seat: BrotherRole
+    kind: InterventionKind
+    dieSeat?: BrotherRole
+    diceBefore?: number | null
+    diceAfter?: number | null
+    finalValueBefore: number
+  },
+): InterventionRecord {
+  const record: InterventionRecord = {
+    step: entry.step,
+    seat: entry.seat,
+    kind: entry.kind,
+    dieSeat: entry.dieSeat ?? null,
+    diceBefore: entry.diceBefore ?? null,
+    diceAfter: entry.diceAfter ?? null,
+    finalValueBefore: entry.finalValueBefore,
+    finalValueAfter: judgmentFinalValue(judgment),
+    succeeded: evaluateJudgment(judgment),
+  }
+  judgment.interventions.push(record)
+  return record
+}
+
+/**
+ * 개입 로그에 실을 구조화된 값.
+ * 이벤트 전환과 같은 처리 안에서 개입이 끝나면 상태로는 관찰할 수 없으므로 로그에도 남긴다.
+ */
+function interventionLogData(
+  draft: GameState,
+  judgment: JudgmentState,
+  record: InterventionRecord,
+  byBot: boolean,
+): Record<string, unknown> {
+  return {
+    eventId: draft.currentEvent?.eventId ?? null,
+    threshold: judgment.threshold,
+    byBot,
+    intervention: record,
+  }
 }
 
 /** 개입 후 재판정. 성공으로 바뀌면 `RESOLUTION`, 아니면 다음 단계로 (룰북 §7.2) */
@@ -69,12 +119,17 @@ function applyReroll(
   const die = rerollTargetDie(judgment)
   if (die === undefined) return false
 
+  const finalValueBefore = judgmentFinalValue(judgment)
   const before = die.value
   die.value = rollD6(context.rng)
-  judgment.interventions.push({
+  const record = recordIntervention(judgment, {
     step: GAME_STEP.INTERVENTION_REROLL,
     seat: BROTHER_ROLE.SECOND,
     kind: INTERVENTION_KIND.REROLL,
+    dieSeat: die.seat,
+    diceBefore: before,
+    diceAfter: die.value,
+    finalValueBefore,
   })
 
   // T1·T2 중 사용은 횟수를 소모하지 않는다. 봇 좌석도 같다 (룰북 §3.5)
@@ -94,7 +149,12 @@ function applyReroll(
   out.logs.push({
     at: context.now,
     code: LOG_CODE.INTERVENTION_USED,
-    message: `둘째${byBot ? '(봇)' : ''} 재굴림 ${before ?? '-'} → ${die.value}`,
+    message: `둘째${byBot ? '(봇)' : ''} 재굴림 ${before ?? '-'} → ${die.value} (최종값 ${
+      record.finalValueBefore
+    } → ${record.finalValueAfter}, 기준 ${judgment.threshold} ${
+      record.succeeded ? '성공' : '실패'
+    })`,
+    data: interventionLogData(draft, judgment, record, byBot),
   })
   return true
 }
@@ -181,12 +241,14 @@ function applyTalisman(
   if (!consumeTalisman(draft, seat)) return false
 
   // 최종값 +1. 협동 판정은 현재 최고값 주사위에 걸리므로 주사위 순위는 바뀌지 않는다
+  const finalValueBefore = judgmentFinalValue(judgment)
   judgment.talismanBonus += 1
   judgment.talismanUsedThisJudgment = true
-  judgment.interventions.push({
+  const record = recordIntervention(judgment, {
     step: GAME_STEP.INTERVENTION_TALISMAN,
     seat,
     kind: INTERVENTION_KIND.TALISMAN,
+    finalValueBefore,
   })
 
   draft.notices.push({
@@ -201,7 +263,10 @@ function applyTalisman(
   out.logs.push({
     at: context.now,
     code: LOG_CODE.INTERVENTION_USED,
-    message: `${seat}${byBot ? '(봇)' : ''} 부적 +1`,
+    message: `${seat}${byBot ? '(봇)' : ''} 부적 +1 (최종값 ${record.finalValueBefore} → ${
+      record.finalValueAfter
+    }, 기준 ${judgment.threshold} ${record.succeeded ? '성공' : '실패'})`,
+    data: interventionLogData(draft, judgment, record, byBot),
   })
   return true
 }
@@ -356,12 +421,14 @@ function applyForceSuccess(
     first.abilityUsed = true
   }
 
+  const finalValueBefore = judgmentFinalValue(judgment)
   judgment.forcedSuccess = true
   judgment.succeeded = true
-  judgment.interventions.push({
+  const record = recordIntervention(judgment, {
     step: GAME_STEP.INTERVENTION_FORCE,
     seat: BROTHER_ROLE.FIRST,
     kind: INTERVENTION_KIND.FORCE_SUCCESS,
+    finalValueBefore,
   })
 
   draft.notices.push({
@@ -376,7 +443,10 @@ function applyForceSuccess(
   out.logs.push({
     at: context.now,
     code: LOG_CODE.INTERVENTION_USED,
-    message: `첫째 강제 성공 (잠식 +${GAME_CONFIG.forceSuccessCostPercent}%)`,
+    message: `첫째 강제 성공 (최종값 ${record.finalValueBefore}, 기준 ${
+      judgment.threshold
+    }, 잠식 +${GAME_CONFIG.forceSuccessCostPercent}%)`,
+    data: interventionLogData(draft, judgment, record, false),
   })
 }
 

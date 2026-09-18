@@ -105,8 +105,21 @@ export type DiceRoll = {
 
 export type InterventionRecord = {
   step: GameStep
+  /** 수단을 쓴 좌석 */
   seat: BrotherRole
   kind: InterventionKind
+  /** 재굴림이 바꾼 주사위의 주인. 주사위를 바꾸지 않는 수단은 null */
+  dieSeat: BrotherRole | null
+  /** 적용 전 주사위 값. 재굴림만 값을 가진다 */
+  diceBefore: number | null
+  /** 적용 후 주사위 값 */
+  diceAfter: number | null
+  /** 개입 직전 최종값 (룰북 §5.1) */
+  finalValueBefore: number
+  /** 재판정 최종값 (룰북 §7.2) */
+  finalValueAfter: number
+  /** 재판정 성패 */
+  succeeded: boolean
 }
 
 export type JudgmentState = {

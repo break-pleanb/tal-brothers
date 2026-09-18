@@ -35,8 +35,16 @@ function allHumansVoted(state: GameState): boolean {
   return humanSeats(state).every((role) => current.votes[role] !== undefined)
 }
 
-/** 집계 → 채택 → 판정자 확정 (룰북 §3.1, §8) */
-function tallyAndAdopt(draft: GameState, context: EngineContext, out: StepOutput): void {
+/**
+ * 집계 → 채택 → 판정자 확정 (룰북 §3.1, §8).
+ * `earlyClosed`는 인간 전원이 투표해 마감 시각 전에 끝났는지다 (룰북 §8).
+ */
+function tallyAndAdopt(
+  draft: GameState,
+  context: EngineContext,
+  out: StepOutput,
+  earlyClosed: boolean,
+): void {
   const current = requireCurrentEvent(draft)
   const event = currentScenarioEvent(draft)
 
@@ -65,11 +73,18 @@ function tallyAndAdopt(draft: GameState, context: EngineContext, out: StepOutput
     kind: PUBLIC_NOTICE_KIND.VOTE_TALLY,
     text: event.choices.map((choice) => `${choice.text} ${counts.get(choice.id) ?? 0}표`).join(' · '),
   })
+  // 마지막 표는 집계·채택·다음 이벤트 진입이 한 처리 안에서 끝나 상태로는 관찰되지 않는다.
+  // 득표 수를 로그에 함께 남겨야 조기 마감 경로에서도 집계 결과를 그대로 읽을 수 있다
   out.logs.push({
     at: context.now,
     code: LOG_CODE.VOTE_TALLIED,
-    message: `채택 ${adopted} (득표 ${counts.get(adopted) ?? 0})`,
-    data: { eventId: event.id, adoptedChoiceId: adopted },
+    message: `채택 ${adopted} (득표 ${counts.get(adopted) ?? 0}${earlyClosed ? ', 조기 마감' : ''})`,
+    data: {
+      eventId: event.id,
+      adoptedChoiceId: adopted,
+      counts: Object.fromEntries(counts),
+      earlyClosed,
+    },
   })
 
   const choice = adoptChoice(draft, adopted)
@@ -100,7 +115,7 @@ export const VOTING_HANDLER: StepHandler = {
 
         // 인간 전원이 투표를 마치면 조기 마감 (룰북 §8, 아키텍처 §8)
         if (allHumansVoted(draft)) {
-          tallyAndAdopt(draft, context, out)
+          tallyAndAdopt(draft, context, out, true)
         }
         return undefined
       }
@@ -171,6 +186,6 @@ export const VOTING_HANDLER: StepHandler = {
 
   timeout(draft, context, out) {
     // 미투표자는 기권 처리 (룰북 §8)
-    tallyAndAdopt(draft, context, out)
+    tallyAndAdopt(draft, context, out, false)
   },
 }
