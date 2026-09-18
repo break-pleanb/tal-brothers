@@ -17,6 +17,16 @@ import type {
   StepOutput,
   TimerDeadline,
 } from './engineTypes'
+import { EVENT_INTRO_HANDLER } from './steps/eventIntroStep'
+import {
+  INTERVENTION_FORCE_HANDLER,
+  INTERVENTION_REROLL_HANDLER,
+  INTERVENTION_TALISMAN_HANDLER,
+  PRACTICE_INTERVENTION_HANDLER,
+} from './steps/interventionStep'
+import { RESOLUTION_HANDLER } from './steps/resolutionStep'
+import { ROLL_REVEAL_HANDLER, ROLL_WAIT_HANDLER } from './steps/rollStep'
+import { VOTING_HANDLER } from './steps/votingStep'
 import { cloneState } from './state/gameState'
 import type { GameState } from './state/gameState'
 
@@ -43,9 +53,21 @@ export type StepHandler = {
 
 /**
  * 단계별 처리기.
- * M1-4에서 채운다. 처리기가 없는 단계의 액션은 `unhandledStep`으로 거절한다.
+ * 여기에 없는 단계(`LOBBY`, `TALISMAN_WINDOW`, Phase 3, `PAUSED`, `ENDING`)는 M2·M3 범위이며
+ * 그 단계로 들어온 액션은 `unhandledStep`으로 거절한다.
+ * `PHASE1_COMPLETE`는 종료 단계라 처리기를 두지 않는다.
  */
-const STEP_HANDLERS: Partial<Record<GameStep, StepHandler>> = {}
+const STEP_HANDLERS: Partial<Record<GameStep, StepHandler>> = {
+  [GAME_STEP.EVENT_INTRO]: EVENT_INTRO_HANDLER,
+  [GAME_STEP.VOTING]: VOTING_HANDLER,
+  [GAME_STEP.ROLL_WAIT]: ROLL_WAIT_HANDLER,
+  [GAME_STEP.ROLL_REVEAL]: ROLL_REVEAL_HANDLER,
+  [GAME_STEP.INTERVENTION_REROLL]: INTERVENTION_REROLL_HANDLER,
+  [GAME_STEP.INTERVENTION_TALISMAN]: INTERVENTION_TALISMAN_HANDLER,
+  [GAME_STEP.INTERVENTION_FORCE]: INTERVENTION_FORCE_HANDLER,
+  [GAME_STEP.PRACTICE_INTERVENTION]: PRACTICE_INTERVENTION_HANDLER,
+  [GAME_STEP.RESOLUTION]: RESOLUTION_HANDLER,
+}
 
 /** 연쇄 전이 상한. 넘으면 전이표가 순환한다는 뜻이므로 조용히 돌지 않고 멈춘다 */
 const MAX_TRANSITIONS = 32

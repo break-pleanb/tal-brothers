@@ -1,5 +1,5 @@
 import { VARIANT_KIND } from 'tal-brothers-shared'
-import type { VariantKind } from 'tal-brothers-shared'
+import type { BrotherRole, VariantKind } from 'tal-brothers-shared'
 
 import { WHISPER_KIND } from '../../scenario/scenarioTypes'
 import type { ScenarioEvent } from '../../scenario/scenarioTypes'
@@ -70,12 +70,17 @@ export function buildT2VariantWhisper(
  * 이 이벤트에서 발송해야 할 예약 귓속말을 처리한다 (룰북 §12).
  * 수신 좌석에만 저장하고, Display에는 발송 사실만 남긴다 (룰북 §16, §17).
  */
+export type DeliveredWhisper = {
+  targetSeat: BrotherRole
+  whisper: ReceivedWhisper
+}
+
 export function deliverPendingWhispers(
   draft: GameState,
   event: ScenarioEvent,
   variants: Record<string, VariantKind>,
   rng: Rng,
-): ReceivedWhisper[] {
+): DeliveredWhisper[] {
   const due: PendingWhisper[] = []
   const rest: PendingWhisper[] = []
   for (const pending of draft.pendingWhispers) {
@@ -84,7 +89,7 @@ export function deliverPendingWhispers(
   }
   if (due.length === 0) return []
 
-  const delivered: ReceivedWhisper[] = []
+  const delivered: DeliveredWhisper[] = []
   for (const pending of due) {
     if (pending.kind !== WHISPER_KIND.T2_VARIANT) continue
     const whisper = buildT2VariantWhisper(event, variants, pending.truthful, rng, event.id)
@@ -93,7 +98,7 @@ export function deliverPendingWhispers(
       kind: PUBLIC_NOTICE_KIND.WHISPER_SENT,
       text: '누군가에게 속삭임이 전달되었다',
     })
-    delivered.push(whisper)
+    delivered.push({ targetSeat: pending.targetSeat, whisper })
   }
 
   draft.pendingWhispers = rest
