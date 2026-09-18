@@ -207,7 +207,7 @@ SeatState = {
   role, isBot,
   erosionPercent,                                  // 0~100, 5% 단위 (§4.1)
   talismanCount,                                   // 낡은 부적 (보유 상한 검사는 M2)
-  tutorialTalismanCount,                           // T1 종료 시 소멸 (§9.2)
+  tutorialTalismanCount,                           // T1 종료 시 소멸, 판정 보정 전용 (§9.2)
   abilityUsed,                                     // 고유 능력 게임당 1회 (§3.5)
   whispers: ReceivedWhisper[]
 }
@@ -231,6 +231,7 @@ JudgmentState = {
   forcedSuccess,
   isPractice,                                      // 연습 개입 창 여부
   talismanUsedThisJudgment,                        // 판정당 1개 (§7.4)
+  botTalismanDecided,                              // 봇 부적 판단(마감 1초 전)을 이미 했는지 (§11)
   interventions: { step, seat, kind }[]
 }
 
@@ -298,9 +299,10 @@ ScenarioEvent = {
 | 아이템 | `talismanLimit 2` |
 | 변이 | `variantWeights { ill 30, plain 50, bless 20 }`, `illThresholdDelta 1`, `illPenaltyDeltaPercent 10`, `illTimeDeltaMinutes 5`, `blessPenaltyDeltaPercent -10`, `blessTimeDeltaMinutes -5`, `blessTalismanStep 1`, `blessHealStepPercent 5`, `thresholdMax 6`, `hiddenThresholdMin 2` |
 | 티어 | `tier30HallucinationChance 50`, `tier30TruthRatio 30`, `tier60FakeLabelChance 30`, `fakeRedMessageChance 20` |
+| 봇 | `botTalismanDelaySeconds 1` — 봇 부적 판단 시각 = 부적 단계 마감 시각 − 이 값 (룰북 §11) |
 | 운영 (아키 §8) | `autoRollSeconds 10`, `botTakeoverSeconds 30`, `autoPauseLimitMinutes 5` |
 
-> M1에서 실제로 읽는 값은 시간·판정·변이 그룹과 `hiddenJudgmentCostPercent`, `forceSuccessCostPercent`, `talismanHealPercent`, `autoRollSeconds`이고, 나머지는 M2·M3용으로 정의만 해 둔다.
+> M1에서 실제로 읽는 값은 시간·판정·변이 그룹과 `hiddenJudgmentCostPercent`, `forceSuccessCostPercent`, `talismanHealPercent`, `botTalismanDelaySeconds`, `autoRollSeconds`이고, 나머지는 M2·M3용으로 정의만 해 둔다.
 
 ---
 
@@ -388,7 +390,7 @@ ScenarioEvent = {
 | 항목 | 내용 |
 |---|---|
 | 진입 처리 | 투표 초기화, 마감 = now + 180초 |
-| 받는 명령 | `vote.submit`(인간 좌석, 마감 전 변경 허용) / `ability.trueSight`(셋째, 미사용 시 1회) / `talisman.heal`(부적 보유자, -10%) |
+| 받는 명령 | `vote.submit`(인간 좌석, 마감 전 변경 허용) / `ability.trueSight`(셋째, 미사용 시 1회) / `talisman.heal`(**낡은 부적** 보유자, -10%. 튜토리얼 부적은 대상 아님 — §9.2) |
 | 조기 마감 | 연결된 인간 전원이 투표하면 즉시 마감 (아키 §8). M1은 전원 연결이므로 인간 전원 |
 | 타이머 만료 | 집계 → 미투표자 기권 → **동률이면 동률 선택지 중 무작위, 전원 기권이면 전체 선택지 중 무작위** (§8) → 채택 확정 → 판정자 결정 (§3.1) → 판정 있으면 `ROLL_WAIT`, 없으면 `RESOLUTION` |
 | 봇 처리 | 투표하지 않음 (§11). 조기 마감 판정에서도 제외. 봇 좌석의 `vote.submit`은 거절 |
@@ -427,12 +429,13 @@ ScenarioEvent = {
 
 | 항목 | 내용 |
 |---|---|
-| 진입 처리 | **스킵 금지.** 보유자가 없어도 4초 대기 (§7.3) |
+| 진입 처리 | **스킵 금지.** 보유자가 없어도 4초 대기 (§7.3). 마감 = now + 4초, 봇 판단 시각 = 마감 − `botTalismanDelaySeconds`(1초). `botTalismanDecided = false` |
 | 받는 명령 | `intervention.talisman`(부적 보유자 누구나). **서버 도달 선착순 1명만 적용**, 나머지는 소모 없이 거절 (§7.4) |
 | 재판정 | 최종값 +1 후 재판정. 협동은 현재 최고값 주사위에 적용. 성공이면 창 즉시 종료 → `RESOLUTION` |
-| 타이머 만료 | `INTERVENTION_FORCE` |
-| 봇 처리 | 진입 즉시 — **실패가 확정됐고 +1로 성공이 되는 경우에만** 사용 (§11) |
-| 부적 종류 | 실전 창에서는 튜토리얼 부적도 실제로 소모 (§12) |
+| 타이머 만료 ① (봇 판단) | `botTalismanDecided`가 false면 봇 부적 정책 실행 후 `botTalismanDecided = true`, 다음 마감은 단계 마감 + 0.3초. 성공으로 바뀌면 즉시 `RESOLUTION` |
+| 타이머 만료 ② (단계 마감) | `INTERVENTION_FORCE` |
+| 봇 처리 | **마감 1초 전에 판단** — 그때까지 아무도 부적을 쓰지 않았고, **실패가 확정됐고 +1로 성공이 되는 경우에만** 사용 (§11). 진입 즉시 쓰면 선착순을 선점하기 때문 |
+| 부적 종류 | 실전 창에서는 튜토리얼 부적도 실제로 소모 (§12). 판정 보정은 튜토리얼 부적의 유일한 용도 (§9.2) |
 
 ### `INTERVENTION_FORCE` (4초)
 
@@ -494,7 +497,7 @@ ScenarioEvent = {
 | 8 | `skipVoting`인 이벤트는 선택지가 정확히 1개 | 룰북 §12, 아키 §5.3 |
 | 9 | 모든 에셋 키가 `ASSET_KEY` 값이고, Phase 1 배경은 전부 `thatchedVillage`, 이장 탈은 `clownMask` | 룰북 §18 |
 | 10 | 이장 B·C의 강제 성공 결과가 §3.2 표와 일치 (분류 기반 계산) | 룰북 §3.2 |
-| 11 | `GAME_CONFIG`가 룰북 §19 전 항목 + 아키 §8 운영 3항목을 보유 | 룰북 §19, 아키 §8 |
+| 11 | `GAME_CONFIG`가 룰북 §19 전 항목 + 아키 §8 운영 3항목 + `botTalismanDelaySeconds`를 보유 | 룰북 §19·§11, 아키 §8 |
 
 ### M1-3 — `test/engine/rules/`
 
@@ -575,6 +578,8 @@ ScenarioEvent = {
 | 7 | 절대 시야는 셋째만, VOTING 중에만, 1회 (튜토리얼은 미소모) | 룰북 §3.4, §3.5 |
 | 8 | 부적 회복은 보유자만, VOTING 중에만, -10%, 부적 1개 소모 | 룰북 §9.1 |
 | 9 | 봇 좌석의 `vote.submit`은 거절 | 룰북 §11 |
+| 10 | **튜토리얼 부적만 가진 좌석의 `talisman.heal`은 거절되고 부적이 소모되지 않음** | 룰북 §9.2 |
+| 11 | **낡은 부적과 튜토리얼 부적을 함께 가진 좌석의 `talisman.heal`은 낡은 부적만 소모** | 룰북 §9.2 |
 
 **`rollStep.test.ts`**
 
@@ -634,6 +639,9 @@ ScenarioEvent = {
 | 6 | 첫째 봇은 보스 전용이므로 Phase 1에서 강제 성공을 쓰지 않음 | 룰북 §11 |
 | 7 | 셋째 봇은 절대 시야를 쓰지 않음 | 룰북 §11 |
 | 8 | 봇 잠식도는 인간과 동일하게 증감 | 룰북 §11 |
+| 9 | **봇은 부적 단계 진입 즉시 부적을 쓰지 않는다** — 진입 직후 상태에서 부적이 소모되지 않음 | 룰북 §11 |
+| 10 | **마감 1초 전 시점에 봇 판단이 실행되어 조건이 맞으면 사용** | 룰북 §11 |
+| 11 | **그 전에 인간이 이미 부적을 썼으면 봇은 사용하지 않음** | 룰북 §11, §7.4 |
 
 ### M1-5 — `test/engine/phase1Flow.test.ts`
 
@@ -672,7 +680,14 @@ ScenarioEvent = {
 ## 7. 해석이 필요한 항목
 
 > 1~2는 이전 보고에서 답을 받지 못한 항목, 3~9는 이번 계획을 세우며 새로 발견한 항목이다.
-> 모두 "이렇게 가정하고 진행한다"로 적었으므로, 다르면 지적해 주시면 반영한다.
+> **9개 항목 모두 표의 가정대로 승인되었다 (2026-09-18).** 이후 변경이 필요하면 `docs/m1-notes.md`에 기록한다.
+>
+> 같은 날 추가로 확정된 두 항목은 룰북에 반영했고, 이 계획서에도 반영되어 있다.
+>
+> | 항목 | 확정 내용 | 반영 위치 |
+> |---|---|---|
+> | 봇 부적 자동 사용 타이밍 | 부적 단계 마감 1초 전에 판단. 그때까지 아무도 쓰지 않았고, 실패 확정 + `+1`로 성공이 되는 경우에만 사용 | 룰북 §11·§21, 이 문서 3.1·3.3·5절·6절 |
+> | 튜토리얼 부적 용도 제한 | 판정 보정 전용. `talisman.heal` 대상에서 제외 | 룰북 §9.2·§21, 이 문서 3.1·5절·6절 |
 
 | # | 항목 | 문서 상태 | 가정 | 영향 |
 |---|---|---|---|---|
