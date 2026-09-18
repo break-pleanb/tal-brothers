@@ -1,13 +1,15 @@
-import { GAME_STEP } from 'tal-brothers-shared'
+import { ENDING_ID, GAME_STEP } from 'tal-brothers-shared'
 import type { BrotherRole, Command, GameStep } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../scenario/gameConfig'
 import {
   ACTION_KIND,
+  LOG_CODE,
   REJECTION_REASON,
   createStepOutput,
   reject,
 } from './engineTypes'
+import { isClockExpired, markClockExpired, timeoutEndsGame } from './rules/clock'
 import type {
   DispatchResult,
   DispatchSuccess,
@@ -17,7 +19,9 @@ import type {
   StepOutput,
   TimerDeadline,
 } from './engineTypes'
+import { ENDING_HANDLER, requestEnding } from './steps/endingStep'
 import { EVENT_INTRO_HANDLER } from './steps/eventIntroStep'
+import { P3_TARGETING_HANDLER, P3_VOTING_HANDLER } from './steps/phase3Step'
 import { PHASE2_ENTRY_HANDLER } from './steps/phase2EntryStep'
 import { TALISMAN_WINDOW_HANDLER } from './steps/talismanWindowStep'
 import {
@@ -70,6 +74,9 @@ const STEP_HANDLERS: Partial<Record<GameStep, StepHandler>> = {
   [GAME_STEP.PRACTICE_INTERVENTION]: PRACTICE_INTERVENTION_HANDLER,
   [GAME_STEP.TALISMAN_WINDOW]: TALISMAN_WINDOW_HANDLER,
   [GAME_STEP.RESOLUTION]: RESOLUTION_HANDLER,
+  [GAME_STEP.P3_TARGETING]: P3_TARGETING_HANDLER,
+  [GAME_STEP.P3_VOTING]: P3_VOTING_HANDLER,
+  [GAME_STEP.ENDING]: ENDING_HANDLER,
 }
 
 /** 연쇄 전이 상한. 넘으면 전이표가 순환한다는 뜻이므로 조용히 돌지 않고 멈춘다 */
@@ -132,6 +139,24 @@ function nextTimer(draft: GameState, out: StepOutput): TimerDeadline | null {
   return { at, step: draft.progress.step, stateVersion: draft.meta.stateVersion }
 }
 
+/** 타임오버 — 진행 중인 판정·개입 창을 중단하고 강제 잠식 엔딩으로 간다 (룰북 §2.1) */
+function endByTimeout(state: GameState, context: EngineContext): DispatchSuccess {
+  const draft = cloneState(state)
+  const out = createStepOutput()
+
+  markClockExpired(draft, context.now)
+  out.logs.push({
+    at: context.now,
+    code: LOG_CODE.CLOCK_TIMEOUT,
+    message: `게임 시계 0 — ${draft.progress.step}에서 중단`,
+    data: { phase: draft.progress.phase, step: draft.progress.step },
+  })
+
+  requestEnding(draft, ENDING_ID.FORCED_EROSION)
+  enterStep(draft, GAME_STEP.ENDING, context, out)
+  return finishDispatch(draft, out)
+}
+
 export function dispatch(
   state: GameState,
   action: EngineAction,
@@ -147,6 +172,12 @@ export function dispatch(
   }
 
   if (action.kind === ACTION_KIND.TIMER_EXPIRY) {
+    // 시계 0 검사는 타이머 처리의 맨 앞 한 곳에서만 한다 (룰북 §2.1, M2 계획 5.6).
+    // Phase 3는 예외로, 시계가 0을 지나도 판정과 개입 창을 끝까지 진행한다 (룰북 §14.2)
+    if (timeoutEndsGame(state) && isClockExpired(state, context.now)) {
+      return endByTimeout(state, context)
+    }
+
     if (action.step !== state.progress.step || action.stateVersion !== state.meta.stateVersion) {
       return reject(
         REJECTION_REASON.STALE_TIMER,

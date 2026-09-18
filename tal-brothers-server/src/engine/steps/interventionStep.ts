@@ -1,4 +1,11 @@
-import { BROTHER_ROLE, COMMAND_TYPE, CUE_KIND, GAME_STEP, JUDGMENT_KIND } from 'tal-brothers-shared'
+import {
+  BROTHER_ROLE,
+  COMMAND_TYPE,
+  CUE_KIND,
+  GAME_PHASE,
+  GAME_STEP,
+  JUDGMENT_KIND,
+} from 'tal-brothers-shared'
 import type { BrotherRole } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../scenario/gameConfig'
@@ -100,8 +107,16 @@ type GameStepValue = (typeof GAME_STEP)[keyof typeof GAME_STEP]
 
 // ── 1단계: 둘째 재굴림 ────────────────────────────────────────────────
 
-/** 둘째가 다시 굴릴 주사위 — 개인은 유일 주사위, 협동은 본인 주사위 (룰북 §3.3) */
+/**
+ * 둘째가 다시 굴릴 주사위 (룰북 §3.3, §14.2).
+ * 개인은 유일 주사위, 협동은 본인 주사위.
+ * 대립 판정은 팀 측 주사위에만 쓰므로 B-1은 옥비녀 보유자의 주사위, A-2는 본인 주사위다.
+ */
 function rerollTargetDie(judgment: JudgmentState) {
+  if (judgment.kind === JUDGMENT_KIND.CONTEST) {
+    if (judgment.dice.length === 1) return judgment.dice[0]
+    return judgment.dice.find((die) => die.seat === BROTHER_ROLE.SECOND)
+  }
   if (judgment.kind === JUDGMENT_KIND.COOP) {
     return judgment.dice.find((die) => die.seat === BROTHER_ROLE.SECOND)
   }
@@ -165,8 +180,12 @@ export const INTERVENTION_REROLL_HANDLER: StepHandler = {
     const event = currentScenarioEvent(draft)
     const second = draft.seats[BROTHER_ROLE.SECOND]
 
-    // 능력을 이미 썼으면 조기 스킵. 사용 사실은 공개 정보라 새는 정보가 없다 (룰북 §7.3)
-    if (second.abilityUsed || usedKind(judgment, INTERVENTION_KIND.REROLL)) {
+    // 능력을 이미 썼거나 이번 판정에 쓸 수 없으면 조기 스킵 (룰북 §7.3, §14.2)
+    if (
+      second.abilityUsed ||
+      usedKind(judgment, INTERVENTION_KIND.REROLL) ||
+      rerollTargetDie(judgment) === undefined
+    ) {
       out.logs.push({
         at: context.now,
         code: LOG_CODE.INTERVENTION_SKIPPED,
@@ -196,6 +215,10 @@ export const INTERVENTION_REROLL_HANDLER: StepHandler = {
     const judgment = requireJudgment(draft)
     if (usedKind(judgment, INTERVENTION_KIND.REROLL)) {
       return reject(REJECTION_REASON.NOT_ALLOWED, '이 판정에서 이미 재굴림을 썼다')
+    }
+    // 대립 판정에서 팀 측에 본인 주사위가 없으면 쓸 수 없다 (룰북 §14.2, §14.5)
+    if (rerollTargetDie(judgment) === undefined) {
+      return reject(REJECTION_REASON.NOT_ALLOWED, '다시 굴릴 팀 측 주사위가 없다')
     }
     if (draft.seats[seat].abilityUsed) {
       return reject(REJECTION_REASON.NOT_ALLOWED, '고유 능력을 이미 썼다')
@@ -330,15 +353,18 @@ export const INTERVENTION_TALISMAN_HANDLER: StepHandler = {
 
 // ── 3단계: 첫째 강제 성공 ─────────────────────────────────────────────
 
-/** 첫째가 이 판정에 강제 성공을 쓸 수 있는지 (룰북 §3.2) */
+/** 첫째가 이 판정에 강제 성공을 쓸 수 있는지 (룰북 §3.2, §14.2) */
 export function canForceSuccess(draft: GameState): boolean {
   const judgment = requireJudgment(draft)
   const first = draft.seats[BROTHER_ROLE.FIRST]
 
   if (first.abilityUsed) return false
   if (judgment.forcedSuccess) return false
-  // 본인 판정과 비공개 판정에는 쓸 수 없다. 14A·Phase 3는 M2 범위
+  // Phase 3 전체에서 사용 불가 (룰북 §14.2)
+  if (draft.progress.phase === GAME_PHASE.PHASE_3) return false
+  // 본인 판정, 비공개 판정, 14A 아이템 사용에는 쓸 수 없다 (룰북 §3.2)
   if (judgment.kind === JUDGMENT_KIND.HIDDEN) return false
+  if (judgment.kind === JUDGMENT_KIND.ITEM) return false
   if (draft.currentEvent?.rollerSeat === BROTHER_ROLE.FIRST) return false
   return true
 }

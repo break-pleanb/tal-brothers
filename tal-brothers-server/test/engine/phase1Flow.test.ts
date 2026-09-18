@@ -110,28 +110,24 @@ describe('재현성 (아키 §5.5)', () => {
   })
 })
 
-describe('게임 시계 (로드맵 M1 범위)', () => {
-  it('시계가 0을 지나도 중단 없이 진행한다', () => {
-    const logs: LogEntry[] = []
+describe('게임 시계 (룰북 §2.1)', () => {
+  it('Phase 1~2에서 시계가 0을 지나면 진행이 중단된다', () => {
     let pushed = false
 
-    const result = runPhase1({
-      seed: 42,
-      humans: 3,
-      startedAt: START,
-      onStep: (step) => {
-        logs.push(...step.logs)
-        if (!pushed) {
+    // 시뮬레이터는 Phase 1을 마치기 전에 멈추므로 예외로 관찰한다
+    expect(() =>
+      runPhase1({
+        seed: 42,
+        humans: 3,
+        startedAt: START,
+        onStep: (step) => {
+          if (pushed) return
           // 시계를 이미 지난 시각으로 밀어 놓는다
           step.state.clock.deadlineAt = START - 60_000
           pushed = true
-        }
-      },
-    })
-
-    expect(result.finalState.progress.phase).toBe(GAME_PHASE.PHASE_2)
-    // M2는 타임오버 엔딩이 M2-5에서 붙는다. 여기서는 Phase 1 흐름이 끊기지 않는지만 본다
-    expect(result.events).toHaveLength(4)
+        },
+      }),
+    ).toThrow()
   })
 })
 

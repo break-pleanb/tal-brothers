@@ -8,6 +8,8 @@ import {
 import type { Attribute, BrotherRole, GameStep } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../scenario/gameConfig'
+import { CONTEST_TEAM_DICE } from '../../scenario/scenarioTypes'
+import type { ContestJudgmentSpec } from '../../scenario/scenarioTypes'
 import { findPhase1Event } from '../../scenario/phase1Events'
 import { findPhase2Event } from '../../scenario/phase2Events'
 import { PHASE3_EVENT_ID, buildPhase3Event } from '../../scenario/phase3Scene'
@@ -19,9 +21,10 @@ import { CUE_AUDIENCE, LOG_CODE, REJECTION_REASON, reject } from '../engineTypes
 import type { EngineContext, Rejection, StepOutput } from '../engineTypes'
 import { rollD6 } from '../random'
 import { roleBonusFor, rollerSeatFor } from '../rules/modifiers'
+import { jadeHairpinHolder } from '../rules/target'
 import { applyVariantToChoice, variantOf } from '../rules/variant'
 import { SEAT_ORDER } from '../state/gameState'
-import type { GameState, JudgmentState } from '../state/gameState'
+import type { DiceRoll, GameState, JudgmentState } from '../state/gameState'
 
 /**
  * 굴림 대기와 판정 연출 (룰북 §5, 아키텍처 §8).
@@ -201,23 +204,60 @@ function allDiceRolled(judgment: JudgmentState): boolean {
   return judgment.dice.every((die) => die.value !== null)
 }
 
+/**
+ * 대립 판정의 팀 구성과 상대 주사위 (룰북 §14.3, §14.4).
+ *
+ * - B-1은 옥비녀 보유자 1명, A-2는 타겟을 제외한 전원이 굴린다
+ * - 타겟이 **인간 배신자**일 때만 상대 D6와 겨루고, 그 외에는 고정 기준으로 판정한다
+ * - 상대 주사위는 진입 즉시 서버가 굴리며 재굴림·부적의 대상이 아니다 (룰북 §14.2)
+ */
+function contestSetup(
+  draft: GameState,
+  spec: ContestJudgmentSpec,
+  context: EngineContext,
+): { teamSeats: BrotherRole[]; contest: boolean; opponentDie: DiceRoll | null } {
+  const targetSeat = draft.phase3?.targetSeat ?? null
+
+  let teamSeats: BrotherRole[]
+  if (spec.teamDice === CONTEST_TEAM_DICE.JADE_HOLDER) {
+    const holder = jadeHairpinHolder(draft)
+    if (holder === null) throw new Error('옥비녀 보유자가 없다')
+    teamSeats = [holder]
+  } else {
+    teamSeats = SEAT_ORDER.filter((role) => role !== targetSeat)
+  }
+
+  const target = targetSeat === null ? null : draft.seats[targetSeat]
+  const contest = target !== null && !target.isBot && target.isTraitor
+  const opponentDie: DiceRoll | null =
+    contest && targetSeat !== null ? { seat: targetSeat, value: rollD6(context.rng) } : null
+
+  return { teamSeats, contest, opponentDie }
+}
+
 export const ROLL_WAIT_HANDLER: StepHandler = {
   enter(draft, context, out) {
     const choice = adoptedJudgmentChoice(draft)
     const kind = choice.judgment.kind
     const roller = draft.currentEvent?.rollerSeat ?? null
 
+    const contest =
+      choice.judgment.kind === JUDGMENT_KIND.CONTEST
+        ? contestSetup(draft, choice.judgment, context)
+        : { teamSeats: [] as BrotherRole[], contest: false, opponentDie: null }
+
     const judgment: JudgmentState = {
       kind,
       threshold: judgmentThreshold(choice),
       dice:
-        kind === JUDGMENT_KIND.COOP
-          ? SEAT_ORDER.map((seat) => ({ seat, value: null }))
-          : [{ seat: rollerOrThrow(roller), value: null }],
-      // 대립 판정의 상대 주사위와 팀 구성은 Phase 3 처리기가 채운다 (룰북 §14)
-      opponentDie: null,
-      contest: false,
-      teamSeats: [],
+        kind === JUDGMENT_KIND.CONTEST
+          ? contest.teamSeats.map((seat) => ({ seat, value: null }))
+          : kind === JUDGMENT_KIND.COOP
+            ? SEAT_ORDER.map((seat) => ({ seat, value: null }))
+            : [{ seat: rollerOrThrow(roller), value: null }],
+      opponentDie: contest.opponentDie,
+      contest: contest.contest,
+      teamSeats: contest.teamSeats,
       roleBonus: roleBonusFor(kind, judgmentAttribute(choice), roller),
       // 대기 중인 팀 플래그를 이 판정에 적용한다. 소멸은 RESOLUTION에서 (룰북 §5.5)
       teamModifierApplied: draft.teamModifier,

@@ -238,10 +238,10 @@ tal-brothers-server/
 
 ### M2-5. Phase 3와 엔딩
 
-- [ ] `phase3Step.ts` — 판정 순서 0~4, 시계 절삭, A 루트 투표, 1인 플레이
-- [ ] 대립 판정 (`rollStep`), Phase 3 개입 제한 (`interventionStep`)
-- [ ] `endingStep.ts`, `rules/clock.ts` 타임오버
-- [ ] Phase 3·엔딩 테스트 (계획 9절 M2-5)
+- [x] `phase3Step.ts` — 판정 순서 0~4, 시계 절삭, A 루트 투표, 1인 플레이
+- [x] 대립 판정 (`rollStep`), Phase 3 개입 제한 (`interventionStep`)
+- [x] `endingStep.ts`, `rules/clock.ts` 타임오버 (타이머 처리 맨 앞 한 곳에서 검사)
+- [x] Phase 3·엔딩 테스트 26건 (계획 9절 M2-5)
 
 ### M2-6. 투영
 

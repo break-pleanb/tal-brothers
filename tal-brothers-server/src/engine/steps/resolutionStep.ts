@@ -1,4 +1,4 @@
-import { CUE_KIND, GAME_PHASE, GAME_STEP, JUDGMENT_KIND } from 'tal-brothers-shared'
+import { CUE_KIND, ENDING_ID, GAME_PHASE, GAME_STEP, JUDGMENT_KIND, PHASE3_ROUTE } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../scenario/gameConfig'
 import { hasJudgment } from '../../scenario/scenarioTypes'
@@ -6,7 +6,11 @@ import type { Effect } from '../../scenario/scenarioTypes'
 import type { StepHandler } from '../dispatch'
 import { CUE_AUDIENCE, LOG_CODE } from '../engineTypes'
 import type { EngineContext, StepOutput } from '../engineTypes'
+import { ENDING_NARRATION_KEY } from '../../scenario/endings'
 import { applyEffects, stripRewards } from '../rules/effects'
+import { isClockExpired, markClockExpired, timeoutEndsGame } from '../rules/clock'
+import { allHumansTurned } from '../rules/traitor'
+import { requestEnding } from './endingStep'
 import { applySeatErosion } from '../rules/erosion'
 import { clampTeamModifier } from '../rules/modifiers'
 import { SEAT_ORDER } from '../state/gameState'
@@ -48,8 +52,55 @@ function applyEnvironmentErosion(
   })
 }
 
+/**
+ * Phase 3 결과 — 효과가 아니라 엔딩으로 이어진다 (룰북 §14, §15).
+ * A-1은 판정 없이 비극적 탈출, B-1·A-2는 판정 결과로 갈린다.
+ */
+function decidePhase3Ending(draft: GameState, context: EngineContext, out: StepOutput): void {
+  const phase3 = draft.phase3
+  if (phase3 === null) throw new Error('Phase 3 상태가 없다')
+  const judgment = draft.currentJudgment
+  const succeeded = judgment?.succeeded === true
+
+  if (phase3.route === PHASE3_ROUTE.BAIT) {
+    requestEnding(draft, ENDING_ID.TRAGIC_ESCAPE)
+  } else if (phase3.route === PHASE3_ROUTE.PURIFY) {
+    requestEnding(draft, succeeded ? ENDING_ID.PURIFY : ENDING_ID.ETERNAL_MAZE)
+  } else {
+    // A-2. 1인 플레이에서 본인이 타겟인 성공은 전용 내레이션을 쓴다 (룰북 §14.5)
+    requestEnding(draft, succeeded ? ENDING_ID.ESCAPE_PARTING : ENDING_ID.ANNIHILATION, {
+      narrationKey:
+        succeeded && phase3.soloPlayTargetIsSelf ? ENDING_NARRATION_KEY.SOLO_SELF_TARGET : null,
+    })
+  }
+
+  if (judgment !== null) {
+    out.logs.push({
+      at: context.now,
+      code: LOG_CODE.CONTEST_RESOLVED,
+      message: `Phase 3 ${phase3.route ?? '-'} ${succeeded ? '성공' : '실패'}`,
+      data: {
+        route: phase3.route,
+        targetSeat: phase3.targetSeat,
+        contest: judgment.contest,
+        opponentValue: judgment.opponentDie?.value ?? null,
+        teamSeats: judgment.teamSeats,
+        succeeded,
+      },
+    })
+  }
+
+  out.next = GAME_STEP.ENDING
+}
+
 export const RESOLUTION_HANDLER: StepHandler = {
   enter(draft, context, out) {
+    // Phase 3는 효과 목록이 아니라 엔딩으로 간다 (룰북 §14, §15)
+    if (draft.progress.phase === GAME_PHASE.PHASE_3) {
+      decidePhase3Ending(draft, context, out)
+      return
+    }
+
     const event = currentScenarioEvent(draft)
     const current = draft.currentEvent
     const judgment = draft.currentJudgment
@@ -125,6 +176,33 @@ export const RESOLUTION_HANDLER: StepHandler = {
       audience: CUE_AUDIENCE.DISPLAY,
       text: `${event.title} 결과 적용`,
     })
+
+    // 시간 페널티로 시계가 0 아래로 내려가면 그 자리에서 타임오버다 (룰북 §2.1)
+    if (timeoutEndsGame(draft) && isClockExpired(draft, context.now)) {
+      markClockExpired(draft, context.now)
+      out.logs.push({
+        at: context.now,
+        code: LOG_CODE.CLOCK_TIMEOUT,
+        message: '결과 적용 직후 게임 시계가 0을 지났다',
+        data: { phase: draft.progress.phase, eventId: event.id },
+      })
+      requestEnding(draft, ENDING_ID.FORCED_EROSION)
+      out.next = GAME_STEP.ENDING
+      return
+    }
+
+    // 살아있는 인간이 전원 배신자가 되면 즉시 강제 잠식 (룰북 §10.3)
+    if (allHumansTurned(draft)) {
+      out.logs.push({
+        at: context.now,
+        code: LOG_CODE.PHASE_COMPLETE,
+        message: '인간 전원이 이면의 형제가 되었다',
+        data: { phase: draft.progress.phase, eventId: event.id },
+      })
+      requestEnding(draft, ENDING_ID.FORCED_EROSION)
+      out.next = GAME_STEP.ENDING
+      return
+    }
 
     draft.progress.eventIndex += 1
     if (draft.progress.eventIndex < draft.progress.eventOrder.length) {
