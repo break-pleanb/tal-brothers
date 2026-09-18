@@ -7,7 +7,7 @@
 | 마일스톤 | 내용 | 상태 |
 |---|---|---|
 | M0 | 개발 환경 구성 | 완료 |
-| M1 | 엔진 핵심 + Phase 1 | 대기 |
+| M1 | 엔진 핵심 + Phase 1 | 진행 중 |
 | M2 | Phase 2·3, 엔딩, 투영, 봇 자동 대전 | 대기 |
 | M3 | 런타임, 통신, 인증, 로비, 운영 규칙 | 대기 |
 | M4 | Display·Controller 화면 (임시 그래픽) | 대기 |
@@ -79,12 +79,12 @@ tal-brothers-shared/src/
 ```
 
 **체크리스트**
-- [ ] 상수는 `as const` 객체 + 파생 유니온 타입
-- [ ] `GAME_STEP`은 아키텍처 §5.3 단계 전체와 연습 개입 창, `PHASE1_COMPLETE`(임시) 포함
-- [ ] `COMMAND_TYPE`은 아키텍처 §7.1 전체, `types/command.ts`는 M1 범위 명령만 타입 정의
-- [ ] `ASSET_KEY`는 서버가 지정하는 인게임 에셋 11종만 포함한다. 랜딩·메뉴용 브랜드 이미지(`introMask.png`)는 web 전용이라 제외한다
-- [ ] shared에 `typecheck` 스크립트 추가, 통과
-- [ ] `tal-brothers-server/tsconfig.json`과 `tal-brothers-shared/tsconfig.json`에 `erasableSyntaxOnly: true` 추가 (이번 작업 범위에 포함)
+- [x] 상수는 `as const` 객체 + 파생 유니온 타입
+- [x] `GAME_STEP`은 아키텍처 §5.3 단계 전체와 연습 개입 창, `PHASE1_COMPLETE`(임시) 포함
+- [x] `COMMAND_TYPE`은 아키텍처 §7.1 전체, `types/command.ts`는 M1 범위 명령만 타입 정의
+- [x] `ASSET_KEY`는 서버가 지정하는 인게임 에셋 11종만 포함한다. 랜딩·메뉴용 브랜드 이미지(`introMask.png`)는 web 전용이라 제외한다
+- [x] shared에 `typecheck` 스크립트 추가, 통과
+- [x] `tal-brothers-server/tsconfig.json`과 `tal-brothers-shared/tsconfig.json`에 `erasableSyntaxOnly: true` 추가 (이번 작업 범위에 포함)
 
 ### M1-2. 서버 테스트 환경과 시나리오 데이터
 
