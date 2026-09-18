@@ -1,6 +1,7 @@
 import {
   ATTRIBUTE,
   BROTHER_ROLE,
+  EROSION_TIER,
   GAME_STEP,
   JUDGMENT_KIND,
   VARIANT_KIND,
@@ -8,6 +9,7 @@ import {
 import type {
   Attribute,
   BrotherRole,
+  ErosionTier,
   GamePhase,
   GameStep,
   JudgmentKind,
@@ -15,13 +17,16 @@ import type {
 } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../scenario/gameConfig'
+import { WHISPER_KIND } from '../scenario/constants/whisperKind'
+import type { WhisperKind } from '../scenario/constants/whisperKind'
 import { hasAttribute, hasJudgment } from '../scenario/scenarioTypes'
 import { dispatch } from '../engine/dispatch'
 import { ACTION_KIND, LOG_CODE } from '../engine/engineTypes'
 import type { DispatchSuccess, LogEntry } from '../engine/engineTypes'
 import { createSeededRng } from '../engine/random'
 import { createGame, seatSetupForHumans } from '../engine/state/createGame'
-import { INTERVENTION_KIND, SEAT_ORDER } from '../engine/state/gameState'
+import { BOT_SABOTAGE_KIND } from '../engine/bots/botPolicy'
+import { INTERVENTION_KIND, PUBLIC_NOTICE_KIND, SEAT_ORDER } from '../engine/state/gameState'
 import type { GameState, InterventionRecord } from '../engine/state/gameState'
 import { findScenarioEvent } from '../engine/steps/rollStep'
 import { DEFAULT_HUMAN_POLICY, planHumanInputs } from './humanPolicy'
@@ -67,6 +72,79 @@ const INTERVENTION_LABEL: Record<string, string> = {
   [INTERVENTION_KIND.FORCE_SUCCESS]: '강제 성공',
 }
 
+const WHISPER_LABEL: Record<string, string> = {
+  [WHISPER_KIND.T2_VARIANT]: 'T2 귓속말',
+  [WHISPER_KIND.EVENT_WHISPER]: '이벤트 귓속말',
+  [WHISPER_KIND.TIER_HALLUCINATION]: '티어 환청',
+  [WHISPER_KIND.SHRINE_FAIL]: '분기 실패 귓속말',
+  [WHISPER_KIND.ENTRY_WARNING]: '진입 경고',
+}
+
+const TIER_LABEL: Record<string, string> = {
+  [EROSION_TIER.NORMAL]: '0~29%',
+  [EROSION_TIER.TIER30]: '30~59%',
+  [EROSION_TIER.TIER60]: '60~99%',
+  [EROSION_TIER.TRAITOR]: '100%',
+}
+
+/** 익명 표기의 실제 원인 (룰북 §5.5, §13.5) */
+const ANONYMOUS_SOURCE_LABEL: Record<string, string> = {
+  choiceEffect: '채택 선택지 결과',
+  phase2Entry: 'Phase 2 진입 환청 — 부적 미보유',
+  botSabotage: '봇 100% 방해',
+  randomSeat: '14A 미제출 저주 — 무작위 대상',
+}
+
+/**
+ * 좌석에만 전달된 귓속말 1건 (룰북 §16).
+ * 진실 여부와 주장한 값은 서버만 아는 정보라 엔진 감사 로그에서만 읽을 수 있다.
+ */
+export type SimWhisper = {
+  /** 수신 좌석 */
+  seat: BrotherRole
+  kind: WhisperKind
+  /** 진입 경고는 정보가 없어 null */
+  truthful: boolean | null
+  /** 잠식 구간 귓속말이 말한 대상 좌석 */
+  aboutSeat: BrotherRole | null
+  claimedTier: ErosionTier | null
+  /** T2 귓속말이 말한 이장 선택지 */
+  choiceId: string | null
+  claimedVariant: VariantKind | null
+  text: string
+}
+
+/** 60~99% 좌석의 폰에만 표시되는 가짜 변이 라벨 (룰북 §4.3) */
+export type SimFakeLabels = {
+  seat: BrotherRole
+  labels: Record<string, VariantKind>
+}
+
+/** Display에 출처 없이 나가는 표기와 실제 원인 (룰북 §5.5, §13.5, §17) */
+export type SimAnonymousNotice = {
+  /** Display 문구 */
+  text: string
+  /** 실제 원인·대상 좌석. 선택지 결과에서 온 것은 좌석이 없다 */
+  seat: BrotherRole | null
+  source: string
+  detail: string
+}
+
+/** 부적 1건의 이동 — 획득·사용·회복·양도·폐기 (룰북 §9.1) */
+export type SimTalismanMove = {
+  seat: BrotherRole | null
+  text: string
+  /** 이동 직후의 보유 수. 좌석이 없는 이동(튜토리얼 부적 지급·소멸)에는 없다 */
+  held: { talisman: number; overflow: number } | null
+}
+
+/** 이면의 형제 전환 (룰북 §10.1) */
+export type SimTraitorTurn = {
+  seat: BrotherRole
+  /** 전환이 일어난 처리 지점 */
+  during: string
+}
+
 /** 개입 1건 — 엔진 로그에서 읽은 값 */
 export type SimIntervention = InterventionRecord & {
   /** 재판정 기준 (변이 적용 후) */
@@ -108,6 +186,18 @@ export type SimEventRecord = {
     succeeded: boolean | null
   } | null
   interventions: SimIntervention[]
+  /** 이 이벤트에서 좌석에 전달된 귓속말 (룰북 §16) */
+  whispers: SimWhisper[]
+  /** 이 이벤트의 좌석별 가짜 라벨 (룰북 §4.3) */
+  fakeLabels: SimFakeLabels[]
+  /** 가짜 붉은 메시지를 받은 좌석 (룰북 §4.3, §10.1) */
+  fakeRedMessageSeats: BrotherRole[]
+  /** 이 이벤트에서 이면의 형제가 된 좌석 (룰북 §10.1) */
+  traitorTurns: SimTraitorTurn[]
+  /** 익명 표기와 실제 원인 (룰북 §5.5, §13.5) */
+  anonymousNotices: SimAnonymousNotice[]
+  /** 부적 이동 (룰북 §9.1) */
+  talismanMoves: SimTalismanMove[]
   visitedSteps: GameStep[]
 }
 
@@ -158,6 +248,12 @@ function snapshotEvent(state: GameState, index: number, now: number): SimEventRe
       SEAT_ORDER.find((role) => state.seats[role].tutorialTalismanCount > 0) ?? null,
     judgment: null,
     interventions: [],
+    whispers: [],
+    fakeLabels: [],
+    fakeRedMessageSeats: [],
+    traitorTurns: [],
+    anonymousNotices: [],
+    talismanMoves: [],
     visitedSteps: [state.progress.step],
   }
 }
@@ -192,31 +288,210 @@ function updateRecord(record: SimEventRecord, state: GameState): void {
   }
 }
 
-/** 한 번의 처리 안에서 끝나 상태로는 볼 수 없는 값을 로그에서 읽는다 */
-function readLogs(record: SimEventRecord, result: DispatchSuccess): void {
+function seatOf(value: unknown): BrotherRole | null {
+  return typeof value === 'string' ? (value as BrotherRole) : null
+}
+
+/** 부적 이동 1건을 기록한다. 보유 수는 **그 처리 직후** 값이라 이벤트 끝의 값과 다를 수 있다 */
+function pushTalismanMove(
+  record: SimEventRecord,
+  state: GameState,
+  seat: BrotherRole,
+  text: string,
+): void {
+  const held = state.seats[seat]
+  record.talismanMoves.push({
+    seat,
+    text,
+    held: { talisman: held.talismanCount, overflow: held.talismanOverflow },
+  })
+}
+
+/**
+ * 한 번의 처리 안에서 끝나 상태로는 볼 수 없는 값을 로그에서 읽는다.
+ *
+ * 한 dispatch가 앞 이벤트의 결과 적용과 다음 이벤트의 진입을 이어서 처리하므로,
+ * `eventId`가 붙은 로그는 그 이벤트의 기록으로 보낸다.
+ * `eventId`가 없는 로그(부적 이동, 봇 방해 등)는 그 시점에 진행 중이던 기록에만 담는다.
+ */
+function readLogs(
+  record: SimEventRecord,
+  result: DispatchSuccess,
+  includeUnscoped: boolean,
+): void {
   for (const log of result.logs) {
     const data = log.data
     if (data === undefined) continue
-    if (data.eventId !== record.eventId) continue
 
-    if (log.code === LOG_CODE.VOTE_TALLIED) {
-      record.adoptedChoiceId =
-        data.adoptedChoiceId === null ? null : String(data.adoptedChoiceId)
-      record.tally = {
-        counts: { ...((data.counts ?? {}) as Record<string, number>) },
-        earlyClosed: data.earlyClosed === true,
+    const scoped = data.eventId === record.eventId
+    const unscoped = data.eventId === undefined || data.eventId === null
+    if (!scoped && !(unscoped && includeUnscoped)) continue
+
+    switch (log.code) {
+      case LOG_CODE.VOTE_TALLIED: {
+        record.adoptedChoiceId =
+          data.adoptedChoiceId === null ? null : String(data.adoptedChoiceId)
+        record.tally = {
+          counts: { ...((data.counts ?? {}) as Record<string, number>) },
+          earlyClosed: data.earlyClosed === true,
+        }
+        break
       }
-      continue
-    }
 
-    if (log.code === LOG_CODE.INTERVENTION_USED) {
-      record.interventions.push({
-        ...(data.intervention as InterventionRecord),
-        threshold: Number(data.threshold),
-        byBot: data.byBot === true,
-      })
+      case LOG_CODE.INTERVENTION_USED: {
+        const intervention = data.intervention as InterventionRecord
+        record.interventions.push({
+          ...intervention,
+          threshold: Number(data.threshold),
+          byBot: data.byBot === true,
+        })
+        if (intervention.kind === INTERVENTION_KIND.TALISMAN) {
+          pushTalismanMove(
+            record,
+            result.state,
+            intervention.seat,
+            '판정 보정에 1개 사용 (개입 창 2단계)',
+          )
+        }
+        break
+      }
+
+      case LOG_CODE.WHISPER_DELIVERED: {
+        const seat = seatOf(data.seat)
+        if (seat === null) break
+        record.whispers.push({
+          seat,
+          kind: data.kind as WhisperKind,
+          truthful: typeof data.truthful === 'boolean' ? data.truthful : null,
+          aboutSeat: seatOf(data.aboutSeat),
+          claimedTier: (data.claimedTier as ErosionTier | null) ?? null,
+          choiceId: typeof data.choiceId === 'string' ? data.choiceId : null,
+          claimedVariant: (data.claimedVariant as VariantKind | null) ?? null,
+          text: String(data.text ?? ''),
+        })
+        break
+      }
+
+      case LOG_CODE.VARIANTS_DECIDED: {
+        const seat = seatOf(data.seat)
+        const labels = data.fakeLabels as Record<string, VariantKind> | undefined
+        if (seat === null || labels === undefined) break
+        record.fakeLabels.push({ seat, labels: { ...labels } })
+        break
+      }
+
+      case LOG_CODE.FAKE_RED_MESSAGE: {
+        const seat = seatOf(data.seat)
+        if (seat !== null) record.fakeRedMessageSeats.push(seat)
+        break
+      }
+
+      case LOG_CODE.TRAITOR_TURNED: {
+        const seat = seatOf(data.seat)
+        if (seat === null) break
+        record.traitorTurns.push({
+          seat,
+          during: unscoped ? 'Phase 2 진입 환청' : '이벤트 진행 중',
+        })
+        break
+      }
+
+      case LOG_CODE.ANONYMOUS_NOTICE: {
+        const source = String(data.source ?? '-')
+        record.anonymousNotices.push({
+          text: String(data.text ?? ''),
+          seat: seatOf(data.seat),
+          source,
+          detail: anonymousDetail(data),
+        })
+        break
+      }
+
+      case LOG_CODE.TALISMAN_GAINED: {
+        const seat = seatOf(data.seat)
+        if (seat === null) break
+        const stored = Number(data.stored ?? 0)
+        const overflow = Number(data.overflow ?? 0)
+        pushTalismanMove(
+          record,
+          result.state,
+          seat,
+          `획득 +${Number(data.count ?? 0)}개 (인벤토리 +${stored}${
+            overflow > 0 ? `, 보류함 +${overflow}` : ''
+          })`,
+        )
+        break
+      }
+
+      case LOG_CODE.TALISMAN_HEALED: {
+        const seat = seatOf(data.seat)
+        if (seat === null) break
+        pushTalismanMove(
+          record,
+          result.state,
+          seat,
+          `회복에 1개 사용 (잠식 -${Number(data.healPercent ?? 0)}%)`,
+        )
+        break
+      }
+
+      case LOG_CODE.TALISMAN_OVERFLOW: {
+        const seat = seatOf(data.seat)
+        if (seat === null) break
+        pushTalismanMove(record, result.state, seat, overflowText(data))
+        break
+      }
+
+      case LOG_CODE.TALISMAN_SUBMITTED: {
+        const seat = seatOf(data.seat)
+        if (data.submitted !== true || seat === null) break
+        pushTalismanMove(record, result.state, seat, '14A 제출로 1개 소모')
+        break
+      }
+
+      case LOG_CODE.BOT_SABOTAGE: {
+        // 팀 디버프는 익명 표기 로그가 따로 남으므로 여기서는 부적 소멸만 읽는다
+        const seat = seatOf(data.seat)
+        const victim = seatOf(data.victim)
+        if (data.kind !== BOT_SABOTAGE_KIND.TALISMAN_BURN || victim === null) break
+        pushTalismanMove(
+          record,
+          result.state,
+          victim,
+          `${seat === null ? '봇' : ROLE_LABEL[seat]}의 100% 방해로 1개 소멸`,
+        )
+        break
+      }
+
+      case LOG_CODE.TUTORIAL_TALISMAN_EXPIRED: {
+        record.talismanMoves.push({ seat: null, text: String(log.message), held: null })
+        break
+      }
+
+      default:
+        break
     }
   }
+}
+
+/** 익명 표기 1건의 실제 내용 */
+function anonymousDetail(data: Record<string, unknown>): string {
+  if (data.notice === PUBLIC_NOTICE_KIND.ANONYMOUS_CURSE) {
+    const delta = Number(data.deltaPercent ?? 0)
+    return `잠식 ${delta >= 0 ? '+' : ''}${delta}%`
+  }
+  const delta = Number(data.delta ?? 0)
+  return `팀 다음 판정 ${delta >= 0 ? '+' : ''}${delta}`
+}
+
+function overflowText(data: Record<string, unknown>): string {
+  const toSeat = seatOf(data.toSeat)
+  if (data.reason === 'transfer' && toSeat !== null) {
+    return `보류함 1개를 ${ROLE_LABEL[toSeat]}에게 양도`
+  }
+  const discarded = Number(data.discarded ?? 1)
+  if (data.reason === 'discard') return `보류함 ${discarded}개 버림`
+  return `보류함 ${discarded}개 자동 폐기 (투표 마감)`
 }
 
 function isFinished(state: GameState): boolean {
@@ -272,7 +547,8 @@ export function runGame(options: GameRunOptions): GameRunResult {
 
   function observe(result: DispatchSuccess): void {
     logs.push(...result.logs)
-    readLogs(record, result)
+    // 진행 중이던 기록이 먼저 자기 로그를 가져간다 (eventId 없는 로그 포함)
+    readLogs(record, result, true)
 
     const eventId = result.state.currentEvent?.eventId
     if (eventId === undefined) return
@@ -280,6 +556,8 @@ export function runGame(options: GameRunOptions): GameRunResult {
     if (eventId !== record.eventId) {
       closeRecord(result.state)
       record = snapshotEvent(result.state, events.length, now)
+      // 같은 처리 안에서 다음 이벤트 진입까지 끝난 경우, 새 이벤트의 로그를 이어 담는다
+      readLogs(record, result, false)
       return
     }
     updateRecord(record, result.state)
@@ -371,7 +649,7 @@ function padLabel(label: string, columns: number): string {
 }
 
 export function row(label: string, value: string): string {
-  return `  ${padLabel(label, 10)}${value}`
+  return `  ${padLabel(label, 12)}${value}`
 }
 
 /** 밀리초를 `3분 30초` 꼴로 적는다 */
@@ -533,6 +811,93 @@ function interventionLines(record: SimEventRecord): string[] {
   })
 }
 
+/** 귓속말 — 수신 좌석·내용·진실 여부를 좌석별로 적는다 (룰북 §16) */
+function whisperLines(record: SimEventRecord): string[] {
+  return record.whispers.map((whisper, index) => {
+    const kind = WHISPER_LABEL[whisper.kind] ?? whisper.kind
+    const truth =
+      whisper.truthful === null ? '정보 없음' : whisper.truthful ? '진실' : '거짓'
+
+    let content = whisper.text
+    if (whisper.aboutSeat !== null && whisper.claimedTier !== null) {
+      content = `${ROLE_LABEL[whisper.aboutSeat]}의 잠식은 ${TIER_LABEL[whisper.claimedTier]} 구간`
+    } else if (whisper.choiceId !== null && whisper.claimedVariant !== null) {
+      content = `${whisper.choiceId}의 기운은 ${VARIANT_LABEL[whisper.claimedVariant]}`
+    }
+
+    return row(
+      index === 0 ? '귓속말' : '',
+      `${ROLE_LABEL[whisper.seat]} ← ${kind} · ${content} [${truth}]`,
+    )
+  })
+}
+
+/** 가짜 라벨 — 그 좌석의 폰에 보이는 값과 실제 값을 나란히 적는다 (룰북 §4.3) */
+function fakeLabelLines(record: SimEventRecord): string[] {
+  return record.fakeLabels.map((entry, index) => {
+    const shown = Object.entries(entry.labels)
+      .map(([choiceId, fake]) => {
+        const actual = record.variants[choiceId]
+        const actualText = actual === undefined ? '-' : VARIANT_LABEL[actual]
+        return `${choiceId} ${VARIANT_LABEL[fake]}(실제 ${actualText})`
+      })
+      .join(' · ')
+    return row(index === 0 ? '가짜 라벨' : '', `${ROLE_LABEL[entry.seat]} — ${shown}`)
+  })
+}
+
+/** 가짜 붉은 메시지 — 진짜 전환과 cue가 같아 로그로만 구분된다 (룰북 §4.3, §10.1) */
+function fakeRedMessageLines(record: SimEventRecord): string[] {
+  if (record.fakeRedMessageSeats.length === 0) return []
+  const seats = record.fakeRedMessageSeats.map((seat) => ROLE_LABEL[seat]).join(' · ')
+  return [row('붉은 메시지', `${seats} — 가짜 (진짜 전환과 같은 연출)`)]
+}
+
+/** 익명 표기 — Display 문구와 서버만 아는 실제 원인 (룰북 §5.5, §13.5, §17) */
+function anonymousLines(record: SimEventRecord): string[] {
+  return record.anonymousNotices.map((notice, index) => {
+    const source = ANONYMOUS_SOURCE_LABEL[notice.source] ?? notice.source
+    const who = notice.seat === null ? '' : `${ROLE_LABEL[notice.seat]} · `
+    return row(
+      index === 0 ? '익명 표기' : '',
+      `Display "${notice.text}" ← 실제 ${who}${source} (${notice.detail})`,
+    )
+  })
+}
+
+/** 이면의 형제 전환 (룰북 §10.1) */
+function traitorLines(record: SimEventRecord): string[] {
+  return record.traitorTurns.map((turn, index) =>
+    row(
+      index === 0 ? '배신자' : '',
+      `${ROLE_LABEL[turn.seat]} 잠식 100% 도달 → 이면의 형제 전환 (${turn.during})`,
+    ),
+  )
+}
+
+/** 부적 이동 — 획득·사용·회복·양도·폐기 (룰북 §9.1) */
+function talismanLines(record: SimEventRecord): string[] {
+  const moves: SimTalismanMove[] = [...record.talismanMoves]
+  if (record.tutorialTalismanSeat !== null) {
+    // 튜토리얼 부적은 본게임 인벤토리와 따로 세므로 보유 수를 붙이지 않는다 (룰북 §9.2)
+    moves.unshift({
+      seat: null,
+      text: `튜토리얼 부적 1개 → ${ROLE_LABEL[record.tutorialTalismanSeat]} (T1 종료 시 소멸)`,
+      held: null,
+    })
+  }
+
+  return moves.map((move, index) => {
+    if (move.seat === null || move.held === null) {
+      return row(index === 0 ? '부적' : '', move.text)
+    }
+    const after = ` → 보유 ${move.held.talisman}${
+      move.held.overflow > 0 ? `, 보류 ${move.held.overflow}` : ''
+    }`
+    return row(index === 0 ? '부적' : '', `${ROLE_LABEL[move.seat]} ${move.text}${after}`)
+  })
+}
+
 function seatLine(state: GameState): string {
   return SEAT_ORDER.map((role) => {
     const seat = state.seats[role]
@@ -575,10 +940,13 @@ export function formatEvent(
     row('주사위', diceLine(record, state)),
     row('결과', resultLine(record)),
     ...interventionLines(record),
+    ...anonymousLines(record),
+    ...talismanLines(record),
+    ...whisperLines(record),
+    ...fakeLabelLines(record),
+    ...fakeRedMessageLines(record),
+    ...traitorLines(record),
     row('좌석', seatLine(state)),
-    ...(record.tutorialTalismanSeat === null
-      ? []
-      : [row('부적', `튜토리얼 부적 → ${ROLE_LABEL[record.tutorialTalismanSeat]} (T1 종료 시 소멸)`)]),
     row('시계', clockLine(record, state, now)),
     '',
   ]

@@ -203,3 +203,69 @@ describe('가상 입력 지연 (M2 계획 10.3)', () => {
     expect(bots.endedAt - bots.startedAt).toBeGreaterThan(humans.endedAt - humans.startedAt)
   })
 })
+
+/**
+ * 시뮬레이터 이벤트 블록의 심리전 요소 (로드맵 M2-7).
+ *
+ * 좌석에만 가는 정보는 상태나 투영이 아니라 **엔진 감사 로그**에서만 읽을 수 있다.
+ * 요소마다 발생 조건이 달라 한 판으로는 전부 나오지 않으므로, 여러 구성의 출력을 모아 확인한다.
+ * 설정값을 조정하면 어느 시드에서 무엇이 나오는지가 달라지므로 시드 목록은 넓게 잡는다.
+ */
+describe('시뮬레이터 이벤트 블록 — 심리전 요소 (로드맵 M2-7)', () => {
+  const corpus = [1, 2, 3, 6, 7, 38]
+    .flatMap((seed) =>
+      [1, 2, 3].map((humans) =>
+        runGame({ seed, humans, startedAt: START, withLines: true }).lines.join('\n'),
+      ),
+    )
+    .join('\n')
+
+  it('귓속말 5종을 수신 좌석·내용·진실 여부와 함께 적는다 (룰북 §16)', () => {
+    for (const label of [
+      'T2 귓속말',
+      '이벤트 귓속말',
+      '티어 환청',
+      '분기 실패 귓속말',
+      '진입 경고',
+    ]) {
+      expect(corpus).toContain(label)
+    }
+    expect(corpus).toMatch(/티어 환청 · \S+의 잠식은 \S+ 구간 \[(진실|거짓)\]/)
+    expect(corpus).toMatch(/T2 귓속말 · \S+의 기운은 [흉평길] \[(진실|거짓)\]/)
+  })
+
+  it('가짜 라벨은 표시된 값과 실제 값을 나란히 적는다 (룰북 §4.3)', () => {
+    expect(corpus).toMatch(/가짜 라벨\s+\S+ — \S+ [흉평길]\(실제 [흉평길]\)/)
+  })
+
+  it('가짜 붉은 메시지를 받은 좌석을 적는다 (룰북 §4.3, §10.1)', () => {
+    expect(corpus).toMatch(/붉은 메시지\s+.+가짜 \(진짜 전환과 같은 연출\)/)
+  })
+
+  it('배신자 전환을 좌석·시점과 함께 적는다 (룰북 §10.1)', () => {
+    expect(corpus).toMatch(/배신자\s+\S+ 잠식 100% 도달 → 이면의 형제 전환/)
+  })
+
+  it('익명 표기의 Display 문구와 실제 원인을 함께 적는다 (룰북 §5.5, §13.5, §17)', () => {
+    expect(corpus).toContain('Phase 2 진입 환청 — 부적 미보유')
+    expect(corpus).toContain('봇 100% 방해')
+    expect(corpus).toContain('채택 선택지 결과')
+    expect(corpus).toContain('누군가 탈 조각의 저주를 받았다')
+    expect(corpus).toMatch(/익명 표기\s+Display "누군가/)
+  })
+
+  it('부적 이동을 좌석·보유 수 변화와 함께 적는다 (룰북 §9.1, §13.5)', () => {
+    for (const label of [
+      '획득 +',
+      '판정 보정에 1개 사용',
+      '회복에 1개 사용',
+      '14A 제출로 1개 소모',
+      '양도',
+      '자동 폐기',
+      '100% 방해로 1개 소멸',
+    ]) {
+      expect(corpus).toContain(label)
+    }
+    expect(corpus).toMatch(/부적\s+\S+ 획득 \+\d+개 \(인벤토리 \+\d+\) → 보유 \d+/)
+  })
+})

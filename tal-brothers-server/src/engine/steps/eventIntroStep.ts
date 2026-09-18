@@ -16,6 +16,7 @@ import {
   deliverWhisper,
   rollTierWhisperTruth,
   shouldReceiveTierWhisper,
+  whisperLogData,
 } from '../rules/whisper'
 import { PUBLIC_NOTICE_KIND, SEAT_ORDER } from '../state/gameState'
 import type { CurrentEventState, GameState } from '../state/gameState'
@@ -107,13 +108,13 @@ function applyTierEffects(
         context.rng,
         current.eventId,
       )
-      deliverWhisper(draft, role, whisper)
+      deliverWhisper(draft, role, whisper, truthful)
       out.cues.push({ kind: CUE_KIND.WHISPER_RECEIVED, audience: role, text: whisper.text })
       out.logs.push({
         at: context.now,
         code: LOG_CODE.WHISPER_DELIVERED,
         message: `${role} 티어 환청 — ${whisper.text}`,
-        data: { eventId: current.eventId, seat: role, kind: WHISPER_KIND.TIER_HALLUCINATION },
+        data: whisperLogData(current.eventId, role, whisper, truthful),
       })
     }
 
@@ -123,6 +124,13 @@ function applyTierEffects(
     ) {
       // 진짜 전환과 같은 형식·문장·표시 시간이라 "붉은 화면 = 배신자"가 성립하지 않는다 (룰북 §10.1)
       out.cues.push(redMessageCue(role))
+      // cue로는 진짜와 구분되지 않으므로 감사 로그에만 가짜라고 남긴다
+      out.logs.push({
+        at: context.now,
+        code: LOG_CODE.FAKE_RED_MESSAGE,
+        message: `${role} 가짜 붉은 메시지`,
+        data: { eventId: current.eventId, seat: role },
+      })
     }
   }
 }
@@ -197,7 +205,7 @@ export const EVENT_INTRO_HANDLER: StepHandler = {
 
     // 예약 귓속말은 변이 결정 직후 내용을 만들어 발송한다 (룰북 §12, §13.2)
     const delivered = deliverPendingWhispers(draft, event, current.variants, context.rng)
-    for (const { targetSeat, whisper } of delivered) {
+    for (const { targetSeat, whisper, truthful } of delivered) {
       out.cues.push({
         kind: CUE_KIND.WHISPER_RECEIVED,
         audience: targetSeat,
@@ -207,7 +215,7 @@ export const EVENT_INTRO_HANDLER: StepHandler = {
         at: context.now,
         code: LOG_CODE.WHISPER_DELIVERED,
         message: `${targetSeat} 수신 — ${whisper.text}`,
-        data: { eventId: event.id, seat: targetSeat, kind: whisper.kind },
+        data: whisperLogData(event.id, targetSeat, whisper, truthful),
       })
     }
 

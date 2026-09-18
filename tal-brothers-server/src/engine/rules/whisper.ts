@@ -160,6 +160,32 @@ export function rollTierWhisperTruth(rng: Rng): boolean {
 export type DeliveredWhisper = {
   targetSeat: BrotherRole
   whisper: ReceivedWhisper
+  /** 진실 여부. 정보가 없는 진입 경고는 null (룰북 §16) */
+  truthful: boolean | null
+}
+
+/**
+ * 귓속말 로그 데이터 (아키텍처 §5.1).
+ * 진실 여부와 주장한 값은 **서버만 아는 정보**라 투영에는 넣지 않고 감사 로그에만 남긴다 (룰북 §17).
+ * 시뮬레이터는 이 값으로 좌석별 진짜·가짜를 구분해 적는다.
+ */
+export function whisperLogData(
+  eventId: string,
+  targetSeat: BrotherRole,
+  whisper: ReceivedWhisper,
+  truthful: boolean | null,
+): Record<string, unknown> {
+  return {
+    eventId,
+    seat: targetSeat,
+    kind: whisper.kind,
+    truthful,
+    text: whisper.text,
+    aboutSeat: whisper.tier?.aboutSeat ?? null,
+    claimedTier: whisper.tier?.tier ?? null,
+    choiceId: whisper.t2Variant?.choiceId ?? null,
+    claimedVariant: whisper.t2Variant?.variant ?? null,
+  }
 }
 
 /** 수신 좌석에 저장하고 Display에는 발송 사실만 남긴다 (룰북 §16, §17) */
@@ -167,13 +193,14 @@ export function deliverWhisper(
   draft: GameState,
   targetSeat: BrotherRole,
   whisper: ReceivedWhisper,
+  truthful: boolean | null,
 ): DeliveredWhisper {
   draft.seats[targetSeat].whispers.push(whisper)
   draft.notices.push({
     kind: PUBLIC_NOTICE_KIND.WHISPER_SENT,
     text: '누군가에게 속삭임이 전달되었다',
   })
-  return { targetSeat, whisper }
+  return { targetSeat, whisper, truthful }
 }
 
 /**
@@ -207,7 +234,7 @@ export function deliverPendingWhispers(
             rng,
             event.id,
           )
-    delivered.push(deliverWhisper(draft, pending.targetSeat, whisper))
+    delivered.push(deliverWhisper(draft, pending.targetSeat, whisper, pending.truthful))
   }
 
   draft.pendingWhispers = rest

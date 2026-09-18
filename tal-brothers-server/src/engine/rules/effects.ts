@@ -20,6 +20,7 @@ import {
   T2_WHISPER_TARGET_EVENT_ID,
   buildTierWhisper,
   deliverWhisper,
+  whisperLogData,
 } from './whisper'
 
 /**
@@ -46,6 +47,15 @@ export type EffectContext = {
  */
 export function stripRewards(effects: Effect[]): Effect[] {
   return effects.filter((effect) => effect.category !== EFFECT_CATEGORY.REWARD)
+}
+
+/** 로그 문장용 부호 표기 */
+function signedValue(value: number): string {
+  return value >= 0 ? `+${value}` : `${value}`
+}
+
+function signedPercent(value: number): string {
+  return `${signedValue(value)}%`
 }
 
 /** 효과 대상을 좌석 목록으로 바꾼다 (룰북 §4.1, §5.3, §13.5) */
@@ -135,8 +145,27 @@ function applyEffect(
 ): void {
   switch (effect.kind) {
     case EFFECT_KIND.EROSION: {
-      for (const role of resolveTargetSeats(effect.target, context, engine)) {
+      const seats = resolveTargetSeats(effect.target, context, engine)
+      for (const role of seats) {
         applySeatErosion(draft, role, effect.deltaPercent, engine, out)
+      }
+
+      // 무작위 1명 대상(14A 미제출 저주)은 Display에 익명으로만 나간다 (룰북 §13.5, §17)
+      const [cursed] = seats
+      if (effect.target === EFFECT_TARGET.RANDOM_SEAT && cursed !== undefined) {
+        out.logs.push({
+          at: engine.now,
+          code: LOG_CODE.ANONYMOUS_NOTICE,
+          message: `${cursed} 탈 조각의 저주 ${signedPercent(effect.deltaPercent)}`,
+          data: {
+            notice: PUBLIC_NOTICE_KIND.ANONYMOUS_CURSE,
+            source: 'randomSeat',
+            seat: cursed,
+            deltaPercent: effect.deltaPercent,
+            eventId: context.eventId,
+            text: '누군가 탈 조각의 저주를 받았다',
+          },
+        })
       }
       return
     }
@@ -158,12 +187,24 @@ function applyEffect(
 
     case EFFECT_KIND.TEAM_MODIFIER: {
       draft.teamModifier = addTeamModifier(draft.teamModifier, effect.delta)
-      draft.notices.push({
-        kind: PUBLIC_NOTICE_KIND.ANONYMOUS_MODIFIER,
-        text:
-          effect.delta < 0
-            ? `누군가의 불길한 기운 ${effect.delta}`
-            : `누군가의 든든한 기운 +${effect.delta}`,
+      const noticeText =
+        effect.delta < 0
+          ? `누군가의 불길한 기운 ${effect.delta}`
+          : `누군가의 든든한 기운 +${effect.delta}`
+      draft.notices.push({ kind: PUBLIC_NOTICE_KIND.ANONYMOUS_MODIFIER, text: noticeText })
+      // 출처는 채택 선택지의 결과다. Display에는 나가지 않는다 (룰북 §5.5, §17)
+      out.logs.push({
+        at: engine.now,
+        code: LOG_CODE.ANONYMOUS_NOTICE,
+        message: `${context.eventId} 결과 — 팀 다음 판정 ${signedValue(effect.delta)}`,
+        data: {
+          notice: PUBLIC_NOTICE_KIND.ANONYMOUS_MODIFIER,
+          source: 'choiceEffect',
+          seat: null,
+          delta: effect.delta,
+          eventId: context.eventId,
+          text: noticeText,
+        },
       })
       return
     }
@@ -188,7 +229,7 @@ function applyEffect(
           engine.rng,
           context.eventId,
         )
-        deliverWhisper(draft, targetSeat, whisper)
+        deliverWhisper(draft, targetSeat, whisper, effect.truthful)
         out.cues.push({
           kind: CUE_KIND.WHISPER_RECEIVED,
           audience: targetSeat,
@@ -198,7 +239,7 @@ function applyEffect(
           at: engine.now,
           code: LOG_CODE.WHISPER_DELIVERED,
           message: `${targetSeat} 수신 — ${whisper.text}`,
-          data: { eventId: context.eventId, seat: targetSeat, kind: effect.whisperKind },
+          data: whisperLogData(context.eventId, targetSeat, whisper, effect.truthful),
         })
         return
       }

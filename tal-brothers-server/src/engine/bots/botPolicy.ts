@@ -149,9 +149,19 @@ export function applyBotSabotage(
   if (kind === BOT_SABOTAGE_KIND.TEAM_DEBUFF) {
     draft.teamModifier = addTeamModifier(draft.teamModifier, -1)
     // 출처 없이 익명으로 표시한다 (룰북 §5.5)
-    draft.notices.push({
-      kind: PUBLIC_NOTICE_KIND.ANONYMOUS_MODIFIER,
-      text: '누군가의 불길한 기운 -1',
+    const noticeText = '누군가의 불길한 기운 -1'
+    draft.notices.push({ kind: PUBLIC_NOTICE_KIND.ANONYMOUS_MODIFIER, text: noticeText })
+    out.logs.push({
+      at: context.now,
+      code: LOG_CODE.ANONYMOUS_NOTICE,
+      message: `${role} 100% 방해 — 팀 다음 판정 -1`,
+      data: {
+        notice: PUBLIC_NOTICE_KIND.ANONYMOUS_MODIFIER,
+        source: 'botSabotage',
+        seat: role,
+        delta: -1,
+        text: noticeText,
+      },
     })
     out.logs.push({
       at: context.now,

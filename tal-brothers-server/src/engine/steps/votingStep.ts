@@ -202,6 +202,7 @@ export const VOTING_HANDLER: StepHandler = {
           at: context.now,
           code: LOG_CODE.TALISMAN_HEALED,
           message: `${seat} 부적 회복 -${GAME_CONFIG.talismanHealPercent}%`,
+          data: { seat, healPercent: GAME_CONFIG.talismanHealPercent },
         })
         return undefined
       }

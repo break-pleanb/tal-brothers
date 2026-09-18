@@ -6,14 +6,14 @@ import { CUE_AUDIENCE, LOG_CODE } from '../engineTypes'
 import { applySeatErosion } from '../rules/erosion'
 import { addTeamModifier } from '../rules/modifiers'
 import { buildPhase2EventOrder } from '../rules/slots'
-import { buildEntryWarningWhisper, deliverWhisper } from '../rules/whisper'
+import { buildEntryWarningWhisper, deliverWhisper, whisperLogData } from '../rules/whisper'
 import { PUBLIC_NOTICE_KIND, SEAT_ORDER } from '../state/gameState'
 
 /**
  * Phase 2 진입 (룰북 §13.1, §13.3).
  *
  * - 슬롯 배치를 확정해 이벤트 순서표를 교체한다
- * - 진입 환청: 부적 보유자는 경고 귓속말만(부적 소모 없음), 미보유자는 잠식 +20%와 1명당 팀 -1
+ * - 진입 환청: 부적 보유자는 경고 귓속말만(부적 소모 없음), 미보유자는 잠식 상승과 1명당 팀 -1
  * - 선택지가 없어 좌석마다 결과가 달라서 이벤트가 아니라 단계로 둔다 (M2 계획 10절 1번)
  * - 룰북에 이 연출의 시간이 없으므로 타이머 없이 곧바로 첫 이벤트로 넘어간다
  */
@@ -44,13 +44,14 @@ export const PHASE2_ENTRY_HANDLER: StepHandler = {
       // 보류함 부적은 쓸 수 없으므로 보유로 세지 않는다 (M2 계획 10.1)
       if (seat.talismanCount > 0) {
         const whisper = buildEntryWarningWhisper(firstEventId)
-        deliverWhisper(draft, role, whisper)
+        // 정보가 없는 서사 텍스트라 진실 여부가 없다 (룰북 §16)
+        deliverWhisper(draft, role, whisper, null)
         out.cues.push({ kind: CUE_KIND.WHISPER_RECEIVED, audience: role, text: whisper.text })
         out.logs.push({
           at: context.now,
           code: LOG_CODE.WHISPER_DELIVERED,
           message: `${role} 진입 경고 (부적 소모 없음)`,
-          data: { eventId: firstEventId, seat: role, kind: whisper.kind },
+          data: whisperLogData(firstEventId, role, whisper, null),
         })
         continue
       }
@@ -58,9 +59,20 @@ export const PHASE2_ENTRY_HANDLER: StepHandler = {
       applySeatErosion(draft, role, GAME_CONFIG.phase2EntryNoTalismanPercent, context, out)
       // 미보유자 1명당 팀 다음 판정 -1. 하한 -2는 합산에서 걸린다 (룰북 §5.5, §13.1)
       draft.teamModifier = addTeamModifier(draft.teamModifier, -1)
-      draft.notices.push({
-        kind: PUBLIC_NOTICE_KIND.ANONYMOUS_MODIFIER,
-        text: '누군가의 불길한 기운 -1',
+      const noticeText = '누군가의 불길한 기운 -1'
+      draft.notices.push({ kind: PUBLIC_NOTICE_KIND.ANONYMOUS_MODIFIER, text: noticeText })
+      // Display에는 출처가 나가지 않는다. 실제 원인 좌석은 감사 로그에만 남긴다 (룰북 §5.5, §17)
+      out.logs.push({
+        at: context.now,
+        code: LOG_CODE.ANONYMOUS_NOTICE,
+        message: `${role} 부적 미보유 — 팀 다음 판정 -1`,
+        data: {
+          notice: PUBLIC_NOTICE_KIND.ANONYMOUS_MODIFIER,
+          source: 'phase2Entry',
+          seat: role,
+          delta: -1,
+          text: noticeText,
+        },
       })
     }
 

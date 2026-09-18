@@ -82,6 +82,10 @@ export const LOG_CODE = {
   ENVIRONMENT_EROSION: 'environmentErosion',
   /** 이면의 형제 전환 (룰북 §10.1) */
   TRAITOR_TURNED: 'traitorTurned',
+  /** 가짜 붉은 메시지 (룰북 §4.3). 진짜 전환과 cue가 같아 로그로만 구분된다 */
+  FAKE_RED_MESSAGE: 'fakeRedMessage',
+  /** 익명 표기의 실제 원인 (룰북 §5.5, §13.5). Display에는 출처 없이 나간다 */
+  ANONYMOUS_NOTICE: 'anonymousNotice',
   /** 봇 100% 방해 (룰북 §11) */
   BOT_SABOTAGE: 'botSabotage',
   /** 부적 획득 (룰북 §9.1) */
