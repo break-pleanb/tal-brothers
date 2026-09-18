@@ -172,7 +172,9 @@ Phase 3:  P3_TARGETING → (B-1 즉시 판정 | P3_VOTING → 판정) → ENDING
 공통:     PAUSED, ENDING
 ```
 
-- T1·T2 성공 시 개입 창 대신 **연습 개입 창** 단계를 거친다 (룰북 §12)
+- T1·T2 성공 시 개입 창 대신 **연습 개입 창**(`PRACTICE_INTERVENTION`, 단일 단계 12초) 단계를 거친다 (룰북 §12)
+- 선택지가 1개인 이벤트(T2-1)는 `VOTING`을 생략하고 `EVENT_INTRO` → `ROLL_WAIT`로 진행한다 (룰북 §12)
+- `ROLL_REVEAL`은 3초 [설정값] 뒤 다음 단계로 넘어간다
 - 입력 유예 0.3초는 타이머를 `마감 시각 + 0.3초`에 발화시키는 것으로 처리한다
 
 ### 5.4 효과 모델
@@ -388,3 +390,4 @@ tal-brothers-web/src/
 | 엔진 형태 | 순수 함수 + 시각·난수 주입 |
 | 통신 | 스냅샷 + cue, 명령만 수신 |
 | 동시성 | 방당 직렬 큐, 서버 인스턴스 1대 |
+| tsconfig | `erasableSyntaxOnly`를 server·shared에도 적용해 전 패키지에서 `enum`을 막는다 |

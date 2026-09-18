@@ -84,6 +84,7 @@ tal-brothers-shared/src/
 - [ ] `COMMAND_TYPE`은 아키텍처 §7.1 전체, `types/command.ts`는 M1 범위 명령만 타입 정의
 - [ ] `ASSET_KEY`는 서버가 지정하는 인게임 에셋 11종만 포함한다. 랜딩·메뉴용 브랜드 이미지(`introMask.png`)는 web 전용이라 제외한다
 - [ ] shared에 `typecheck` 스크립트 추가, 통과
+- [ ] `tal-brothers-server/tsconfig.json`과 `tal-brothers-shared/tsconfig.json`에 `erasableSyntaxOnly: true` 추가 (이번 작업 범위에 포함)
 
 ### M1-2. 서버 테스트 환경과 시나리오 데이터
 
@@ -102,9 +103,9 @@ tal-brothers-server/
 - [x] vitest 설치와 test 스크립트는 M0에서 완료 (재설치 금지)
 - [ ] 효과 모델은 아키텍처 §5.4를 따른다
 - [ ] `GAME_CONFIG`에 룰북 §19 설정값 전체와 아키텍처 §8 운영 규칙 설정값 포함
-- [ ] `PHASE1_EVENTS`에 룰북 §12의 T1, T2(2단 고정 진행), 이장 이벤트 수치를 그대로 옮김
+- [ ] `PHASE1_EVENTS`는 이벤트 4개(T1, T2-1, T2-2, 이장)로 구성하고 룰북 §12 수치를 그대로 옮김
 - [ ] 각 이벤트·선택지에 배경·탈 에셋 키 지정 (룰북 §18). 이미지 파일 경로는 web이 매핑하므로 서버는 키만 다룬다
-- [ ] 무결성 테스트: 선택지 ID 중복 없음, 판정 선택지에 속성 태그 존재, 성공 기준 2~6 범위, 변이 적용 여부가 룰북 §6.3과 일치
+- [ ] 무결성 테스트: 선택지 ID 중복 없음, 판정 선택지에 속성 태그 존재, 성공 기준 4~6 범위(원본 데이터 기준), 변이 적용 여부가 룰북 §6.3과 일치
 
 ### M1-3. 엔진 기반과 순수 규칙
 
