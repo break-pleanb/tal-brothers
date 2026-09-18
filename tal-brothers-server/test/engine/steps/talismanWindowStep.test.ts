@@ -1,93 +1,26 @@
 import { describe, expect, it } from 'vitest'
-import { BROTHER_ROLE, COMMAND_TYPE, GAME_PHASE, GAME_STEP } from 'tal-brothers-shared'
-import type { BrotherRole, Command, GameStep } from 'tal-brothers-shared'
+import { BROTHER_ROLE, GAME_PHASE, GAME_STEP } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../../src/scenario/gameConfig'
 import { findPhase2Event } from '../../../src/scenario/phase2Events'
 import { hasJudgment } from '../../../src/scenario/scenarioTypes'
-import { dispatch, enterStep, finishDispatch } from '../../../src/engine/dispatch'
-import { ACTION_KIND, createStepOutput } from '../../../src/engine/engineTypes'
-import type { DispatchResult, DispatchSuccess } from '../../../src/engine/engineTypes'
-import type { Rng } from '../../../src/engine/random'
-import { createGame, seatSetupForHumans } from '../../../src/engine/state/createGame'
 import { SEAT_ORDER } from '../../../src/engine/state/gameState'
 import type { GameState } from '../../../src/engine/state/gameState'
+import { startAt, submitTalisman as submit, vote } from '../../support/gameDriver'
+import type { Game } from '../../support/gameDriver'
 
-/** 14A 부적 제출 창 (룰북 §13.5) */
-
-const START = 1_700_000_000_000
-const LOW: Rng = { nextInt: () => 0 }
-
-const submit: Command = { type: COMMAND_TYPE.TALISMAN_SUBMIT }
-const vote = (choiceId: string): Command => ({ type: COMMAND_TYPE.VOTE_SUBMIT, choiceId })
-
-function start(before?: (state: GameState) => void) {
-  let now = START
-  const rng = LOW
-  const created = createGame(
-    { roomCode: 'TEST', seats: seatSetupForHumans(3) },
-    { now, rng },
-  )
-
-  const state = created.state
-  state.progress.phase = GAME_PHASE.PHASE_2
-  state.progress.eventOrder = ['p2-14', 'p2-02']
-  state.progress.eventIndex = 0
-  state.currentEvent = null
-  state.currentJudgment = null
-  before?.(state)
-
-  const out = createStepOutput()
-  enterStep(state, GAME_STEP.EVENT_INTRO, { now, rng }, out)
-  let last: DispatchSuccess = finishDispatch(state, out)
-
-  return {
-    get state(): GameState {
-      return last.state
+/** 14A 제출 창을 쓰는 p2-14부터 돌린다 */
+function start(before?: (state: GameState) => void): Game {
+  return startAt({
+    step: GAME_STEP.EVENT_INTRO,
+    before: (state) => {
+      state.progress.phase = GAME_PHASE.PHASE_2
+      state.progress.eventOrder = ['p2-14', 'p2-02']
+      state.progress.eventIndex = 0
+      before?.(state)
     },
-    get last(): DispatchSuccess {
-      return last
-    },
-    tick(): void {
-      const deadline = last.nextDeadline
-      if (deadline === null) throw new Error(`타이머가 없다: ${last.state.progress.step}`)
-      now = deadline.at
-      const result = dispatch(
-        last.state,
-        {
-          kind: ACTION_KIND.TIMER_EXPIRY,
-          step: deadline.step,
-          stateVersion: deadline.stateVersion,
-        },
-        { now, rng },
-      )
-      if (result.rejected) throw new Error(`타이머 거절: ${result.reason}`)
-      last = result
-    },
-    send(seat: BrotherRole, command: Command): DispatchResult {
-      const result = dispatch(
-        last.state,
-        { kind: ACTION_KIND.COMMAND, seat, command },
-        { now, rng },
-      )
-      if (!result.rejected) last = result
-      return result
-    },
-    tickUntil(step: GameStep, limit = 20): void {
-      let count = 0
-      while (last.state.progress.step !== step) {
-        this.tick()
-        count += 1
-        if (count > limit) throw new Error(`${step}에 도달하지 못했다`)
-      }
-    },
-    get now(): number {
-      return now
-    },
-  }
+  })
 }
-
-type Game = ReturnType<typeof start>
 
 /** 14A를 채택해 제출 창까지 간다 */
 function toWindow(game: Game): void {

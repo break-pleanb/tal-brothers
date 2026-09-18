@@ -1,102 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { BROTHER_ROLE, COMMAND_TYPE, GAME_STEP, JUDGMENT_KIND } from 'tal-brothers-shared'
-import type { BrotherRole, Command, GameStep } from 'tal-brothers-shared'
+import { BROTHER_ROLE, GAME_STEP, JUDGMENT_KIND } from 'tal-brothers-shared'
+import type { BrotherRole } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../../src/scenario/gameConfig'
-import { dispatch } from '../../../src/engine/dispatch'
-import { ACTION_KIND, REJECTION_REASON } from '../../../src/engine/engineTypes'
-import type { DispatchResult, DispatchSuccess } from '../../../src/engine/engineTypes'
-import type { Rng } from '../../../src/engine/random'
+import { REJECTION_REASON } from '../../../src/engine/engineTypes'
 import { judgmentFinalValue } from '../../../src/engine/steps/rollStep'
-import { createGame, seatSetupForHumans } from '../../../src/engine/state/createGame'
-import type { GameState, JudgmentState } from '../../../src/engine/state/gameState'
-
-const START = 1_700_000_000_000
-
-const LOW: Rng = { nextInt: () => 0 }
-const HIGH: Rng = { nextInt: (bound) => bound - 1 }
-
-function start(humans: number, rng: Rng) {
-  let now = START
-  let last: DispatchSuccess = createGame(
-    { roomCode: 'TEST', seats: seatSetupForHumans(humans) },
-    { now, rng },
-  )
-  let current = rng
-
-  return {
-    get state(): GameState {
-      return last.state
-    },
-    get last(): DispatchSuccess {
-      return last
-    },
-    get now(): number {
-      return now
-    },
-    setRng(next: Rng): void {
-      current = next
-    },
-    tick(): void {
-      const deadline = last.nextDeadline
-      if (deadline === null) throw new Error(`타이머가 없다: ${last.state.progress.step}`)
-      now = deadline.at
-      const result = dispatch(
-        last.state,
-        {
-          kind: ACTION_KIND.TIMER_EXPIRY,
-          step: deadline.step,
-          stateVersion: deadline.stateVersion,
-        },
-        { now, rng: current },
-      )
-      if (result.rejected) throw new Error(`타이머 거절: ${result.reason}`)
-      last = result
-    },
-    send(seat: BrotherRole, command: Command): DispatchResult {
-      const result = dispatch(
-        last.state,
-        { kind: ACTION_KIND.COMMAND, seat, command },
-        { now, rng: current },
-      )
-      if (!result.rejected) last = result
-      return result
-    },
-    tickUntil(step: GameStep, limit = 60): void {
-      let count = 0
-      while (last.state.progress.step !== step) {
-        this.tick()
-        count += 1
-        if (count > limit) throw new Error(`${step}에 도달하지 못했다`)
-      }
-    },
-    tickUntilEvent(eventId: string, step: GameStep, limit = 60): void {
-      let count = 0
-      while (last.state.currentEvent?.eventId !== eventId || last.state.progress.step !== step) {
-        this.tick()
-        count += 1
-        if (count > limit) throw new Error(`${eventId}/${step}에 도달하지 못했다`)
-      }
-    },
-  }
-}
-
-type Game = ReturnType<typeof start>
-
-const vote = (choiceId: string): Command => ({ type: COMMAND_TYPE.VOTE_SUBMIT, choiceId })
-const roll: Command = { type: COMMAND_TYPE.ROLL_REQUEST }
-
-function voteAll(game: Game, choiceId: string, seats: BrotherRole[]): void {
-  for (const seat of seats) {
-    game.send(seat, vote(choiceId))
-  }
-}
-
-function judgment(game: Game): JudgmentState {
-  const value = game.state.currentJudgment
-  if (value === null) throw new Error('진행 중인 판정이 없다')
-  return value
-}
+import {
+  HIGH,
+  LOW,
+  judgment,
+  roll,
+  startGame as start,
+  vote,
+  voteAll,
+} from '../../support/gameDriver'
 
 describe('판정자 결정 (룰북 §3.1)', () => {
   const cases: { choiceId: string; roller: BrotherRole }[] = [

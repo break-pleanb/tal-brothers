@@ -1,127 +1,28 @@
 import { describe, expect, it } from 'vitest'
-import { BROTHER_ROLE, COMMAND_TYPE, GAME_PHASE, GAME_STEP } from 'tal-brothers-shared'
-import type { BrotherRole, Command, GameStep } from 'tal-brothers-shared'
+import { BROTHER_ROLE, GAME_PHASE, GAME_STEP } from 'tal-brothers-shared'
+import type { BrotherRole } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../../src/scenario/gameConfig'
 import { applyBotSabotage, shouldBotForceSuccess } from '../../../src/engine/bots/botPolicy'
-import { dispatch } from '../../../src/engine/dispatch'
-import { ACTION_KIND, createStepOutput } from '../../../src/engine/engineTypes'
-import type {
-  DispatchResult,
-  DispatchSuccess,
-  EngineContext,
-} from '../../../src/engine/engineTypes'
+import { createStepOutput } from '../../../src/engine/engineTypes'
+import type { EngineContext } from '../../../src/engine/engineTypes'
 import type { Rng } from '../../../src/engine/random'
-import { createGame, seatSetupForHumans } from '../../../src/engine/state/createGame'
-import type {
-  GameState,
-  InterventionRecord,
-  JudgmentState,
-  SeatState,
-} from '../../../src/engine/state/gameState'
-
-const START = 1_700_000_000_000
-
-const LOW: Rng = { nextInt: () => 0 }
-/** 항상 최댓값 — `pickOne`은 마지막 항목 */
-const HIGH: Rng = { nextInt: (bound) => bound - 1 }
-/** 주사위를 `value`로 고정한다 */
-const diceRng = (value: number): Rng => ({ nextInt: (bound) => (value - 1) % bound })
-/** 주사위 값을 순서대로 내주고 소진되면 1을 낸다 */
-function seqDiceRng(values: number[]): Rng {
-  let index = 0
-  return {
-    nextInt(bound) {
-      const value = index < values.length ? (values[index] as number) : 1
-      index += 1
-      return (value - 1) % bound
-    },
-  }
-}
-
-type SeatSetup = Record<BrotherRole, { isBot: boolean }>
-
-function start(seats: number | SeatSetup, rng: Rng) {
-  let now = START
-  let last: DispatchSuccess = createGame(
-    {
-      roomCode: 'TEST',
-      seats: typeof seats === 'number' ? seatSetupForHumans(seats) : seats,
-    },
-    { now, rng },
-  )
-  let current = rng
-
-  return {
-    get state(): GameState {
-      return last.state
-    },
-    get last(): DispatchSuccess {
-      return last
-    },
-    get now(): number {
-      return now
-    },
-    setRng(next: Rng): void {
-      current = next
-    },
-    tick(): void {
-      const deadline = last.nextDeadline
-      if (deadline === null) throw new Error(`타이머가 없다: ${last.state.progress.step}`)
-      now = deadline.at
-      const result = dispatch(
-        last.state,
-        {
-          kind: ACTION_KIND.TIMER_EXPIRY,
-          step: deadline.step,
-          stateVersion: deadline.stateVersion,
-        },
-        { now, rng: current },
-      )
-      if (result.rejected) throw new Error(`타이머 거절: ${result.reason}`)
-      last = result
-    },
-    send(seat: BrotherRole, command: Command): DispatchResult {
-      const result = dispatch(
-        last.state,
-        { kind: ACTION_KIND.COMMAND, seat, command },
-        { now, rng: current },
-      )
-      if (!result.rejected) last = result
-      return result
-    },
-    tickUntil(step: GameStep, limit = 60): void {
-      let count = 0
-      while (last.state.progress.step !== step) {
-        this.tick()
-        count += 1
-        if (count > limit) throw new Error(`${step}에 도달하지 못했다`)
-      }
-    },
-    tickUntilEvent(eventId: string, step: GameStep, limit = 60): void {
-      let count = 0
-      while (last.state.currentEvent?.eventId !== eventId || last.state.progress.step !== step) {
-        this.tick()
-        count += 1
-        if (count > limit) throw new Error(`${eventId}/${step}에 도달하지 못했다`)
-      }
-    },
-  }
-}
-
-type Game = ReturnType<typeof start>
-
-const vote = (choiceId: string): Command => ({ type: COMMAND_TYPE.VOTE_SUBMIT, choiceId })
-const roll: Command = { type: COMMAND_TYPE.ROLL_REQUEST }
-const useTalisman: Command = { type: COMMAND_TYPE.INTERVENTION_TALISMAN }
-
-const ALL_SEATS: BrotherRole[] = [BROTHER_ROLE.FIRST, BROTHER_ROLE.SECOND, BROTHER_ROLE.THIRD]
-
-function judgment(game: Game): JudgmentState {
-  const value = game.state.currentJudgment
-  if (value === null) throw new Error('진행 중인 판정이 없다')
-  return value
-}
+import type { SeatSetup } from '../../../src/engine/state/createGame'
+import type { InterventionRecord, SeatState } from '../../../src/engine/state/gameState'
+import {
+  ALL_SEATS,
+  HIGH,
+  LOW,
+  START,
+  diceRng,
+  judgment,
+  roll,
+  seqDiceRng,
+  startGame as start,
+  useTalisman,
+  vote,
+} from '../../support/gameDriver'
+import type { Game } from '../../support/gameDriver'
 
 /**
  * 개입이 성공으로 바뀌면 결과 적용과 다음 이벤트 진입까지 한 처리 안에서 끝나

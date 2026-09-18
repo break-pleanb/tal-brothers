@@ -5,30 +5,22 @@ import {
   CUE_KIND,
   GAME_PHASE,
   GAME_STEP,
+  WHISPER_KIND,
 } from 'tal-brothers-shared'
-import { WHISPER_KIND } from 'tal-brothers-shared'
-import type { BrotherRole, Command, GameStep } from 'tal-brothers-shared'
+import type { BrotherRole } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../../src/scenario/gameConfig'
 import { EFFECT_CATEGORY } from '../../../src/scenario/constants/effectCategory'
 import { EFFECT_KIND } from '../../../src/scenario/constants/effectKind'
 import { EFFECT_TARGET } from '../../../src/scenario/constants/effectTarget'
-import { dispatch, enterStep, finishDispatch } from '../../../src/engine/dispatch'
-import { ACTION_KIND, createStepOutput } from '../../../src/engine/engineTypes'
-import type { DispatchResult, DispatchSuccess } from '../../../src/engine/engineTypes'
+import { createStepOutput } from '../../../src/engine/engineTypes'
 import { createSeededRng } from '../../../src/engine/random'
 import type { Rng } from '../../../src/engine/random'
 import { applyEffects } from '../../../src/engine/rules/effects'
-import { createGame, seatSetupForHumans } from '../../../src/engine/state/createGame'
 import { SEAT_ORDER } from '../../../src/engine/state/gameState'
 import type { GameState } from '../../../src/engine/state/gameState'
-
-const START = 1_700_000_000_000
-
-/** 항상 최솟값 — 주사위 1, `pickOne`은 첫 항목, 변이는 흉 */
-const LOW: Rng = { nextInt: () => 0 }
-/** 항상 최댓값 — 주사위 6, `pickOne`은 마지막 항목, 변이는 길 */
-const HIGH: Rng = { nextInt: (bound) => bound - 1 }
+import { HIGH, LOW, START, heal, startAt, vote } from '../../support/gameDriver'
+import type { Game } from '../../support/gameDriver'
 
 type Setup = {
   humans?: number
@@ -38,78 +30,18 @@ type Setup = {
 }
 
 /** 새 게임을 만들고 Phase 1을 건너뛴 채 Phase 2 진입 단계부터 돌린다 */
-function startPhase2Entry(setup: Setup = {}) {
-  const rng = setup.rng ?? LOW
-  let now = START
-  const created = createGame(
-    { roomCode: 'TEST', seats: seatSetupForHumans(setup.humans ?? 3) },
-    { now, rng },
-  )
-
-  const state = created.state
-  // Phase 1은 이 테스트의 관심사가 아니므로 마친 것으로 두고 진입만 재현한다
-  state.progress.phase = GAME_PHASE.PHASE_1
-  state.currentEvent = null
-  state.currentJudgment = null
-  setup.before?.(state)
-
-  const out = createStepOutput()
-  enterStep(state, GAME_STEP.PHASE2_ENTRY, { now, rng }, out)
-  let last: DispatchSuccess = finishDispatch(state, out)
-
-  return {
-    get state(): GameState {
-      return last.state
+function startPhase2Entry(setup: Setup = {}): Game {
+  return startAt({
+    step: GAME_STEP.PHASE2_ENTRY,
+    seats: setup.humans ?? 3,
+    rng: setup.rng ?? LOW,
+    before: (state) => {
+      // Phase 1은 이 테스트의 관심사가 아니므로 마친 것으로 두고 진입만 재현한다
+      state.progress.phase = GAME_PHASE.PHASE_1
+      setup.before?.(state)
     },
-    get last(): DispatchSuccess {
-      return last
-    },
-    get now(): number {
-      return now
-    },
-    tick(): void {
-      const deadline = last.nextDeadline
-      if (deadline === null) throw new Error(`타이머가 없다: ${last.state.progress.step}`)
-      now = deadline.at
-      const result = dispatch(
-        last.state,
-        {
-          kind: ACTION_KIND.TIMER_EXPIRY,
-          step: deadline.step,
-          stateVersion: deadline.stateVersion,
-        },
-        { now, rng },
-      )
-      if (result.rejected) throw new Error(`타이머 거절: ${result.reason} ${result.detail ?? ''}`)
-      last = result
-    },
-    send(seat: BrotherRole, command: Command): DispatchResult {
-      const result = dispatch(
-        last.state,
-        { kind: ACTION_KIND.COMMAND, seat, command },
-        { now, rng },
-      )
-      if (!result.rejected) last = result
-      return result
-    },
-    /** 단계를 직접 다시 밟는다 (테스트가 특정 이벤트부터 시작할 때) */
-    enter(step: GameStep): void {
-      const out = createStepOutput()
-      enterStep(last.state, step, { now, rng }, out)
-      last = finishDispatch(last.state, out)
-    },
-    tickUntil(step: GameStep, limit = 40): void {
-      let count = 0
-      while (last.state.progress.step !== step) {
-        this.tick()
-        count += 1
-        if (count > limit) throw new Error(`${step}에 도달하지 못했다`)
-      }
-    },
-  }
+  })
 }
-
-type Game = ReturnType<typeof startPhase2Entry>
 
 /** 특정 Phase 2 이벤트만 순서표에 올려 그 이벤트부터 진행한다 */
 function startEvent(eventIds: string[], setup: Setup = {}): Game {
@@ -121,8 +53,6 @@ function startEvent(eventIds: string[], setup: Setup = {}): Game {
   game.enter(GAME_STEP.EVENT_INTRO)
   return game
 }
-
-const vote = (choiceId: string): Command => ({ type: COMMAND_TYPE.VOTE_SUBMIT, choiceId })
 
 function erosion(game: Game, role: BrotherRole): number {
   return game.state.seats[role].erosionPercent

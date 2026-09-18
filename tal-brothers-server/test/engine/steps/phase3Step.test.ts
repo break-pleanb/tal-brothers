@@ -8,40 +8,27 @@ import {
   JUDGMENT_KIND,
   PHASE3_ROUTE,
 } from 'tal-brothers-shared'
-import type { BrotherRole, Command, GameStep } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../../src/scenario/gameConfig'
 import { PHASE3_CHOICE_ID } from '../../../src/scenario/phase3Scene'
-import { dispatch, enterStep, finishDispatch } from '../../../src/engine/dispatch'
-import { projectDisplay } from '../../../src/engine/projection/projectDisplay'
-import { ACTION_KIND, REJECTION_REASON, createStepOutput } from '../../../src/engine/engineTypes'
-import type { DispatchResult, DispatchSuccess } from '../../../src/engine/engineTypes'
 import type { Rng } from '../../../src/engine/random'
+import { projectDisplay } from '../../../src/engine/projection/projectDisplay'
 import { canForceSuccess } from '../../../src/engine/steps/interventionStep'
-import { createGame, seatSetupForHumans } from '../../../src/engine/state/createGame'
 import type { GameState } from '../../../src/engine/state/gameState'
+import {
+  HIGH,
+  LOW,
+  START,
+  clearTutorialTalismans,
+  judgment,
+  roll,
+  scriptRng,
+  startAt,
+  vote,
+} from '../../support/gameDriver'
+import type { Game } from '../../support/gameDriver'
 
 /** Phase 3 판정 순서와 대립 판정 (룰북 §14) */
-
-const START = 1_700_000_000_000
-
-const LOW: Rng = { nextInt: () => 0 }
-const HIGH: Rng = { nextInt: (bound) => bound - 1 }
-
-/** 정해진 수열을 돌려주는 난수. 주사위 값 v는 v-1로 적는다 */
-function scriptRng(values: number[]): Rng {
-  let index = 0
-  return {
-    nextInt(bound: number): number {
-      const value = values[index] ?? 0
-      index += 1
-      return value % bound
-    },
-  }
-}
-
-const vote = (choiceId: string): Command => ({ type: COMMAND_TYPE.VOTE_SUBMIT, choiceId })
-const roll: Command = { type: COMMAND_TYPE.ROLL_REQUEST }
 
 type Setup = {
   humans?: number
@@ -52,78 +39,19 @@ type Setup = {
   remainingMinutes?: number
 }
 
-function startPhase3(setup: Setup = {}) {
-  const rng = setup.rng ?? LOW
-  let now = START
-  // 게임 생성은 Phase 1 첫 이벤트 진입까지 난수를 쓰므로 고정 난수로 돌리고,
-  // 지정한 난수는 Phase 3 진입부터 쓴다
-  const created = createGame(
-    { roomCode: 'TEST', seats: seatSetupForHumans(setup.humans ?? 3) },
-    { now, rng: LOW },
-  )
-
-  const state = created.state
-  // 튜토리얼 부적은 T1 종료 시 소멸한다 (룰북 §9.2). 생성 직후 상태에서 지워 둔다
-  for (const role of [BROTHER_ROLE.FIRST, BROTHER_ROLE.SECOND, BROTHER_ROLE.THIRD]) {
-    state.seats[role].tutorialTalismanCount = 0
-  }
-  state.progress.phase = GAME_PHASE.PHASE_2
-  state.clock.deadlineAt = now + (setup.remainingMinutes ?? 40) * 60_000
-  state.currentEvent = null
-  state.currentJudgment = null
-  setup.before?.(state)
-
-  const out = createStepOutput()
-  enterStep(state, GAME_STEP.P3_TARGETING, { now, rng }, out)
-  let last: DispatchSuccess = finishDispatch(state, out)
-
-  return {
-    get state(): GameState {
-      return last.state
+function startPhase3(setup: Setup = {}): Game {
+  return startAt({
+    step: GAME_STEP.P3_TARGETING,
+    seats: setup.humans ?? 3,
+    rng: setup.rng ?? LOW,
+    before: (state) => {
+      clearTutorialTalismans(state)
+      state.progress.phase = GAME_PHASE.PHASE_2
+      state.clock.deadlineAt = START + (setup.remainingMinutes ?? 40) * 60_000
+      setup.before?.(state)
     },
-    get last(): DispatchSuccess {
-      return last
-    },
-    get now(): number {
-      return now
-    },
-    tick(): void {
-      const deadline = last.nextDeadline
-      if (deadline === null) throw new Error(`타이머가 없다: ${last.state.progress.step}`)
-      now = deadline.at
-      const result = dispatch(
-        last.state,
-        {
-          kind: ACTION_KIND.TIMER_EXPIRY,
-          step: deadline.step,
-          stateVersion: deadline.stateVersion,
-        },
-        { now, rng },
-      )
-      if (result.rejected) throw new Error(`타이머 거절: ${result.reason}`)
-      last = result
-    },
-    send(seat: BrotherRole, command: Command): DispatchResult {
-      const result = dispatch(
-        last.state,
-        { kind: ACTION_KIND.COMMAND, seat, command },
-        { now, rng },
-      )
-      if (!result.rejected) last = result
-      return result
-    },
-    tickUntil(step: GameStep, limit = 20): void {
-      let count = 0
-      while (last.state.progress.step !== step) {
-        this.tick()
-        count += 1
-        if (count > limit) throw new Error(`${step}에 도달하지 못했다`)
-      }
-    },
-  }
+  })
 }
-
-type Game = ReturnType<typeof startPhase3>
 
 /** 인간 2명(첫째·둘째) + 봇 1명에서 둘째를 배신자 타겟으로 만든다 */
 function traitorTarget(state: GameState): void {

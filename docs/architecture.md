@@ -117,7 +117,8 @@ tal-brothers-server/
 │  │
 │  └─ sim/                         # 콘솔 시뮬레이션 (M1: Phase 1, M2: 봇 대전)
 └─ test/
-   └─ engine/
+   ├─ engine/
+   └─ support/                     # 테스트 공용 드라이버 (가상 시계·액션 큐)
 ```
 
 ---

@@ -275,6 +275,7 @@ tal-brothers-server/
 `docs/m2-notes.md`의 승인된 제안 2건.
 
 - [x] `PUBLIC_NOTICE_KIND`·`WHISPER_KIND`를 shared로 옮기고 `NoticeView`·`WhisperView`의 `kind`를 유니온 타입으로 좁힘
+- [x] 단계 테스트 드라이버를 `test/support/gameDriver.ts`로 추출
 
 ## M3. 런타임, 통신, 인증, 로비, 운영 규칙
 

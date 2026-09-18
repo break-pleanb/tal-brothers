@@ -1,93 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { BROTHER_ROLE, COMMAND_TYPE, GAME_STEP } from 'tal-brothers-shared'
-import type { BrotherRole, Command, GameStep } from 'tal-brothers-shared'
+import { BROTHER_ROLE, GAME_STEP } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../../src/scenario/gameConfig'
-import { dispatch } from '../../../src/engine/dispatch'
-import { ACTION_KIND, REJECTION_REASON } from '../../../src/engine/engineTypes'
-import type { DispatchResult, DispatchSuccess } from '../../../src/engine/engineTypes'
-import type { Rng } from '../../../src/engine/random'
-import { createGame, seatSetupForHumans } from '../../../src/engine/state/createGame'
-import type { GameState } from '../../../src/engine/state/gameState'
-
-const START = 1_700_000_000_000
-
-/** 항상 최솟값 — 주사위 1, `pickOne`은 첫 항목, 변이는 흉 */
-const LOW: Rng = { nextInt: () => 0 }
-/** 항상 최댓값 — 주사위 6, `pickOne`은 마지막 항목, 변이는 길 */
-const HIGH: Rng = { nextInt: (bound) => bound - 1 }
-
-function start(humans: number, rng: Rng) {
-  let now = START
-  let last: DispatchSuccess = createGame(
-    { roomCode: 'TEST', seats: seatSetupForHumans(humans) },
-    { now, rng },
-  )
-  let current = rng
-
-  return {
-    get state(): GameState {
-      return last.state
-    },
-    get last(): DispatchSuccess {
-      return last
-    },
-    get now(): number {
-      return now
-    },
-    setRng(next: Rng): void {
-      current = next
-    },
-    tick(): void {
-      const deadline = last.nextDeadline
-      if (deadline === null) throw new Error(`타이머가 없다: ${last.state.progress.step}`)
-      now = deadline.at
-      const result = dispatch(
-        last.state,
-        {
-          kind: ACTION_KIND.TIMER_EXPIRY,
-          step: deadline.step,
-          stateVersion: deadline.stateVersion,
-        },
-        { now, rng: current },
-      )
-      if (result.rejected) throw new Error(`타이머 거절: ${result.reason}`)
-      last = result
-    },
-    send(seat: BrotherRole, command: Command): DispatchResult {
-      const result = dispatch(
-        last.state,
-        { kind: ACTION_KIND.COMMAND, seat, command },
-        { now, rng: current },
-      )
-      if (!result.rejected) last = result
-      return result
-    },
-    tickUntil(step: GameStep, limit = 60): void {
-      let count = 0
-      while (last.state.progress.step !== step) {
-        this.tick()
-        count += 1
-        if (count > limit) throw new Error(`${step}에 도달하지 못했다`)
-      }
-    },
-    tickUntilEvent(eventId: string, step: GameStep, limit = 60): void {
-      let count = 0
-      while (
-        last.state.currentEvent?.eventId !== eventId ||
-        last.state.progress.step !== step
-      ) {
-        this.tick()
-        count += 1
-        if (count > limit) throw new Error(`${eventId}/${step}에 도달하지 못했다`)
-      }
-    },
-  }
-}
-
-const vote = (choiceId: string): Command => ({ type: COMMAND_TYPE.VOTE_SUBMIT, choiceId })
-const trueSight: Command = { type: COMMAND_TYPE.ABILITY_TRUE_SIGHT }
-const heal: Command = { type: COMMAND_TYPE.TALISMAN_HEAL }
+import { REJECTION_REASON } from '../../../src/engine/engineTypes'
+import { HIGH, LOW, heal, startGame as start, trueSight, vote } from '../../support/gameDriver'
 
 describe('투표 (룰북 §8)', () => {
   it('마감 전 재전송으로 선택을 바꾼다 (아키 §8)', () => {
