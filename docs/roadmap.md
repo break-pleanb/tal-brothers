@@ -270,6 +270,12 @@ tal-brothers-server/
 - [x] `EndingState.traitorWon`을 `boolean | null`로, 봇 자동 대전 배신자 승률의 모집단을 배신자 1명 이상인 판으로 한정
 - [x] Phase 3의 **대립**과 **고정 기준** 판정을 시뮬 로그·투영·cue·엔진 로그에서 구분해 표기 (룰북 §14.3, §14.4)
 
+### M3 착수 전 정리 (2026-09-18)
+
+`docs/m2-notes.md`의 승인된 제안 2건.
+
+- [x] `PUBLIC_NOTICE_KIND`·`WHISPER_KIND`를 shared로 옮기고 `NoticeView`·`WhisperView`의 `kind`를 유니온 타입으로 좁힘
+
 ## M3. 런타임, 통신, 인증, 로비, 운영 규칙
 
 - room 런타임: 방당 직렬 큐, 타이머 예약, 스냅샷·cue 전송

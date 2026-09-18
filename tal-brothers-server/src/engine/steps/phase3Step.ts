@@ -5,6 +5,7 @@ import {
   GAME_PHASE,
   GAME_STEP,
   PHASE3_ROUTE,
+  PUBLIC_NOTICE_KIND,
 } from 'tal-brothers-shared'
 import type { BrotherRole } from 'tal-brothers-shared'
 
@@ -20,7 +21,7 @@ import {
   moveJadeHairpinAwayFromTarget,
   selectPhase3Target,
 } from '../rules/target'
-import { PUBLIC_NOTICE_KIND, SEAT_ORDER } from '../state/gameState'
+import { SEAT_ORDER } from '../state/gameState'
 import type { CurrentEventState, GameState } from '../state/gameState'
 import { requestEnding } from './endingStep'
 import { adoptChoice, currentScenarioEvent, nextStepAfterAdopt } from './rollStep'

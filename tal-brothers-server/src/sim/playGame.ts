@@ -4,7 +4,9 @@ import {
   EROSION_TIER,
   GAME_STEP,
   JUDGMENT_KIND,
+  PUBLIC_NOTICE_KIND,
   VARIANT_KIND,
+  WHISPER_KIND,
 } from 'tal-brothers-shared'
 import type {
   Attribute,
@@ -14,11 +16,10 @@ import type {
   GameStep,
   JudgmentKind,
   VariantKind,
+  WhisperKind,
 } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../scenario/gameConfig'
-import { WHISPER_KIND } from '../scenario/constants/whisperKind'
-import type { WhisperKind } from '../scenario/constants/whisperKind'
 import { hasAttribute, hasJudgment } from '../scenario/scenarioTypes'
 import { dispatch } from '../engine/dispatch'
 import { ACTION_KIND, LOG_CODE } from '../engine/engineTypes'
@@ -26,7 +27,7 @@ import type { DispatchSuccess, LogEntry } from '../engine/engineTypes'
 import { createSeededRng } from '../engine/random'
 import { createGame, seatSetupForHumans } from '../engine/state/createGame'
 import { BOT_SABOTAGE_KIND } from '../engine/bots/botPolicy'
-import { INTERVENTION_KIND, PUBLIC_NOTICE_KIND, SEAT_ORDER } from '../engine/state/gameState'
+import { INTERVENTION_KIND, SEAT_ORDER } from '../engine/state/gameState'
 import type { GameState, InterventionRecord } from '../engine/state/gameState'
 import { traitorOutcomeLabel } from '../engine/steps/endingStep'
 import { findScenarioEvent } from '../engine/steps/rollStep'

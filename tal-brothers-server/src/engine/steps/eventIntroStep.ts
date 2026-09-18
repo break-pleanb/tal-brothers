@@ -1,8 +1,13 @@
-import { CUE_KIND, EROSION_TIER, GAME_STEP } from 'tal-brothers-shared'
+import {
+  CUE_KIND,
+  EROSION_TIER,
+  GAME_STEP,
+  PUBLIC_NOTICE_KIND,
+  WHISPER_KIND,
+} from 'tal-brothers-shared'
 import type { BrotherRole } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../scenario/gameConfig'
-import { WHISPER_KIND } from '../../scenario/constants/whisperKind'
 import type { StepHandler } from '../dispatch'
 import { CUE_AUDIENCE, LOG_CODE } from '../engineTypes'
 import type { EngineContext, StepOutput } from '../engineTypes'
@@ -18,7 +23,7 @@ import {
   shouldReceiveTierWhisper,
   whisperLogData,
 } from '../rules/whisper'
-import { PUBLIC_NOTICE_KIND, SEAT_ORDER } from '../state/gameState'
+import { SEAT_ORDER } from '../state/gameState'
 import type { CurrentEventState, GameState } from '../state/gameState'
 import { adoptChoice, nextStepAfterAdopt, scenarioEventAt } from './rollStep'
 

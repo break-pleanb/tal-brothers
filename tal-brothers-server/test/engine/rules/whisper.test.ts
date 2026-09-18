@@ -1,17 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { BROTHER_ROLE, EROSION_TIER, VARIANT_KIND } from 'tal-brothers-shared'
+import {
+  BROTHER_ROLE,
+  EROSION_TIER,
+  VARIANT_KIND,
+  WHISPER_KIND,
+} from 'tal-brothers-shared'
 import type { VariantKind } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../../src/scenario/gameConfig'
 import { findPhase1Event } from '../../../src/scenario/phase1Events'
-import { WHISPER_KIND } from '../../../src/scenario/constants/whisperKind'
 import { hasJudgment } from '../../../src/scenario/scenarioTypes'
 import type { ScenarioEvent } from '../../../src/scenario/scenarioTypes'
 import { createStepOutput } from '../../../src/engine/engineTypes'
 import { createSeededRng } from '../../../src/engine/random'
 import { applyEffects } from '../../../src/engine/rules/effects'
 import { pickFalseVariant } from '../../../src/engine/rules/variant'
-import { WHISPER_KIND as WK } from '../../../src/scenario/constants/whisperKind'
 import {
   T2_WHISPER_TARGET_EVENT_ID,
   TIER_LABEL,
@@ -197,7 +200,7 @@ describe('잠식 구간 귓속말 (룰북 §13.4, §16)', () => {
     const whisper = buildTierWhisper(
       state,
       BROTHER_ROLE.THIRD,
-      WK.TIER_HALLUCINATION,
+      WHISPER_KIND.TIER_HALLUCINATION,
       true,
       createSeededRng(3),
       'p2-01',
@@ -216,7 +219,7 @@ describe('잠식 구간 귓속말 (룰북 §13.4, §16)', () => {
       const whisper = buildTierWhisper(
         state,
         BROTHER_ROLE.THIRD,
-        WK.TIER_HALLUCINATION,
+        WHISPER_KIND.TIER_HALLUCINATION,
         false,
         createSeededRng(seed),
         'p2-01',
@@ -244,7 +247,7 @@ describe('잠식 구간 귓속말 (룰북 §13.4, §16)', () => {
     const whisper = buildTierWhisper(
       state,
       BROTHER_ROLE.THIRD,
-      WK.TIER_HALLUCINATION,
+      WHISPER_KIND.TIER_HALLUCINATION,
       true,
       createSeededRng(1),
       'p2-01',
@@ -297,7 +300,7 @@ describe('Phase 2 진입 경고 (룰북 §13.1)', () => {
   it('정보가 없는 서사 텍스트만 담는다', () => {
     const whisper = buildEntryWarningWhisper('branch')
 
-    expect(whisper.kind).toBe(WK.ENTRY_WARNING)
+    expect(whisper.kind).toBe(WHISPER_KIND.ENTRY_WARNING)
     expect(whisper.tier).toBeUndefined()
     expect(whisper.t2Variant).toBeUndefined()
     expect(whisper.receivedAtEventId).toBe('branch')

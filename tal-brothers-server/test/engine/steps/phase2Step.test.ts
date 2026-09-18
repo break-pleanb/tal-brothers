@@ -6,13 +6,13 @@ import {
   GAME_PHASE,
   GAME_STEP,
 } from 'tal-brothers-shared'
+import { WHISPER_KIND } from 'tal-brothers-shared'
 import type { BrotherRole, Command, GameStep } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../../src/scenario/gameConfig'
 import { EFFECT_CATEGORY } from '../../../src/scenario/constants/effectCategory'
 import { EFFECT_KIND } from '../../../src/scenario/constants/effectKind'
 import { EFFECT_TARGET } from '../../../src/scenario/constants/effectTarget'
-import { WHISPER_KIND } from '../../../src/scenario/constants/whisperKind'
 import { dispatch, enterStep, finishDispatch } from '../../../src/engine/dispatch'
 import { ACTION_KIND, createStepOutput } from '../../../src/engine/engineTypes'
 import type { DispatchResult, DispatchSuccess } from '../../../src/engine/engineTypes'

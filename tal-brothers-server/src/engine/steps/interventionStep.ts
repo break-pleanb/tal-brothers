@@ -5,6 +5,7 @@ import {
   GAME_PHASE,
   GAME_STEP,
   JUDGMENT_KIND,
+  PUBLIC_NOTICE_KIND,
 } from 'tal-brothers-shared'
 import type { BrotherRole } from 'tal-brothers-shared'
 
@@ -15,7 +16,7 @@ import { CUE_AUDIENCE, LOG_CODE, REJECTION_REASON, reject } from '../engineTypes
 import type { EngineContext, Rejection, StepOutput } from '../engineTypes'
 import { rollD6 } from '../random'
 import { applySeatErosion } from '../rules/erosion'
-import { INTERVENTION_KIND, PUBLIC_NOTICE_KIND } from '../state/gameState'
+import { INTERVENTION_KIND } from '../state/gameState'
 import type { GameState, InterventionKind, InterventionRecord, JudgmentState } from '../state/gameState'
 import {
   baseDiceValue,

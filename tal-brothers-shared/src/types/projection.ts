@@ -6,6 +6,8 @@ import type { GamePhase } from '../constants/gamePhase'
 import type { GameStep } from '../constants/gameStep'
 import type { JudgmentKind } from '../constants/judgmentKind'
 import type { Phase3Route } from '../constants/phase3Route'
+import type { PublicNoticeKind } from '../constants/publicNoticeKind'
+import type { WhisperKind } from '../constants/whisperKind'
 import type { VariantKind } from '../constants/variantKind'
 
 /**
@@ -71,13 +73,13 @@ export type VoteView =
 
 /** 출처를 밝히지 않는 Display 알림 (룰북 §5.5, §16, §17) */
 export type NoticeView = {
-  kind: string
+  kind: PublicNoticeKind
   text: string
 }
 
 /** 받은 귓속말 — 수신 좌석에만 나간다 (룰북 §16) */
 export type WhisperView = {
-  kind: string
+  kind: WhisperKind
   text: string
 }
 

@@ -1,10 +1,15 @@
 import { JUDGMENT_KIND } from 'tal-brothers-shared'
-import type { AssetKey, Attribute, GamePhase, Phase3Route } from 'tal-brothers-shared'
+import type {
+  AssetKey,
+  Attribute,
+  GamePhase,
+  Phase3Route,
+  WhisperKind,
+} from 'tal-brothers-shared'
 
 import { EFFECT_KIND } from './constants/effectKind'
 import type { EffectCategory } from './constants/effectCategory'
 import type { EffectTarget } from './constants/effectTarget'
-import type { WhisperKind } from './constants/whisperKind'
 
 /**
  * 시나리오 데이터 모델 (아키텍처 §5.4).

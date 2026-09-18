@@ -1,4 +1,4 @@
-import { CUE_KIND, GAME_PHASE, GAME_STEP } from 'tal-brothers-shared'
+import { CUE_KIND, GAME_PHASE, GAME_STEP, PUBLIC_NOTICE_KIND } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../scenario/gameConfig'
 import type { StepHandler } from '../dispatch'
@@ -7,7 +7,7 @@ import { applySeatErosion } from '../rules/erosion'
 import { addTeamModifier } from '../rules/modifiers'
 import { buildPhase2EventOrder } from '../rules/slots'
 import { buildEntryWarningWhisper, deliverWhisper, whisperLogData } from '../rules/whisper'
-import { PUBLIC_NOTICE_KIND, SEAT_ORDER } from '../state/gameState'
+import { SEAT_ORDER } from '../state/gameState'
 
 /**
  * Phase 2 진입 (룰북 §13.1, §13.3).

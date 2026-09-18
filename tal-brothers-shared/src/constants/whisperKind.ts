@@ -1,4 +1,7 @@
-/** 귓속말 종류 (룰북 §16) */
+/**
+ * 귓속말 종류 (룰북 §16).
+ * 수신 좌석의 `WhisperView.kind`로 나가므로 화면이 분기할 수 있게 shared에 둔다.
+ */
 export const WHISPER_KIND = {
   /** T2-2 A 성공/실패 → 이장 이벤트 선택지 1개의 변이 */
   T2_VARIANT: 't2Variant',

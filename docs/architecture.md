@@ -41,7 +41,7 @@
 
 | 패키지 | 들어가는 것 | 들어가면 안 되는 것 |
 |---|---|---|
-| `tal-brothers-shared` | 공용 상수(역할, 속성, 단계, 명령 종류, 에셋 키), 프로토콜 타입, 투영 타입 | 시나리오 데이터, 성공 기준·보상·페널티 수치, 룰 계산 로직 |
+| `tal-brothers-shared` | 공용 상수(역할, 속성, 단계, 명령 종류, 에셋 키, 알림·귓속말 종류), 프로토콜 타입, 투영 타입 | 시나리오 데이터, 성공 기준·보상·페널티 수치, 룰 계산 로직 |
 | `tal-brothers-server` | 룰 엔진, 시나리오 데이터, 런타임, 통신, 인증, 저장 | 화면 로직 |
 | `tal-brothers-web` | 화면, 라우팅, 스냅샷 렌더링, 명령 전송 | 룰 계산 (예외: 마감 시각으로 남은 시간 표시) |
 
@@ -89,7 +89,7 @@ tal-brothers-server/
 │  │     └─ projectSeat.ts         # 배신자·셋째·가짜 라벨 분기
 │  │
 │  ├─ scenario/                    # 룰북 v3 데이터 (서버 전용)
-│  │  ├─ constants/                # 효과 분류·대상·종류, 귓속말 종류 (파일명 ↔ export명 1:1)
+│  │  ├─ constants/                # 효과 분류·대상·종류 (파일명 ↔ export명 1:1)
 │  │  ├─ scenarioTypes.ts
 │  │  ├─ gameConfig.ts             # GAME_CONFIG (룰북 §19 + 운영 규칙 설정값)
 │  │  ├─ phase1Events.ts           # PHASE1_EVENTS

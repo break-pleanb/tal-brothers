@@ -1,11 +1,11 @@
-import { BROTHER_ROLE, JUDGMENT_KIND } from 'tal-brothers-shared'
+import { BROTHER_ROLE, JUDGMENT_KIND, PUBLIC_NOTICE_KIND } from 'tal-brothers-shared'
 import type { BrotherRole } from 'tal-brothers-shared'
 
 import { LOG_CODE } from '../engineTypes'
 import type { EngineContext, StepOutput } from '../engineTypes'
 import { pickOne, rollD6 } from '../random'
 import { addTeamModifier } from '../rules/modifiers'
-import { INTERVENTION_KIND, PUBLIC_NOTICE_KIND, SEAT_ORDER } from '../state/gameState'
+import { INTERVENTION_KIND, SEAT_ORDER } from '../state/gameState'
 import type { GameState, JudgmentState } from '../state/gameState'
 
 /**

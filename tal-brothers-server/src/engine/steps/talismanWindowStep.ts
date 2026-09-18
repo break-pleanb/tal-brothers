@@ -1,10 +1,15 @@
-import { COMMAND_TYPE, CUE_KIND, GAME_STEP, JUDGMENT_KIND } from 'tal-brothers-shared'
+import {
+  COMMAND_TYPE,
+  CUE_KIND,
+  GAME_STEP,
+  JUDGMENT_KIND,
+  PUBLIC_NOTICE_KIND,
+} from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../scenario/gameConfig'
 import type { StepHandler } from '../dispatch'
 import { CUE_AUDIENCE, LOG_CODE, REJECTION_REASON, reject } from '../engineTypes'
 import type { Rejection } from '../engineTypes'
-import { PUBLIC_NOTICE_KIND } from '../state/gameState'
 import type { GameState, JudgmentState } from '../state/gameState'
 
 /**

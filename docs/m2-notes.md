@@ -47,7 +47,7 @@
 
 | 날짜 | 항목 | 내용 | 상태 |
 |---|---|---|---|
-| 2026-09-18 | 투영용 종류 상수의 위치 | `PUBLIC_NOTICE_KIND`와 `WHISPER_KIND`를 shared 상수로 옮기면 `NoticeView`·`WhisperView`의 `kind`를 유니온 타입으로 좁힐 수 있다. 화면이 kind로 분기하는 M4 전에 하면 된다 | **승인됨. M3 착수 시 처리** |
+| 2026-09-18 | 투영용 종류 상수의 위치 | `PUBLIC_NOTICE_KIND`와 `WHISPER_KIND`를 shared 상수로 옮기면 `NoticeView`·`WhisperView`의 `kind`를 유니온 타입으로 좁힐 수 있다. 화면이 kind로 분기하는 M4 전에 하면 된다 | **처리 완료 (2026-09-18, M3 착수 전).** `shared/constants/publicNoticeKind.ts`·`whisperKind.ts`로 옮기고 서버의 `scenario/constants/whisperKind.ts`는 삭제했다. 아키텍처 §3·§4도 함께 고쳤다 |
 | 2026-09-18 | 단계 테스트 드라이버 중복 | M1 노트에서 이월. `test/engine/steps/` 파일들이 같은 드라이버를 복제하고 있다. 계획에 없는 파일이라 이번에도 추출하지 않았다 | **승인됨. M3 착수 시 처리** |
 | 2026-09-18 | 시뮬레이터 로그 테스트의 시드 고정 | `fullGameFlow.test.ts`의 심리전 요소 테스트는 여러 시드·구성의 출력을 모아 각 줄이 한 번은 나오는지 본다. 설정값을 크게 조정하면 특정 줄이 시드 묶음에서 사라질 수 있다. 그때는 시드 목록을 다시 고른다 | 미결정 |
 

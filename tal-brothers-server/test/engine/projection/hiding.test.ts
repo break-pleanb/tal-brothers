@@ -7,10 +7,10 @@ import {
   JUDGMENT_KIND,
   VARIANT_KIND,
 } from 'tal-brothers-shared'
+import { WHISPER_KIND } from 'tal-brothers-shared'
 import type { BrotherRole } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../../src/scenario/gameConfig'
-import { WHISPER_KIND } from '../../../src/scenario/constants/whisperKind'
 import { enterStep, finishDispatch } from '../../../src/engine/dispatch'
 import { createStepOutput } from '../../../src/engine/engineTypes'
 import type { Rng } from '../../../src/engine/random'

@@ -1,10 +1,15 @@
-import { BROTHER_ROLE, EROSION_TIER, VARIANT_KIND } from 'tal-brothers-shared'
+import {
+  BROTHER_ROLE,
+  EROSION_TIER,
+  PUBLIC_NOTICE_KIND,
+  VARIANT_KIND,
+  WHISPER_KIND,
+} from 'tal-brothers-shared'
 import type { BrotherRole, ErosionTier, VariantKind } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../scenario/gameConfig'
-import { WHISPER_KIND } from '../../scenario/constants/whisperKind'
 import type { ScenarioEvent } from '../../scenario/scenarioTypes'
-import { PUBLIC_NOTICE_KIND, SEAT_ORDER } from '../state/gameState'
+import { SEAT_ORDER } from '../state/gameState'
 import type { GameState, PendingWhisper, ReceivedWhisper } from '../state/gameState'
 import { pickOne, rollChance, type Rng } from '../random'
 import { tierOf } from './erosion'

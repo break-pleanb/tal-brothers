@@ -12,6 +12,8 @@ export { CUE_KIND, type CueKind } from './constants/cueKind'
 export { ASSET_KEY, type AssetKey } from './constants/assetKey'
 export { ENDING_ID, type EndingId } from './constants/endingId'
 export { PHASE3_ROUTE, type Phase3Route } from './constants/phase3Route'
+export { PUBLIC_NOTICE_KIND, type PublicNoticeKind } from './constants/publicNoticeKind'
+export { WHISPER_KIND, type WhisperKind } from './constants/whisperKind'
 
 export type {
   Command,

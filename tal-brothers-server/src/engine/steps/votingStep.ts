@@ -1,4 +1,4 @@
-import { BROTHER_ROLE, COMMAND_TYPE, CUE_KIND } from 'tal-brothers-shared'
+import { BROTHER_ROLE, COMMAND_TYPE, CUE_KIND, PUBLIC_NOTICE_KIND } from 'tal-brothers-shared'
 import type { BrotherRole } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../scenario/gameConfig'
@@ -7,7 +7,7 @@ import { LOG_CODE, REJECTION_REASON, reject } from '../engineTypes'
 import type { EngineContext, Rejection, StepOutput } from '../engineTypes'
 import { pickOne } from '../random'
 import { applySeatErosion } from '../rules/erosion'
-import { PUBLIC_NOTICE_KIND, SEAT_ORDER } from '../state/gameState'
+import { SEAT_ORDER } from '../state/gameState'
 import type { CurrentEventState, GameState } from '../state/gameState'
 import { adoptChoice, currentScenarioEvent, nextStepAfterAdopt } from './rollStep'
 

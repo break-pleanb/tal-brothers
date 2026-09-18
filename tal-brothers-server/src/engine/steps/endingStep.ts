@@ -1,4 +1,4 @@
-import { CUE_KIND, ENDING_ID } from 'tal-brothers-shared'
+import { CUE_KIND, ENDING_ID, PUBLIC_NOTICE_KIND } from 'tal-brothers-shared'
 import type { EndingId } from 'tal-brothers-shared'
 
 import { ENDING_NARRATIONS, ENDINGS } from '../../scenario/endings'
@@ -7,7 +7,7 @@ import type { StepHandler } from '../dispatch'
 import { CUE_AUDIENCE, LOG_CODE } from '../engineTypes'
 import type { EngineContext, StepOutput } from '../engineTypes'
 import { traitorOutcome, traitorSeats } from '../rules/traitor'
-import { PUBLIC_NOTICE_KIND, SEAT_ORDER } from '../state/gameState'
+import { SEAT_ORDER } from '../state/gameState'
 import type { GameState } from '../state/gameState'
 
 /**

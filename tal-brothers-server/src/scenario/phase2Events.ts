@@ -1,13 +1,17 @@
-import { ASSET_KEY, ATTRIBUTE, GAME_PHASE, JUDGMENT_KIND } from 'tal-brothers-shared'
-import type { AssetKey } from 'tal-brothers-shared'
+import {
+  ASSET_KEY,
+  ATTRIBUTE,
+  GAME_PHASE,
+  JUDGMENT_KIND,
+  WHISPER_KIND,
+} from 'tal-brothers-shared'
+import type { AssetKey, WhisperKind } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from './gameConfig'
 import { EFFECT_CATEGORY } from './constants/effectCategory'
 import { EFFECT_KIND } from './constants/effectKind'
 import { EFFECT_TARGET } from './constants/effectTarget'
 import type { EffectTarget } from './constants/effectTarget'
-import { WHISPER_KIND } from './constants/whisperKind'
-import type { WhisperKind } from './constants/whisperKind'
 import type {
   Choice,
   ErosionEffect,
