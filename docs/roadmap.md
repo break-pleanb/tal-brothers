@@ -279,6 +279,9 @@ tal-brothers-server/
 
 ## M3. 런타임, 통신, 인증, 로비, 운영 규칙
 
+> 실행 계획은 `docs/m3-plan.md`, 진행 기록은 `docs/m3-notes.md`(착수 시 생성).
+> 착수 전에 계획 10절의 해석 항목 15건을 확인받는다.
+
 - room 런타임: 방당 직렬 큐, 타이머 예약, 스냅샷·cue 전송
 - ws: `session.hello` 인증, 명령 검증, `rejected`, 재동기화
 - Supabase JWT 검증, REST 방 생성·참가
