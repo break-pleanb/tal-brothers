@@ -1,0 +1,13 @@
+{
+  "name": "tal-brothers",
+  "private": true,
+  "workspaces": [
+    "tal-brothers-shared",
+    "tal-brothers-server",
+    "tal-brothers-web"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev -w tal-brothers-web",
+    "dev:server": "npm run dev -w tal-brothers-server"
+  }
+}
