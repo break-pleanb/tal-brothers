@@ -4,8 +4,8 @@ import type { VariantKind } from 'tal-brothers-shared'
 import { GAME_CONFIG } from '../../scenario/gameConfig'
 import { EFFECT_CATEGORY } from '../../scenario/constants/effectCategory'
 import { EFFECT_KIND } from '../../scenario/constants/effectKind'
-import { hasJudgment } from '../../scenario/scenarioTypes'
-import type { Choice, Effect, JudgmentSpec, ScenarioEvent } from '../../scenario/scenarioTypes'
+import { hasJudgment, isRollJudgment } from '../../scenario/scenarioTypes'
+import type { Choice, Effect, RollJudgmentSpec, ScenarioEvent } from '../../scenario/scenarioTypes'
 import { pickWeighted, type Rng } from '../random'
 
 /**
@@ -91,7 +91,7 @@ function shiftTimePenalty(effects: Effect[], costDeltaMinutes: number): Effect[]
   })
 }
 
-function shiftThreshold(judgment: JudgmentSpec, delta: number): JudgmentSpec {
+function shiftThreshold(judgment: RollJudgmentSpec, delta: number): RollJudgmentSpec {
   const raw = judgment.threshold + delta
   const min = judgment.kind === JUDGMENT_KIND.HIDDEN ? GAME_CONFIG.hiddenThresholdMin : 0
   const capped = Math.min(Math.max(raw, min), GAME_CONFIG.thresholdMax)
@@ -108,6 +108,8 @@ function shiftThreshold(judgment: JudgmentSpec, delta: number): JudgmentSpec {
  */
 export function applyVariantToChoice(choice: Choice, variant: VariantKind): Choice {
   if (variant === VARIANT_KIND.PLAIN) return choice
+  // 14A는 선택지 단위로 변이를 끈다 (룰북 §6.3)
+  if (choice.variantExempt === true) return choice
 
   if (!hasJudgment(choice)) {
     const costDelta =
@@ -116,6 +118,9 @@ export function applyVariantToChoice(choice: Choice, variant: VariantKind): Choi
         : GAME_CONFIG.blessTimeDeltaMinutes
     return { ...choice, resolve: shiftTimePenalty(choice.resolve, costDelta) }
   }
+
+  // 주사위가 없는 판정(14A)은 성공 기준이 없어 변이가 붙을 자리가 없다
+  if (!isRollJudgment(choice.judgment)) return choice
 
   if (choice.judgment.kind === JUDGMENT_KIND.HIDDEN) {
     // 비공개 판정의 길은 기준을 같은 폭만큼 내린다 (룰북 §6.2). 하한은 shiftThreshold가 본다

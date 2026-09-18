@@ -212,11 +212,11 @@ tal-brothers-server/
 
 ### M2-2. Phase 2·3 시나리오 데이터와 엔딩표
 
-- [ ] 효과 대상·종류·귓속말 종류 상수 확장 (`SUBMITTER`, `RANDOM_SEAT`, `ALL_EXCEPT_ROLLER`, `JADE_HAIRPIN`, 귓속말 4종)
-- [ ] `scenarioTypes` 확장 — 14A·대립 판정 사양, `isBoss`, `environmentErosion`, `variantExempt`
-- [ ] `phase2Events.ts` — 분기, 풀 01~14, 보스 15
-- [ ] `phase3Scene.ts`, `endings.ts`
-- [ ] 데이터 무결성 테스트 (계획 9절 M2-2)
+- [x] 효과 대상·종류·귓속말 종류 상수 확장 (`SUBMITTER`, `RANDOM_SEAT`, `ALL_EXCEPT_ROLLER`, `JADE_HAIRPIN`, 귓속말 4종)
+- [x] `scenarioTypes` 확장 — 14A·대립 판정 사양, `isBoss`, `environmentErosion`, `grabsRandomSeat`, `variantExempt`
+- [x] `phase2Events.ts` — 분기, 풀 01~14, 보스 15
+- [x] `phase3Scene.ts`(루트·1인 플레이별 선택지 구성), `endings.ts`
+- [x] 데이터 무결성 테스트 27건 (계획 9절 M2-2)
 
 ### M2-3. 상태 확장과 순수 규칙
 

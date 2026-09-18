@@ -6,7 +6,7 @@ import { findPhase1Event } from '../../../src/scenario/phase1Events'
 import { EFFECT_CATEGORY } from '../../../src/scenario/constants/effectCategory'
 import { EFFECT_KIND } from '../../../src/scenario/constants/effectKind'
 import { EFFECT_TARGET } from '../../../src/scenario/constants/effectTarget'
-import { hasJudgment } from '../../../src/scenario/scenarioTypes'
+import { hasJudgment, isRollJudgment } from '../../../src/scenario/scenarioTypes'
 import type { Choice, Effect, JudgmentChoice, PlainChoice } from '../../../src/scenario/scenarioTypes'
 import { createSeededRng } from '../../../src/engine/random'
 import {
@@ -27,7 +27,9 @@ function chiefChoice(choiceId: string): JudgmentChoice {
 }
 
 function thresholdOf(choice: Choice): number {
-  if (!hasJudgment(choice)) throw new Error('판정 없는 선택지다')
+  if (!hasJudgment(choice) || !isRollJudgment(choice.judgment)) {
+    throw new Error('성공 기준이 있는 판정 선택지가 아니다')
+  }
   return choice.judgment.threshold
 }
 

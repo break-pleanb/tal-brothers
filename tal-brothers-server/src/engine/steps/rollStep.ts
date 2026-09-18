@@ -3,7 +3,7 @@ import type { Attribute, BrotherRole } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../scenario/gameConfig'
 import { findPhase1Event } from '../../scenario/phase1Events'
-import { hasJudgment } from '../../scenario/scenarioTypes'
+import { hasAttribute, hasJudgment, isRollJudgment } from '../../scenario/scenarioTypes'
 import type { Choice, JudgmentChoice, ScenarioEvent } from '../../scenario/scenarioTypes'
 import { botRollOwnDice } from '../bots/botPolicy'
 import type { StepHandler } from '../dispatch'
@@ -71,9 +71,17 @@ export function adoptedJudgmentChoice(state: GameState): JudgmentChoice {
   return choice
 }
 
-/** 판정 사양의 속성. 협동 판정은 없다 */
+/** 판정 사양의 속성. 협동·아이템·대립 판정은 없다 (룰북 §5.2) */
 export function judgmentAttribute(choice: JudgmentChoice): Attribute | null {
-  return choice.judgment.kind === JUDGMENT_KIND.COOP ? null : choice.judgment.attribute
+  return hasAttribute(choice.judgment) ? choice.judgment.attribute : null
+}
+
+/** 변이까지 반영된 성공 기준. 주사위가 없는 14A에는 기준이 없다 */
+export function judgmentThreshold(choice: JudgmentChoice): number {
+  if (!isRollJudgment(choice.judgment)) {
+    throw new Error(`성공 기준이 없는 판정이다: ${choice.id}`)
+  }
+  return choice.judgment.threshold
 }
 
 /** 굴려서 나온 주사위 값. 협동은 최고값 (룰북 §5.3) */
@@ -147,7 +155,7 @@ export const ROLL_WAIT_HANDLER: StepHandler = {
 
     draft.currentJudgment = {
       kind,
-      threshold: choice.judgment.threshold,
+      threshold: judgmentThreshold(choice),
       dice:
         kind === JUDGMENT_KIND.COOP
           ? SEAT_ORDER.map((seat) => ({ seat, value: null }))

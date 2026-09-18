@@ -5,7 +5,7 @@ import { GAME_CONFIG } from '../../src/scenario/gameConfig'
 import { PHASE1_EVENTS, findPhase1Event } from '../../src/scenario/phase1Events'
 import { EFFECT_CATEGORY } from '../../src/scenario/constants/effectCategory'
 import { EFFECT_KIND } from '../../src/scenario/constants/effectKind'
-import { hasJudgment } from '../../src/scenario/scenarioTypes'
+import { hasAttribute, hasJudgment, isRollJudgment } from '../../src/scenario/scenarioTypes'
 import type { Choice, Effect, ScenarioEvent } from '../../src/scenario/scenarioTypes'
 
 const ASSET_KEY_VALUES: string[] = Object.values(ASSET_KEY)
@@ -39,8 +39,10 @@ describe('PHASE1_EVENTS 무결성', () => {
       const label = `${event.id}/${choice.id}`
       if (judgment.kind === JUDGMENT_KIND.COOP) {
         expect(judgment, label).not.toHaveProperty('attribute')
-      } else {
+      } else if (hasAttribute(judgment)) {
         expect(Object.values(ATTRIBUTE), label).toContain(judgment.attribute)
+      } else {
+        throw new Error(`${label}은 속성 태그가 있어야 한다`)
       }
     }
   })
@@ -49,6 +51,7 @@ describe('PHASE1_EVENTS 무결성', () => {
     for (const { event, choice } of allChoices()) {
       if (!hasJudgment(choice)) continue
       const label = `${event.id}/${choice.id}`
+      if (!isRollJudgment(choice.judgment)) continue
       expect(choice.judgment.threshold, label).toBeGreaterThanOrEqual(GAME_CONFIG.thresholdBase)
       expect(choice.judgment.threshold, label).toBeLessThanOrEqual(GAME_CONFIG.thresholdMax)
     }

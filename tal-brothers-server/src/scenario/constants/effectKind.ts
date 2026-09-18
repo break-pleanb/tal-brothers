@@ -4,6 +4,8 @@ export const EFFECT_KIND = {
   EROSION: 'erosion',
   /** 낡은 부적 획득 (룰북 §9.1) */
   TALISMAN: 'talisman',
+  /** 어머니의 옥비녀 획득 — 비소모성, 강제 성공으로는 얻을 수 없다 (룰북 §9.3) */
+  JADE_HAIRPIN: 'jadeHairpin',
   /** 팀 플래그 — 다음 1회 판정에 적용되고 소멸 (룰북 §5.5) */
   TEAM_MODIFIER: 'teamModifier',
   /** 게임 시계 증감. -는 시간 소모 (룰북 §2.1) */

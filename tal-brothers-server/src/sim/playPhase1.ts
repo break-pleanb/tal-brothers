@@ -10,7 +10,7 @@ import type { Attribute, BrotherRole, Command, GameStep, JudgmentKind, VariantKi
 
 import { GAME_CONFIG } from '../scenario/gameConfig'
 import { findPhase1Event } from '../scenario/phase1Events'
-import { hasJudgment } from '../scenario/scenarioTypes'
+import { hasAttribute, hasJudgment } from '../scenario/scenarioTypes'
 import { dispatch } from '../engine/dispatch'
 import { ACTION_KIND, LOG_CODE } from '../engine/engineTypes'
 import type { DispatchSuccess } from '../engine/engineTypes'
@@ -482,7 +482,7 @@ function judgmentLine(record: SimEventRecord): string {
   const event = findPhase1Event(record.eventId)
   const choice = event?.choices.find((candidate) => candidate.id === record.adoptedChoiceId)
   const attribute =
-    choice !== undefined && hasJudgment(choice) && choice.judgment.kind !== JUDGMENT_KIND.COOP
+    choice !== undefined && hasJudgment(choice) && hasAttribute(choice.judgment)
       ? ` [${ATTRIBUTE_LABEL[choice.judgment.attribute]}]`
       : ''
   const cost =

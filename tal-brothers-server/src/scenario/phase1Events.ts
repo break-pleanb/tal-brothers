@@ -49,6 +49,9 @@ const T1: ScenarioEvent = {
   isTutorial: true,
   skipVoting: false,
   grantsTutorialTalisman: true,
+  environmentErosion: false,
+  isBoss: false,
+  grabsRandomSeat: false,
 }
 
 /** T2-1. 빈 주막 ① 무너지는 대들보 — 협동 판정, 선택지 1개라 투표 생략 (룰북 §12) */
@@ -74,6 +77,9 @@ const T2_1: ScenarioEvent = {
   isTutorial: true,
   skipVoting: true,
   grantsTutorialTalisman: false,
+  environmentErosion: false,
+  isBoss: false,
+  grabsRandomSeat: false,
 }
 
 /** T2-2. 빈 주막 ② 점괘 항아리 — 비공개 판정. 대가 +10%는 RESOLUTION이 설정값으로 적용 (룰북 §5.4) */
@@ -125,6 +131,9 @@ const T2_2: ScenarioEvent = {
   isTutorial: true,
   skipVoting: false,
   grantsTutorialTalisman: false,
+  environmentErosion: false,
+  isBoss: false,
+  grabsRandomSeat: false,
 }
 
 /** 이장 이벤트 — Phase 1 본 이벤트. 변이 적용 (룰북 §6.3, §12) */
@@ -229,6 +238,9 @@ const VILLAGE_CHIEF: ScenarioEvent = {
   isTutorial: false,
   skipVoting: false,
   grantsTutorialTalisman: false,
+  environmentErosion: false,
+  isBoss: false,
+  grabsRandomSeat: false,
 }
 
 /** Phase 1 고정 진행 순서 (룰북 §12) */
