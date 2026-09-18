@@ -69,6 +69,7 @@ function tallyAndAdopt(draft: GameState, context: EngineContext, out: StepOutput
     at: context.now,
     code: LOG_CODE.VOTE_TALLIED,
     message: `채택 ${adopted} (득표 ${counts.get(adopted) ?? 0})`,
+    data: { eventId: event.id, adoptedChoiceId: adopted },
   })
 
   const choice = adoptChoice(draft, adopted)

@@ -113,6 +113,8 @@ export type LogEntry = {
   at: number
   code: LogCode
   message: string
+  /** 문장을 다시 파싱하지 않고 읽을 수 있게 남기는 구조화된 값 */
+  data?: Record<string, unknown>
 }
 
 export const REJECTION_REASON = {

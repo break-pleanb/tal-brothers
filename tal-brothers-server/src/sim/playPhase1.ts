@@ -1,0 +1,590 @@
+import {
+  ATTRIBUTE,
+  BROTHER_ROLE,
+  COMMAND_TYPE,
+  GAME_STEP,
+  JUDGMENT_KIND,
+  VARIANT_KIND,
+} from 'tal-brothers-shared'
+import type { Attribute, BrotherRole, Command, GameStep, JudgmentKind, VariantKind } from 'tal-brothers-shared'
+
+import { GAME_CONFIG } from '../scenario/gameConfig'
+import { findPhase1Event } from '../scenario/phase1Events'
+import { hasJudgment } from '../scenario/scenarioTypes'
+import { dispatch } from '../engine/dispatch'
+import { ACTION_KIND, LOG_CODE } from '../engine/engineTypes'
+import type { DispatchSuccess } from '../engine/engineTypes'
+import { createSeededRng, rollChance } from '../engine/random'
+import type { Rng } from '../engine/random'
+import { createGame, seatSetupForHumans } from '../engine/state/createGame'
+import { SEAT_ORDER } from '../engine/state/gameState'
+import type { GameState, InterventionRecord } from '../engine/state/gameState'
+
+/**
+ * Phase 1 콘솔 시뮬레이션 (로드맵 M1-5).
+ *
+ * - 인간 좌석 입력은 시드 기반 랜덤 정책으로 대신한다 (대화형 입력 없음)
+ * - 시간은 가상 시계로 진행한다. 다음 마감 시각으로 시계를 옮기고 타이머 만료 액션을 넣는다
+ * - 이벤트마다 채택 선택지, 변이, 판정자, 주사위, 개입 내역, 결과, 좌석 상태를 한국어로 출력한다
+ */
+
+const ROLE_LABEL: Record<BrotherRole, string> = {
+  [BROTHER_ROLE.FIRST]: '첫째',
+  [BROTHER_ROLE.SECOND]: '둘째',
+  [BROTHER_ROLE.THIRD]: '셋째',
+}
+
+const ATTRIBUTE_LABEL: Record<Attribute, string> = {
+  [ATTRIBUTE.STRENGTH]: '근력/보호',
+  [ATTRIBUTE.AGILITY]: '민첩/눈치',
+  [ATTRIBUTE.KNOWLEDGE]: '지식/도술',
+}
+
+const JUDGMENT_LABEL: Record<JudgmentKind, string> = {
+  [JUDGMENT_KIND.SOLO]: '개인',
+  [JUDGMENT_KIND.COOP]: '협동',
+  [JUDGMENT_KIND.HIDDEN]: '비공개',
+  [JUDGMENT_KIND.ITEM]: '아이템',
+  [JUDGMENT_KIND.CONTEST]: '대립',
+}
+
+const VARIANT_LABEL: Record<VariantKind, string> = {
+  [VARIANT_KIND.ILL]: '흉',
+  [VARIANT_KIND.PLAIN]: '평',
+  [VARIANT_KIND.BLESS]: '길',
+}
+
+const INTERVENTION_LABEL: Record<string, string> = {
+  reroll: '재굴림',
+  talisman: '부적 +1',
+  forceSuccess: '강제 성공',
+}
+
+/** 인간 좌석 정책의 확률 (시뮬레이션 전용 값이며 게임 규칙이 아니다) */
+const POLICY = {
+  votePercent: 80,
+  trueSightPercent: 50,
+  healPercent: 40,
+  rollPercent: 70,
+  rerollPercent: 70,
+  talismanPercent: 60,
+  forceSuccessPercent: 50,
+  practicePressPercent: 50,
+} as const
+
+export type SimOptions = {
+  seed: number
+  humans: number
+  startedAt?: number
+  /** 진행 상황 관찰용. 각 액션 처리 뒤에 불린다 */
+  onStep?: (result: DispatchSuccess) => void
+}
+
+/** 이벤트 1개의 진행 기록 */
+export type SimEventRecord = {
+  index: number
+  eventId: string
+  title: string
+  variants: Record<string, VariantKind>
+  votes: Partial<Record<BrotherRole, string>>
+  adoptedChoiceId: string | null
+  rollerSeat: BrotherRole | null
+  /** 이 이벤트에서 튜토리얼 부적을 받은 좌석 (룰북 §9.2) */
+  tutorialTalismanSeat: BrotherRole | null
+  judgment: {
+    kind: JudgmentKind
+    threshold: number
+    dice: { seat: BrotherRole; value: number | null }[]
+    roleBonus: number
+    teamModifierApplied: number
+    talismanBonus: number
+    succeeded: boolean | null
+    forcedSuccess: boolean
+    isPractice: boolean
+    interventions: InterventionRecord[]
+  } | null
+  visitedSteps: GameStep[]
+}
+
+export type SimResult = {
+  seed: number
+  humans: number
+  finalState: GameState
+  events: SimEventRecord[]
+  lines: string[]
+}
+
+const MAX_ACTIONS = 500
+
+function snapshotEvent(state: GameState, index: number): SimEventRecord {
+  const current = state.currentEvent
+  if (current === null) throw new Error('현재 이벤트가 없다')
+  const event = findPhase1Event(current.eventId)
+
+  return {
+    index,
+    eventId: current.eventId,
+    title: event?.title ?? current.eventId,
+    variants: { ...current.variants },
+    votes: { ...current.votes },
+    adoptedChoiceId: current.adoptedChoiceId,
+    rollerSeat: current.rollerSeat,
+    tutorialTalismanSeat:
+      SEAT_ORDER.find((role) => state.seats[role].tutorialTalismanCount > 0) ?? null,
+    judgment: null,
+    visitedSteps: [state.progress.step],
+  }
+}
+
+function updateRecord(record: SimEventRecord, state: GameState): void {
+  const current = state.currentEvent
+  if (current === null) return
+
+  record.variants = { ...current.variants }
+  record.votes = { ...current.votes }
+  record.adoptedChoiceId = current.adoptedChoiceId ?? record.adoptedChoiceId
+  record.rollerSeat = current.rollerSeat ?? record.rollerSeat
+
+  const judgment = state.currentJudgment
+  if (judgment !== null) {
+    record.judgment = {
+      kind: judgment.kind,
+      threshold: judgment.threshold,
+      dice: judgment.dice.map((die) => ({ ...die })),
+      roleBonus: judgment.roleBonus,
+      teamModifierApplied: judgment.teamModifierApplied,
+      talismanBonus: judgment.talismanBonus,
+      succeeded: judgment.succeeded,
+      forcedSuccess: judgment.forcedSuccess,
+      isPractice: judgment.isPractice,
+      interventions: judgment.interventions.map((record2) => ({ ...record2 })),
+    }
+  }
+
+  const step = state.progress.step
+  if (record.visitedSteps[record.visitedSteps.length - 1] !== step) {
+    record.visitedSteps.push(step)
+  }
+}
+
+// ── 인간 좌석 정책 ────────────────────────────────────────────────────
+
+type Runner = {
+  state: GameState
+  send(seat: BrotherRole, command: Command): void
+}
+
+function humanSeats(state: GameState): BrotherRole[] {
+  return SEAT_ORDER.filter((role) => !state.seats[role].isBot)
+}
+
+function actVoting(runner: Runner, rng: Rng): void {
+  const event = findPhase1Event(runner.state.currentEvent?.eventId ?? '')
+  if (event === undefined) return
+
+  const third = runner.state.seats[BROTHER_ROLE.THIRD]
+  if (
+    !third.isBot &&
+    !(runner.state.currentEvent?.trueSightUsed ?? true) &&
+    !third.abilityUsed &&
+    rollChance(rng, POLICY.trueSightPercent)
+  ) {
+    runner.send(BROTHER_ROLE.THIRD, { type: COMMAND_TYPE.ABILITY_TRUE_SIGHT })
+  }
+
+  for (const role of humanSeats(runner.state)) {
+    const seat = runner.state.seats[role]
+    if (
+      seat.talismanCount > 0 &&
+      seat.erosionPercent >= GAME_CONFIG.talismanHealPercent &&
+      rollChance(rng, POLICY.healPercent)
+    ) {
+      runner.send(role, { type: COMMAND_TYPE.TALISMAN_HEAL })
+    }
+  }
+
+  for (const role of humanSeats(runner.state)) {
+    if (runner.state.progress.step !== GAME_STEP.VOTING) return
+    if (runner.state.currentEvent?.votes[role] !== undefined) continue
+    if (!rollChance(rng, POLICY.votePercent)) continue
+
+    const choice = event.choices[rng.nextInt(event.choices.length)]
+    if (choice === undefined) continue
+    runner.send(role, { type: COMMAND_TYPE.VOTE_SUBMIT, choiceId: choice.id })
+  }
+}
+
+function actRollWait(runner: Runner, rng: Rng): void {
+  const judgment = runner.state.currentJudgment
+  if (judgment === null) return
+
+  for (const die of judgment.dice.map((candidate) => ({ ...candidate }))) {
+    if (runner.state.progress.step !== GAME_STEP.ROLL_WAIT) return
+    if (die.value !== null) continue
+    if (runner.state.seats[die.seat].isBot) continue
+    if (!rollChance(rng, POLICY.rollPercent)) continue
+
+    runner.send(die.seat, { type: COMMAND_TYPE.ROLL_REQUEST })
+  }
+}
+
+function actIntervention(runner: Runner, rng: Rng): void {
+  const step = runner.state.progress.step
+
+  if (step === GAME_STEP.INTERVENTION_REROLL) {
+    const second = runner.state.seats[BROTHER_ROLE.SECOND]
+    if (!second.isBot && !second.abilityUsed && rollChance(rng, POLICY.rerollPercent)) {
+      runner.send(BROTHER_ROLE.SECOND, { type: COMMAND_TYPE.INTERVENTION_REROLL })
+    }
+    return
+  }
+
+  if (step === GAME_STEP.INTERVENTION_TALISMAN) {
+    for (const role of humanSeats(runner.state)) {
+      if (runner.state.progress.step !== GAME_STEP.INTERVENTION_TALISMAN) return
+      const seat = runner.state.seats[role]
+      if (seat.talismanCount + seat.tutorialTalismanCount < 1) continue
+      if (!rollChance(rng, POLICY.talismanPercent)) continue
+
+      runner.send(role, { type: COMMAND_TYPE.INTERVENTION_TALISMAN })
+    }
+    return
+  }
+
+  if (step === GAME_STEP.INTERVENTION_FORCE) {
+    const first = runner.state.seats[BROTHER_ROLE.FIRST]
+    if (!first.isBot && !first.abilityUsed && rollChance(rng, POLICY.forceSuccessPercent)) {
+      runner.send(BROTHER_ROLE.FIRST, { type: COMMAND_TYPE.INTERVENTION_FORCE_SUCCESS })
+    }
+    return
+  }
+
+  if (step === GAME_STEP.PRACTICE_INTERVENTION) {
+    const humans = humanSeats(runner.state)
+    const seat = humans[rng.nextInt(humans.length)]
+    if (seat !== undefined && rollChance(rng, POLICY.practicePressPercent)) {
+      runner.send(seat, { type: COMMAND_TYPE.INTERVENTION_TALISMAN })
+    }
+  }
+}
+
+// ── 진행 루프 ────────────────────────────────────────────────────────
+
+export function runPhase1(options: SimOptions): SimResult {
+  const engineRng = createSeededRng(options.seed)
+  // 인간 정책은 별도 수열을 써서 엔진 난수와 섞이지 않게 한다
+  const policyRng = createSeededRng(options.seed + 1)
+
+  let now = options.startedAt ?? Date.UTC(2026, 0, 1, 20, 0, 0)
+  let last: DispatchSuccess = createGame(
+    { roomCode: 'SIM', seats: seatSetupForHumans(options.humans) },
+    { now, rng: engineRng },
+  )
+  options.onStep?.(last)
+
+  const events: SimEventRecord[] = []
+  let record = snapshotEvent(last.state, 0)
+
+  const lines: string[] = [
+    `# Phase 1 시뮬레이션 — seed ${options.seed}, 인간 ${options.humans}명`,
+    '',
+  ]
+  const totalEvents = last.state.progress.eventOrder.length
+
+  /** 액션 처리 뒤마다 기록을 갱신하고, 이벤트가 넘어갔으면 직전 기록을 출력한다 */
+  function observe(): void {
+    // 한 번의 처리 안에서 채택과 이벤트 전환이 함께 일어나면 상태로는 볼 수 없으므로 로그에서 읽는다
+    for (const log of last.logs) {
+      if (log.code !== LOG_CODE.VOTE_TALLIED) continue
+      if (log.data?.eventId !== record.eventId) continue
+      record.adoptedChoiceId = String(log.data.adoptedChoiceId)
+    }
+
+    const eventId = last.state.currentEvent?.eventId
+    if (eventId === undefined) return
+
+    if (eventId !== record.eventId) {
+      events.push(record)
+      lines.push(...formatEvent(record, last.state, events.length, totalEvents, now))
+      record = snapshotEvent(last.state, events.length)
+      return
+    }
+    updateRecord(record, last.state)
+  }
+
+  const runner: Runner = {
+    get state(): GameState {
+      return last.state
+    },
+    send(seat, command) {
+      const result = dispatch(
+        last.state,
+        { kind: ACTION_KIND.COMMAND, seat, command },
+        { now, rng: engineRng },
+      )
+      if (result.rejected) return
+      last = result
+      observe()
+      options.onStep?.(last)
+    },
+  }
+
+  // `last`는 클로저 안에서 갱신되므로 단계는 그때그때 함수로 읽는다
+  const stepNow = (): GameStep => last.state.progress.step
+
+  for (let guard = 0; guard < MAX_ACTIONS; guard += 1) {
+    if (stepNow() === GAME_STEP.PHASE1_COMPLETE) break
+
+    const step = stepNow()
+    if (step === GAME_STEP.VOTING) actVoting(runner, policyRng)
+    else if (step === GAME_STEP.ROLL_WAIT) actRollWait(runner, policyRng)
+    else actIntervention(runner, policyRng)
+
+    if (stepNow() === GAME_STEP.PHASE1_COMPLETE) break
+
+    const deadline = last.nextDeadline
+    if (deadline === null) {
+      throw new Error(`타이머가 없는 단계에서 멈췄다: ${last.state.progress.step}`)
+    }
+
+    now = deadline.at
+    const result = dispatch(
+      last.state,
+      {
+        kind: ACTION_KIND.TIMER_EXPIRY,
+        step: deadline.step,
+        stateVersion: deadline.stateVersion,
+      },
+      { now, rng: engineRng },
+    )
+    if (result.rejected) {
+      throw new Error(`타이머가 거절됐다: ${result.reason} ${result.detail ?? ''}`)
+    }
+    last = result
+    observe()
+    options.onStep?.(last)
+  }
+
+  // 마지막 이벤트 기록은 루프가 어디서 끝나도 한 번만 확정한다
+  if (events[events.length - 1] !== record) {
+    events.push(record)
+    lines.push(...formatEvent(record, last.state, events.length, totalEvents, now))
+  }
+
+  if (stepNow() !== GAME_STEP.PHASE1_COMPLETE) {
+    throw new Error(`Phase 1이 끝나지 않았다: ${stepNow()}`)
+  }
+
+  lines.push('Phase 1 종료')
+
+  return {
+    seed: options.seed,
+    humans: options.humans,
+    finalState: last.state,
+    events,
+    lines,
+  }
+}
+
+// ── 출력 ─────────────────────────────────────────────────────────────
+
+/** 한글을 2칸으로 세어 라벨 폭을 맞춘다 */
+function padLabel(label: string, columns: number): string {
+  let width = 0
+  for (const char of label) {
+    width += char.codePointAt(0) !== undefined && char.charCodeAt(0) > 0x2e80 ? 2 : 1
+  }
+  return label + ' '.repeat(Math.max(1, columns - width))
+}
+
+function row(label: string, value: string): string {
+  return `  ${padLabel(label, 10)}${value}`
+}
+
+function voteLine(record: SimEventRecord): string {
+  const event = findPhase1Event(record.eventId)
+  if (event === undefined) return '알 수 없음'
+  if (event.skipVoting) return '생략 (선택지 1개)'
+
+  const counts = new Map<string, number>()
+  for (const choiceId of Object.values(record.votes)) {
+    if (choiceId === undefined) continue
+    counts.set(choiceId, (counts.get(choiceId) ?? 0) + 1)
+  }
+  const tally = event.choices
+    .map((choice) => `${choice.text} ${counts.get(choice.id) ?? 0}표`)
+    .join(' · ')
+  const adopted = event.choices.find((choice) => choice.id === record.adoptedChoiceId)
+
+  return `${tally} → 채택 「${adopted?.text ?? '-'}」`
+}
+
+function variantLine(record: SimEventRecord): string {
+  const entries = Object.entries(record.variants)
+  if (entries.length === 0) return '미적용'
+  return entries
+    .map(([choiceId, variant]) => {
+      const mark = choiceId === record.adoptedChoiceId ? '*' : ''
+      return `${choiceId}${mark} ${VARIANT_LABEL[variant]}`
+    })
+    .join(' · ')
+}
+
+function judgmentLine(record: SimEventRecord): string {
+  if (record.judgment === null) return '없음 (판정 없는 선택지)'
+
+  const event = findPhase1Event(record.eventId)
+  const choice = event?.choices.find((candidate) => candidate.id === record.adoptedChoiceId)
+  const attribute =
+    choice !== undefined && hasJudgment(choice) && choice.judgment.kind !== JUDGMENT_KIND.COOP
+      ? ` [${ATTRIBUTE_LABEL[choice.judgment.attribute]}]`
+      : ''
+  const cost =
+    record.judgment.kind === JUDGMENT_KIND.HIDDEN
+      ? ` (대가 +${GAME_CONFIG.hiddenJudgmentCostPercent}%)`
+      : ''
+  const roller = record.rollerSeat === null ? '' : ` · 판정자 ${ROLE_LABEL[record.rollerSeat]}`
+
+  return `${JUDGMENT_LABEL[record.judgment.kind]}${attribute} · 기준 ${record.judgment.threshold}${roller}${cost}`
+}
+
+function diceLine(record: SimEventRecord, state: GameState): string {
+  if (record.judgment === null) return '없음'
+
+  const dice = record.judgment.dice
+    .map((die) => `${ROLE_LABEL[die.seat]} ${die.value ?? '-'}${state.seats[die.seat].isBot ? '(봇)' : ''}`)
+    .join(' · ')
+
+  const values = record.judgment.dice
+    .map((die) => die.value)
+    .filter((value): value is number => value !== null)
+  const base =
+    record.judgment.kind === JUDGMENT_KIND.COOP
+      ? Math.max(0, ...values)
+      : (values[0] ?? 0)
+
+  const parts = [`주사위 ${base}`]
+  if (record.judgment.roleBonus !== 0) parts.push(`직업 ${signed(record.judgment.roleBonus)}`)
+  if (record.judgment.teamModifierApplied !== 0) {
+    parts.push(`팀 ${signed(record.judgment.teamModifierApplied)}`)
+  }
+  if (record.judgment.talismanBonus !== 0) parts.push(`부적 ${signed(record.judgment.talismanBonus)}`)
+
+  const final =
+    base +
+    record.judgment.roleBonus +
+    record.judgment.teamModifierApplied +
+    record.judgment.talismanBonus
+
+  return `${dice} → ${parts.join(' ')} = 최종값 ${final}`
+}
+
+function signed(value: number): string {
+  return value >= 0 ? `+${value}` : `${value}`
+}
+
+function resultLine(record: SimEventRecord): string {
+  if (record.judgment === null) return '판정 없음'
+
+  const outcome = record.judgment.succeeded === true ? '성공' : '실패'
+  if (record.judgment.kind === JUDGMENT_KIND.HIDDEN) {
+    return `${outcome} — 비공개 판정이라 화면에는 "판정 완료"만 표시된다`
+  }
+  return record.judgment.forcedSuccess ? `${outcome} (강제 성공)` : outcome
+}
+
+function interventionLine(record: SimEventRecord): string {
+  if (record.visitedSteps.includes(GAME_STEP.PRACTICE_INTERVENTION)) {
+    return `연습 개입 창 (${GAME_CONFIG.practiceInterventionSeconds}초, 변화 없음)`
+  }
+  if (record.judgment === null) return '없음'
+  if (record.judgment.interventions.length === 0) {
+    const realWindowSteps: GameStep[] = [
+      GAME_STEP.INTERVENTION_REROLL,
+      GAME_STEP.INTERVENTION_TALISMAN,
+      GAME_STEP.INTERVENTION_FORCE,
+    ]
+    const opened = record.visitedSteps.some((step) => realWindowSteps.includes(step))
+    return opened ? '창은 열렸으나 아무도 쓰지 않음' : '없음'
+  }
+
+  return record.judgment.interventions
+    .map((used) => `${ROLE_LABEL[used.seat]} ${INTERVENTION_LABEL[used.kind] ?? used.kind}`)
+    .join(' · ')
+}
+
+function seatLine(state: GameState): string {
+  return SEAT_ORDER.map((role) => {
+    const seat = state.seats[role]
+    const items = [`부적 ${seat.talismanCount}`]
+    if (seat.tutorialTalismanCount > 0) items.push(`튜토리얼 ${seat.tutorialTalismanCount}`)
+    const bot = seat.isBot ? '(봇)' : ''
+    return `${ROLE_LABEL[role]}${bot} ${seat.erosionPercent}% [${items.join(', ')}]`
+  }).join(' · ')
+}
+
+function clockLine(state: GameState, now: number): string {
+  const remainingMinutes = Math.round((state.clock.deadlineAt - now) / 60_000)
+  const team = state.teamModifier === 0 ? '' : ` · 팀 플래그 ${signed(state.teamModifier)}`
+  return `남은 ${remainingMinutes}분${team}`
+}
+
+function formatEvent(
+  record: SimEventRecord,
+  state: GameState,
+  index: number,
+  total: number,
+  now: number,
+): string[] {
+  return [
+    `[이벤트 ${index}/${total}] ${record.title}`,
+    row('투표', voteLine(record)),
+    row('변이', variantLine(record)),
+    row('판정', judgmentLine(record)),
+    row('주사위', diceLine(record, state)),
+    row('결과', resultLine(record)),
+    row('개입', interventionLine(record)),
+    row('좌석', seatLine(state)),
+    ...(record.tutorialTalismanSeat === null
+      ? []
+      : [row('부적', `튜토리얼 부적 → ${ROLE_LABEL[record.tutorialTalismanSeat]} (T1 종료 시 소멸)`)]),
+    row('시계', clockLine(state, now)),
+    '',
+  ]
+}
+
+// ── CLI ──────────────────────────────────────────────────────────────
+
+export function parseArgs(argv: string[]): { seed: number; humans: number } {
+  let seed = 1
+  let humans = 3
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i]
+    const next = argv[i + 1]
+    if (arg === '--seed' && next !== undefined) {
+      seed = Number.parseInt(next, 10)
+      i += 1
+    } else if (arg === '--humans' && next !== undefined) {
+      humans = Number.parseInt(next, 10)
+      i += 1
+    }
+  }
+
+  if (!Number.isInteger(seed)) throw new Error('--seed는 정수여야 한다')
+  if (!Number.isInteger(humans) || humans < 1 || humans > SEAT_ORDER.length) {
+    throw new Error(`--humans는 1~${SEAT_ORDER.length} 사이의 정수여야 한다`)
+  }
+  return { seed, humans }
+}
+
+function main(): void {
+  const { seed, humans } = parseArgs(process.argv.slice(2))
+  const result = runPhase1({ seed, humans })
+  console.log(result.lines.join('\n'))
+}
+
+// tsx로 직접 실행할 때만 CLI로 동작한다
+if (process.argv[1] !== undefined && process.argv[1].includes('playPhase1')) {
+  main()
+}
