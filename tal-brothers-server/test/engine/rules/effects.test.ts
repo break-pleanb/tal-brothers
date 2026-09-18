@@ -1,0 +1,160 @@
+import { describe, expect, it } from 'vitest'
+import { BROTHER_ROLE } from 'tal-brothers-shared'
+import type { BrotherRole } from 'tal-brothers-shared'
+
+import { findPhase1Event } from '../../../src/scenario/phase1Events'
+import {
+  EFFECT_CATEGORY,
+  EFFECT_KIND,
+  EFFECT_TARGET,
+  hasJudgment,
+} from '../../../src/scenario/scenarioTypes'
+import type { Effect, JudgmentChoice } from '../../../src/scenario/scenarioTypes'
+import { createSeededRng } from '../../../src/engine/random'
+import { applyEffects, resolveTargetSeats, stripRewards } from '../../../src/engine/rules/effects'
+import type { EffectContext } from '../../../src/engine/rules/effects'
+import { createGame, seatSetupForHumans } from '../../../src/engine/state/createGame'
+import type { GameState } from '../../../src/engine/state/gameState'
+
+const NOW = 1_700_000_000_000
+
+function makeState(humanCount = 3): GameState {
+  const result = createGame(
+    { roomCode: 'TEST', seats: seatSetupForHumans(humanCount) },
+    { now: NOW, rng: createSeededRng(1) },
+  )
+  if (result.rejected) throw new Error('게임 생성 실패')
+  return result.state
+}
+
+function chiefChoice(choiceId: string): JudgmentChoice {
+  const choice = findPhase1Event('villageChief')?.choices.find(
+    (candidate) => candidate.id === choiceId,
+  )
+  if (choice === undefined || !hasJudgment(choice)) {
+    throw new Error(`판정 선택지를 찾지 못했다: ${choiceId}`)
+  }
+  return choice
+}
+
+function contextFor(roller: BrotherRole = BROTHER_ROLE.THIRD): EffectContext {
+  return { rollerSeat: roller, coopTopSeat: null, eventId: 'villageChief' }
+}
+
+describe('강제 성공 (룰북 §3.2)', () => {
+  it('이장 B — 부적 없음, 판정자 +5% 적용', () => {
+    const state = makeState()
+    const effects = stripRewards(chiefChoice('chief-b').success)
+    applyEffects(state, effects, contextFor(BROTHER_ROLE.THIRD))
+
+    expect(state.seats[BROTHER_ROLE.THIRD].talismanCount).toBe(0)
+    expect(state.seats[BROTHER_ROLE.THIRD].erosionPercent).toBe(5)
+    expect(state.seats[BROTHER_ROLE.FIRST].erosionPercent).toBe(0)
+  })
+
+  it('이장 C — 버프 없음, 전원 +10% 적용', () => {
+    const state = makeState()
+    const effects = stripRewards(chiefChoice('chief-c').success)
+    applyEffects(state, effects, contextFor(BROTHER_ROLE.FIRST))
+
+    expect(state.teamModifier).toBe(0)
+    expect(state.seats[BROTHER_ROLE.FIRST].erosionPercent).toBe(10)
+    expect(state.seats[BROTHER_ROLE.SECOND].erosionPercent).toBe(10)
+    expect(state.seats[BROTHER_ROLE.THIRD].erosionPercent).toBe(10)
+  })
+
+  it('강제 성공이 아니면 보상이 그대로 적용된다', () => {
+    const state = makeState()
+    applyEffects(state, chiefChoice('chief-b').success, contextFor(BROTHER_ROLE.THIRD))
+
+    expect(state.seats[BROTHER_ROLE.THIRD].talismanCount).toBe(1)
+    expect(state.seats[BROTHER_ROLE.THIRD].erosionPercent).toBe(5)
+  })
+})
+
+describe('효과 대상 (룰북 §4.1, §5.3)', () => {
+  it('roller는 판정자 1명에게만 적용된다', () => {
+    expect(resolveTargetSeats(EFFECT_TARGET.ROLLER, contextFor(BROTHER_ROLE.SECOND))).toEqual([
+      BROTHER_ROLE.SECOND,
+    ])
+  })
+
+  it('all은 봇을 포함한 3좌석 전원이다', () => {
+    const state = makeState(1)
+    const effect: Effect = {
+      category: EFFECT_CATEGORY.SIDE_EFFECT,
+      kind: EFFECT_KIND.EROSION,
+      target: EFFECT_TARGET.ALL,
+      deltaPercent: 10,
+    }
+    applyEffects(state, [effect], contextFor(BROTHER_ROLE.FIRST))
+
+    expect(state.seats[BROTHER_ROLE.SECOND].isBot).toBe(true)
+    expect(state.seats[BROTHER_ROLE.THIRD].isBot).toBe(true)
+    for (const role of [BROTHER_ROLE.FIRST, BROTHER_ROLE.SECOND, BROTHER_ROLE.THIRD]) {
+      expect(state.seats[role].erosionPercent).toBe(10)
+    }
+  })
+
+  it('coopTopRoller는 협동 판정의 보상 수령자에게 적용된다', () => {
+    const state = makeState()
+    const effect: Effect = {
+      category: EFFECT_CATEGORY.REWARD,
+      kind: EFFECT_KIND.TALISMAN,
+      target: EFFECT_TARGET.COOP_TOP_ROLLER,
+      count: 1,
+    }
+    applyEffects(state, [effect], {
+      rollerSeat: null,
+      coopTopSeat: BROTHER_ROLE.SECOND,
+      eventId: 't2-1',
+    })
+
+    expect(state.seats[BROTHER_ROLE.SECOND].talismanCount).toBe(1)
+    expect(state.seats[BROTHER_ROLE.FIRST].talismanCount).toBe(0)
+  })
+
+  it('해석할 좌석이 없으면 예외를 던진다', () => {
+    expect(() =>
+      resolveTargetSeats(EFFECT_TARGET.ROLLER, {
+        rollerSeat: null,
+        coopTopSeat: null,
+        eventId: 't2-1',
+      }),
+    ).toThrow()
+  })
+})
+
+describe('팀 플래그와 시간 (룰북 §2.1, §5.5)', () => {
+  it('teamModifier 효과가 합산되고 하한 -2를 넘지 않는다', () => {
+    const state = makeState()
+    const debuff: Effect = {
+      category: EFFECT_CATEGORY.PENALTY,
+      kind: EFFECT_KIND.TEAM_MODIFIER,
+      delta: -1,
+    }
+    applyEffects(state, [debuff, debuff, debuff], contextFor())
+
+    expect(state.teamModifier).toBe(-2)
+    expect(state.notices.filter((notice) => notice.kind === 'anonymousModifier')).toHaveLength(3)
+  })
+
+  it('timeDelta가 게임 시계 마감 시각에 반영된다', () => {
+    const state = makeState()
+    const before = state.clock.deadlineAt
+
+    applyEffects(
+      state,
+      [
+        {
+          category: EFFECT_CATEGORY.PENALTY,
+          kind: EFFECT_KIND.TIME_DELTA,
+          minutes: -5,
+        },
+      ],
+      contextFor(),
+    )
+
+    expect(state.clock.deadlineAt).toBe(before - 5 * 60_000)
+  })
+})
