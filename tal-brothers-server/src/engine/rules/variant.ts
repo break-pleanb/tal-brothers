@@ -6,7 +6,7 @@ import { EFFECT_CATEGORY } from '../../scenario/constants/effectCategory'
 import { EFFECT_KIND } from '../../scenario/constants/effectKind'
 import { hasJudgment, isRollJudgment } from '../../scenario/scenarioTypes'
 import type { Choice, Effect, RollJudgmentSpec, ScenarioEvent } from '../../scenario/scenarioTypes'
-import { pickWeighted, type Rng } from '../random'
+import { pickOne, pickWeighted, rollChance, type Rng } from '../random'
 
 /**
  * 흉/평/길 변이 (룰북 §6).
@@ -150,4 +150,42 @@ export function applyVariantToChoice(choice: Choice, variant: VariantKind): Choi
     ...choice,
     failure: shiftErosionPenalty(choice.failure, GAME_CONFIG.blessPenaltyDeltaPercent),
   }
+}
+
+/** 흉·평·길 세 값 (룰북 §6.1) */
+export const ALL_VARIANTS: readonly VariantKind[] = [
+  VARIANT_KIND.ILL,
+  VARIANT_KIND.PLAIN,
+  VARIANT_KIND.BLESS,
+]
+
+/**
+ * 거짓이 주장할 변이 — 실제 변이를 제외한 나머지 두 값 중 무작위 1개.
+ * T2 귓속말(룰북 §12)과 가짜 라벨(M2 계획 10.2)이 같은 규칙을 쓴다.
+ */
+export function pickFalseVariant(actual: VariantKind, rng: Rng): VariantKind {
+  return pickOne(
+    rng,
+    ALL_VARIANTS.filter((variant) => variant !== actual),
+  )
+}
+
+/**
+ * 60~99% 좌석의 가짜 라벨을 굴린다 (룰북 §4.3, M2 계획 10.2).
+ *
+ * - 발동 여부는 **좌석마다 1회**. 걸리면 그 이벤트의 모든 선택지를 가짜로 표시한다
+ * - 각 선택지의 값은 그 선택지의 실제 변이를 제외한 나머지 두 값 중 무작위 1개다
+ * - 걸리지 않으면 null. 호출자는 상태에 아무것도 저장하지 않는다
+ */
+export function rollFakeLabelsForSeat(
+  variants: Record<string, VariantKind>,
+  rng: Rng,
+): Record<string, VariantKind> | null {
+  if (!rollChance(rng, GAME_CONFIG.tier60FakeLabelChance)) return null
+
+  const labels: Record<string, VariantKind> = {}
+  for (const [choiceId, actual] of Object.entries(variants)) {
+    labels[choiceId] = pickFalseVariant(actual, rng)
+  }
+  return labels
 }

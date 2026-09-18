@@ -6,7 +6,7 @@ import type { Effect } from '../../scenario/scenarioTypes'
 import type { StepHandler } from '../dispatch'
 import { CUE_AUDIENCE, LOG_CODE } from '../engineTypes'
 import { applyEffects, stripRewards } from '../rules/effects'
-import { applyErosionDelta } from '../rules/erosion'
+import { applySeatErosion } from '../rules/erosion'
 import { clampTeamModifier } from '../rules/modifiers'
 import { SEAT_ORDER } from '../state/gameState'
 import { adoptedChoice, coopTopSeat, currentScenarioEvent } from './rollStep'
@@ -27,10 +27,7 @@ export const RESOLUTION_HANDLER: StepHandler = {
 
     // 비공개 판정 대가는 성패와 무관하게 판정자에게 고정 적용 (룰북 §5.4)
     if (judgment !== null && judgment.kind === JUDGMENT_KIND.HIDDEN && rollerSeat !== null) {
-      draft.seats[rollerSeat].erosionPercent = applyErosionDelta(
-        draft.seats[rollerSeat].erosionPercent,
-        GAME_CONFIG.hiddenJudgmentCostPercent,
-      )
+      applySeatErosion(draft, rollerSeat, GAME_CONFIG.hiddenJudgmentCostPercent, context, out)
       out.logs.push({
         at: context.now,
         code: LOG_CODE.HIDDEN_JUDGMENT_COST,
@@ -44,11 +41,19 @@ export const RESOLUTION_HANDLER: StepHandler = {
     }
 
     const effects = resultEffects(choice, judgment)
-    applyEffects(draft, effects, {
-      rollerSeat,
-      coopTopSeat: judgment === null ? null : coopTopSeat(judgment, context),
-      eventId: event.id,
-    })
+    applyEffects(
+      draft,
+      effects,
+      {
+        rollerSeat,
+        coopTopSeat: judgment === null ? null : coopTopSeat(judgment, context),
+        submitterSeat: current?.talismanSubmittedBy ?? null,
+        eventId: event.id,
+        nextEventId: draft.progress.eventOrder[draft.progress.eventIndex + 1] ?? null,
+      },
+      context,
+      out,
+    )
 
     out.logs.push({
       at: context.now,

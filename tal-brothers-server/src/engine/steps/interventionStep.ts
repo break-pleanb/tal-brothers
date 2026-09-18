@@ -7,7 +7,7 @@ import type { StepHandler } from '../dispatch'
 import { CUE_AUDIENCE, LOG_CODE, REJECTION_REASON, reject } from '../engineTypes'
 import type { EngineContext, Rejection, StepOutput } from '../engineTypes'
 import { rollD6 } from '../random'
-import { applyErosionDelta } from '../rules/erosion'
+import { applySeatErosion } from '../rules/erosion'
 import { INTERVENTION_KIND, PUBLIC_NOTICE_KIND } from '../state/gameState'
 import type { GameState, InterventionKind, InterventionRecord, JudgmentState } from '../state/gameState'
 import {
@@ -376,7 +376,7 @@ export const INTERVENTION_FORCE_HANDLER: StepHandler = {
     draft.progress.stepDeadlineAt = context.now + GAME_CONFIG.interventionForceSeconds * 1000
 
     // 첫째 봇은 보스 이벤트 실패 시에만 쓴다 → Phase 1에서는 사용하지 않는다 (룰북 §11)
-    if (draft.seats[BROTHER_ROLE.FIRST].isBot && shouldBotForceSuccess()) {
+    if (draft.seats[BROTHER_ROLE.FIRST].isBot && shouldBotForceSuccess(event.isBoss)) {
       applyForceSuccess(draft, context, out, event.isTutorial)
       out.next = GAME_STEP.RESOLUTION
     }
@@ -413,10 +413,7 @@ function applyForceSuccess(
   const first = draft.seats[BROTHER_ROLE.FIRST]
 
   // 본인 잠식도 +15%. 튜토리얼에서도 대가는 적용한다 (룰북 §3.2, §3.5)
-  first.erosionPercent = applyErosionDelta(
-    first.erosionPercent,
-    GAME_CONFIG.forceSuccessCostPercent,
-  )
+  applySeatErosion(draft, BROTHER_ROLE.FIRST, GAME_CONFIG.forceSuccessCostPercent, context, out)
   if (!isTutorial) {
     first.abilityUsed = true
   }

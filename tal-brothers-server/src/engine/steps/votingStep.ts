@@ -7,7 +7,7 @@ import type { StepHandler } from '../dispatch'
 import { LOG_CODE, REJECTION_REASON, reject } from '../engineTypes'
 import type { EngineContext, Rejection, StepOutput } from '../engineTypes'
 import { pickOne } from '../random'
-import { applyErosionDelta } from '../rules/erosion'
+import { applySeatErosion } from '../rules/erosion'
 import { PUBLIC_NOTICE_KIND, SEAT_ORDER } from '../state/gameState'
 import type { CurrentEventState, GameState } from '../state/gameState'
 import { adoptChoice, currentScenarioEvent } from './rollStep'
@@ -163,10 +163,7 @@ export const VOTING_HANDLER: StepHandler = {
         }
 
         draft.seats[seat].talismanCount -= 1
-        draft.seats[seat].erosionPercent = applyErosionDelta(
-          draft.seats[seat].erosionPercent,
-          -GAME_CONFIG.talismanHealPercent,
-        )
+        applySeatErosion(draft, seat, -GAME_CONFIG.talismanHealPercent, context, out)
         draft.notices.push({
           kind: PUBLIC_NOTICE_KIND.TALISMAN_USED,
           text: `${seat}가 낡은 부적으로 잠식을 씻었다`,

@@ -331,8 +331,10 @@ describe('봇 부적 자동 사용 (룰북 §11 확정)', () => {
 })
 
 describe('첫째 봇 강제 성공 (룰북 §11)', () => {
-  it('Phase 1에서는 쓰지 않는다', () => {
-    expect(shouldBotForceSuccess()).toBe(false)
+  it('보스 이벤트가 아니면 쓰지 않는다', () => {
+    // Phase 1에는 보스 이벤트가 없다 (룰북 §11, §13.5)
+    expect(shouldBotForceSuccess(false)).toBe(false)
+    expect(shouldBotForceSuccess(true)).toBe(true)
 
     const seats: SeatSetup = {
       [BROTHER_ROLE.FIRST]: { isBot: true },

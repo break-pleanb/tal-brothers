@@ -10,11 +10,15 @@ import { hasJudgment, isRollJudgment } from '../../../src/scenario/scenarioTypes
 import type { Choice, Effect, JudgmentChoice, PlainChoice } from '../../../src/scenario/scenarioTypes'
 import { createSeededRng } from '../../../src/engine/random'
 import {
+  ALL_VARIANTS,
   applyVariantToChoice,
   isBoostableReward,
+  pickFalseVariant,
   rollEventVariants,
+  rollFakeLabelsForSeat,
   variantOf,
 } from '../../../src/engine/rules/variant'
+import { PHASE2_BRANCH, findPhase2Event } from '../../../src/scenario/phase2Events'
 
 function chiefChoice(choiceId: string): JudgmentChoice {
   const choice = findPhase1Event('villageChief')?.choices.find(
@@ -177,7 +181,79 @@ describe('길 변이 (룰북 §6.2)', () => {
     expect(erosionOf(applied.failure, EFFECT_CATEGORY.PENALTY)).toBe(15)
   })
 
-  it.todo('옥비녀 보상은 증가하지 않고 페널티 -10%p — jadeHairpin 효과는 M2 범위')
+  it('옥비녀 보상은 증가하지 않고 실패 페널티 -10%p로 대체된다 (룰북 §6.2, §9.3)', () => {
+    const branchB = PHASE2_BRANCH.choices.find((choice) => choice.id === 'branch-b')
+    if (branchB === undefined || !hasJudgment(branchB)) throw new Error('분기 B를 찾지 못했다')
+
+    const applied = applyVariantToChoice(branchB, VARIANT_KIND.BLESS)
+    if (!hasJudgment(applied)) throw new Error('판정 선택지여야 한다')
+
+    // 성공 보상은 그대로 (옥비녀 1개, 전원 +10%)
+    expect(applied.success).toEqual(branchB.success)
+    expect(
+      applied.success.some((effect) => effect.kind === EFFECT_KIND.JADE_HAIRPIN),
+    ).toBe(true)
+    // 실패 페널티는 20% → 10%
+    expect(erosionOf(applied.failure, EFFECT_CATEGORY.PENALTY)).toBe(10)
+  })
+
+  it('옥비녀 선택지의 흉은 기준 6, 실패 +30%다 (룰북 §6.2)', () => {
+    const branchB = PHASE2_BRANCH.choices.find((choice) => choice.id === 'branch-b')
+    if (branchB === undefined || !hasJudgment(branchB)) throw new Error('분기 B를 찾지 못했다')
+
+    const applied = applyVariantToChoice(branchB, VARIANT_KIND.ILL)
+    if (!hasJudgment(applied)) throw new Error('판정 선택지여야 한다')
+
+    expect(thresholdOf(applied)).toBe(6)
+    expect(erosionOf(applied.failure, EFFECT_CATEGORY.PENALTY)).toBe(30)
+  })
+
+  it('14A는 변이 적용 이벤트라도 선택지 단위로 변이가 붙지 않는다 (룰북 §6.3)', () => {
+    const choice = findPhase2Event('p2-14')?.choices.find((candidate) => candidate.id === 'p2-14-a')
+    if (choice === undefined) throw new Error('14A를 찾지 못했다')
+
+    expect(applyVariantToChoice(choice, VARIANT_KIND.ILL)).toBe(choice)
+    expect(applyVariantToChoice(choice, VARIANT_KIND.BLESS)).toBe(choice)
+  })
+
+  it('11A의 실패 시간 페널티는 흉·길에서 변하지 않는다 (룰북 §6.2)', () => {
+    const choice = findPhase2Event('p2-11')?.choices.find((candidate) => candidate.id === 'p2-11-a')
+    if (choice === undefined || !hasJudgment(choice)) throw new Error('11A를 찾지 못했다')
+
+    for (const variant of [VARIANT_KIND.ILL, VARIANT_KIND.BLESS]) {
+      const applied = applyVariantToChoice(choice, variant)
+      if (!hasJudgment(applied)) throw new Error('판정 선택지여야 한다')
+
+      const time = applied.failure.find((effect) => effect.kind === EFFECT_KIND.TIME_DELTA)
+      expect(time?.kind === EFFECT_KIND.TIME_DELTA ? time.minutes : null, variant).toBe(-5)
+    }
+  })
+
+  it('증가 가능한 보상이 여러 개면 전부 한 단계씩 오른다 (룰북 §6.2)', () => {
+    const fixture = judgmentFixture({
+      success: [
+        {
+          category: EFFECT_CATEGORY.REWARD,
+          kind: EFFECT_KIND.TALISMAN,
+          target: EFFECT_TARGET.ROLLER,
+          count: 1,
+        },
+        {
+          category: EFFECT_CATEGORY.REWARD,
+          kind: EFFECT_KIND.EROSION,
+          target: EFFECT_TARGET.ALL,
+          deltaPercent: -10,
+        },
+      ],
+    })
+
+    const applied = applyVariantToChoice(fixture, VARIANT_KIND.BLESS)
+    if (!hasJudgment(applied)) throw new Error('판정 선택지여야 한다')
+
+    const talisman = applied.success.find((effect) => effect.kind === EFFECT_KIND.TALISMAN)
+    expect(talisman?.kind === EFFECT_KIND.TALISMAN ? talisman.count : 0).toBe(2)
+    expect(erosionOf(applied.success, EFFECT_CATEGORY.REWARD)).toBe(-15)
+  })
 
   it('버프는 증가 가능한 보상이 아니다', () => {
     expect(
@@ -267,5 +343,51 @@ describe('변이 적용 범위 (룰북 §6.3)', () => {
 
   it('변이 표에 없는 선택지는 평으로 취급한다', () => {
     expect(variantOf({}, 't1-a')).toBe(VARIANT_KIND.PLAIN)
+  })
+})
+
+describe('가짜 변이 라벨 (룰북 §4.3, M2 계획 10.2)', () => {
+  const VARIANTS = {
+    'p2-01-a': VARIANT_KIND.ILL,
+    'p2-01-b': VARIANT_KIND.PLAIN,
+    'p2-01-c': VARIANT_KIND.BLESS,
+  }
+
+  it('거짓 값은 실제 변이를 제외한 나머지 두 값 중에서 고른다', () => {
+    for (const actual of ALL_VARIANTS) {
+      for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+        const fake = pickFalseVariant(actual, createSeededRng(seed))
+        expect(fake, `${actual}/${seed}`).not.toBe(actual)
+        expect(ALL_VARIANTS).toContain(fake)
+      }
+    }
+  })
+
+  it('좌석마다 1회 굴려 걸리면 모든 선택지에 라벨이 붙는다', () => {
+    // 확률 판정을 항상 통과시키는 난수
+    const always = { nextInt: () => 0 }
+    const labels = rollFakeLabelsForSeat(VARIANTS, always)
+
+    expect(labels).not.toBeNull()
+    expect(Object.keys(labels ?? {})).toEqual(Object.keys(VARIANTS))
+    for (const [choiceId, actual] of Object.entries(VARIANTS)) {
+      expect(labels?.[choiceId], choiceId).not.toBe(actual)
+    }
+  })
+
+  it('확률에 걸리지 않으면 라벨을 만들지 않는다', () => {
+    const never = { nextInt: (bound: number) => bound - 1 }
+    expect(rollFakeLabelsForSeat(VARIANTS, never)).toBeNull()
+  })
+
+  it('30% 확률이 설정값과 같다 (룰북 §19)', () => {
+    let hit = 0
+    const rng = createSeededRng(2026)
+    for (let i = 0; i < 4000; i += 1) {
+      if (rollFakeLabelsForSeat({ 'p2-01-a': VARIANT_KIND.PLAIN }, rng) !== null) hit += 1
+    }
+
+    const ratio = (hit / 4000) * 100
+    expect(Math.abs(ratio - GAME_CONFIG.tier60FakeLabelChance)).toBeLessThan(3)
   })
 })

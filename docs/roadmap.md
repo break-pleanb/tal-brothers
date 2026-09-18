@@ -220,10 +220,11 @@ tal-brothers-server/
 
 ### M2-3. 상태 확장과 순수 규칙
 
-- [ ] 상태 확장 (계획 2절) — 배신자, 보류함, 옥비녀, 가짜 라벨, Phase 3, 엔딩, 시계 만료
-- [ ] `erosion.ts` 티어 판정과 좌석 잠식 단일 진입점, `traitor.ts`, `target.ts`, `slots.ts`
-- [ ] `variant.ts` 가짜 라벨, `whisper.ts` 귓속말 5종, `effects.ts` 새 대상·옥비녀·보유 상한
-- [ ] 규칙 테스트 5종 (계획 9절 M2-3)
+- [x] 상태 확장 (계획 2절) — 배신자, 보류함, 옥비녀, 가짜 라벨, Phase 3, 엔딩, 시계 만료
+- [x] `erosion.ts` 티어 판정과 좌석 잠식 단일 진입점, `traitor.ts`, `target.ts`, `slots.ts`
+- [x] `variant.ts` 가짜 라벨, `whisper.ts` 귓속말 5종, `effects.ts` 새 대상·옥비녀·보유 상한
+- [x] 봇 100% 방해와 첫째 봇 보스 강제 성공 판단 (단계 연결은 M2-4)
+- [x] 규칙 테스트 5종 (계획 9절 M2-3). M1의 옥비녀 `it.todo` 해제
 
 ### M2-4. Phase 2 단계 처리기
 

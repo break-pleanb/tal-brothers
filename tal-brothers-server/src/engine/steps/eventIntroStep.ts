@@ -12,7 +12,7 @@ import { pickOne } from '../random'
 import { rollEventVariants } from '../rules/variant'
 import { deliverPendingWhispers } from '../rules/whisper'
 import { SEAT_ORDER } from '../state/gameState'
-import type { GameState } from '../state/gameState'
+import type { CurrentEventState, GameState } from '../state/gameState'
 import { adoptChoice } from './rollStep'
 
 /**
@@ -68,14 +68,19 @@ export const EVENT_INTRO_HANDLER: StepHandler = {
       })
     }
 
-    draft.currentEvent = {
+    const current: CurrentEventState = {
       eventId: event.id,
       variants: {},
+      fakeLabels: {},
       trueSightUsed: false,
       votes: {},
       adoptedChoiceId: null,
       rollerSeat: null,
+      grabbedSeat: null,
+      talismanSubmittedBy: null,
+      environmentErosionApplied: false,
     }
+    draft.currentEvent = current
     draft.currentJudgment = null
 
     if (event.grantsTutorialTalisman) {
@@ -83,12 +88,12 @@ export const EVENT_INTRO_HANDLER: StepHandler = {
     }
 
     // 변이는 이벤트가 출현할 때 선택지마다 결정해 확정 저장한다 (룰북 §6.1)
-    draft.currentEvent.variants = rollEventVariants(event, context.rng)
+    current.variants = rollEventVariants(event, context.rng)
     if (event.variantApplied) {
       out.logs.push({
         at: context.now,
         code: LOG_CODE.VARIANTS_DECIDED,
-        message: Object.entries(draft.currentEvent.variants)
+        message: Object.entries(current.variants)
           .map(([choiceId, variant]) => `${choiceId}:${variant}`)
           .join(' '),
       })
@@ -98,7 +103,7 @@ export const EVENT_INTRO_HANDLER: StepHandler = {
     const delivered = deliverPendingWhispers(
       draft,
       event,
-      draft.currentEvent.variants,
+      current.variants,
       context.rng,
     )
     for (const { targetSeat, whisper } of delivered) {

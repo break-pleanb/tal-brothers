@@ -153,13 +153,17 @@ export const ROLL_WAIT_HANDLER: StepHandler = {
     const kind = choice.judgment.kind
     const roller = draft.currentEvent?.rollerSeat ?? null
 
-    draft.currentJudgment = {
+    const judgment: JudgmentState = {
       kind,
       threshold: judgmentThreshold(choice),
       dice:
         kind === JUDGMENT_KIND.COOP
           ? SEAT_ORDER.map((seat) => ({ seat, value: null }))
           : [{ seat: rollerOrThrow(roller), value: null }],
+      // 대립 판정의 상대 주사위와 팀 구성은 Phase 3 처리기가 채운다 (룰북 §14)
+      opponentDie: null,
+      contest: false,
+      teamSeats: [],
       roleBonus: roleBonusFor(kind, judgmentAttribute(choice), roller),
       // 대기 중인 팀 플래그를 이 판정에 적용한다. 소멸은 RESOLUTION에서 (룰북 §5.5)
       teamModifierApplied: draft.teamModifier,
@@ -171,13 +175,14 @@ export const ROLL_WAIT_HANDLER: StepHandler = {
       botTalismanDecided: false,
       interventions: [],
     }
+    draft.currentJudgment = judgment
 
     draft.progress.stepDeadlineAt = context.now + GAME_CONFIG.autoRollSeconds * 1000
 
     // 봇 주사위는 진입 즉시 (아키텍처 §8)
     botRollOwnDice(draft, context, out)
 
-    if (allDiceRolled(draft.currentJudgment)) {
+    if (allDiceRolled(judgment)) {
       out.next = GAME_STEP.ROLL_REVEAL
     }
   },

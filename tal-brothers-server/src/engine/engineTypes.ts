@@ -75,6 +75,35 @@ export const LOG_CODE = {
   EFFECTS_APPLIED: 'effectsApplied',
   CLOCK_EXPIRED: 'clockExpired',
   PHASE_COMPLETE: 'phaseComplete',
+
+  /** Phase 진입 (룰북 §13.1) */
+  PHASE_ENTERED: 'phaseEntered',
+  /** 환경 잠식 전원 +5% (룰북 §4.2) */
+  ENVIRONMENT_EROSION: 'environmentErosion',
+  /** 이면의 형제 전환 (룰북 §10.1) */
+  TRAITOR_TURNED: 'traitorTurned',
+  /** 봇 100% 방해 (룰북 §11) */
+  BOT_SABOTAGE: 'botSabotage',
+  /** 부적 획득 (룰북 §9.1) */
+  TALISMAN_GAINED: 'talismanGained',
+  /** 부적 소모 — 판정 보정·회복·14A 제출 (룰북 §7.4, §9.1, §13.5) */
+  TALISMAN_SPENT: 'talismanSpent',
+  /** 보유 상한 초과분 정리 — 양도·버림·자동 폐기 (M2 계획 10.1) */
+  TALISMAN_OVERFLOW: 'talismanOverflow',
+  /** 14A 제출 창 결과 (룰북 §13.5) */
+  TALISMAN_SUBMITTED: 'talismanSubmitted',
+  /** 13번 발목 대상 지목 (룰북 §13.5) */
+  SEAT_GRABBED: 'seatGrabbed',
+  /** Phase 3 타겟 지정 (룰북 §14.1) */
+  TARGET_SELECTED: 'targetSelected',
+  /** 옥비녀 이동 (룰북 §14.1) */
+  JADE_HAIRPIN_MOVED: 'jadeHairpinMoved',
+  /** 대립 판정 결과 (룰북 §14.3, §14.4) */
+  CONTEST_RESOLVED: 'contestResolved',
+  /** 타임오버 — 시계 0 (룰북 §2.1) */
+  CLOCK_TIMEOUT: 'clockTimeout',
+  /** 엔딩 확정 (룰북 §15) */
+  ENDING_DECIDED: 'endingDecided',
 } as const
 
 export type LogCode = (typeof LOG_CODE)[keyof typeof LOG_CODE]
