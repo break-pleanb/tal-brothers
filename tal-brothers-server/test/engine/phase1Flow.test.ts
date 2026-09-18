@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BROTHER_ROLE, COMMAND_TYPE, GAME_STEP } from 'tal-brothers-shared'
+import { BROTHER_ROLE, COMMAND_TYPE, GAME_PHASE, GAME_STEP } from 'tal-brothers-shared'
 import type { GameStep } from 'tal-brothers-shared'
 
 import { dispatch } from '../../src/engine/dispatch'
@@ -43,13 +43,14 @@ function runWithTrace(seed: number, humans: number) {
 
 describe('Phase 1 전체 흐름 (로드맵 M1 완료 기준)', () => {
   for (const humans of [1, 2, 3]) {
-    it(`인간 ${humans}명 구성이 Phase 2 진입 단계까지 도달한다`, () => {
-      const { result, steps } = runWithTrace(42, humans)
+    it(`인간 ${humans}명 구성이 Phase 1 이벤트 4개를 마치고 Phase 2로 넘어간다`, () => {
+      const { result } = runWithTrace(42, humans)
 
-      expect(result.finalState.progress.step).toBe(GAME_STEP.PHASE2_ENTRY)
+      // Phase 2 진입 단계는 타이머 없이 첫 이벤트로 이어진다 (룰북 §13.1)
+      expect(result.finalState.progress.phase).toBe(GAME_PHASE.PHASE_2)
+      expect(result.finalState.progress.step).toBe(GAME_STEP.EVENT_INTRO)
       expect(result.events).toHaveLength(4)
-      expect(steps[steps.length - 1]).toBe(GAME_STEP.PHASE2_ENTRY)
-      expect(result.finalState.progress.eventIndex).toBe(4)
+      expect(result.finalState.progress.eventIndex).toBe(0)
     })
   }
 
@@ -128,8 +129,9 @@ describe('게임 시계 (로드맵 M1 범위)', () => {
       },
     })
 
-    expect(result.finalState.progress.step).toBe(GAME_STEP.PHASE2_ENTRY)
-    expect(logs.some((log) => log.code === 'clockExpired')).toBe(true)
+    expect(result.finalState.progress.phase).toBe(GAME_PHASE.PHASE_2)
+    // M2는 타임오버 엔딩이 M2-5에서 붙는다. 여기서는 Phase 1 흐름이 끊기지 않는지만 본다
+    expect(result.events).toHaveLength(4)
   })
 })
 

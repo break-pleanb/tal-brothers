@@ -228,13 +228,13 @@ tal-brothers-server/
 
 ### M2-4. Phase 2 단계 처리기
 
-- [ ] `phase2EntryStep.ts` — 진입 환청, 슬롯 배치
-- [ ] `eventIntroStep` — 티어 환청·가짜 라벨·가짜 붉은 메시지·13번 발목 대상
-- [ ] `talismanWindowStep.ts` — 14A 제출 창 8초
-- [ ] `votingStep` — 보류함 양도·버림, 마감 시 자동 폐기
-- [ ] `resolutionStep` — 환경 잠식, 보유 상한, 배신자 전환 검사, Phase 전환
-- [ ] 봇 100% 방해와 첫째 봇 보스 강제 성공
-- [ ] Phase 2 단계 테스트 (계획 9절 M2-4)
+- [x] `phase2EntryStep.ts` — 진입 환청, 슬롯 배치
+- [x] `eventIntroStep` — 티어 환청·가짜 라벨·가짜 붉은 메시지·13번 발목 대상
+- [x] `talismanWindowStep.ts` — 14A 제출 창 8초
+- [x] `votingStep` — 보류함 양도·버림, 마감 시 자동 폐기
+- [x] `resolutionStep` — 환경 잠식, Phase 전환 (배신자 전환은 잠식 진입점에서 처리)
+- [x] `rollStep` — Phase별 이벤트 조회와 14A 분기, 대립 판정 비교 규칙
+- [x] Phase 2 단계 테스트 25건 (계획 9절 M2-4)
 
 ### M2-5. Phase 3와 엔딩
 

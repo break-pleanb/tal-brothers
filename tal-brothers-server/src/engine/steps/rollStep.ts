@@ -1,8 +1,16 @@
-import { COMMAND_TYPE, CUE_KIND, GAME_STEP, JUDGMENT_KIND } from 'tal-brothers-shared'
-import type { Attribute, BrotherRole } from 'tal-brothers-shared'
+import {
+  COMMAND_TYPE,
+  CUE_KIND,
+  GAME_STEP,
+  JUDGMENT_KIND,
+  PHASE3_ROUTE,
+} from 'tal-brothers-shared'
+import type { Attribute, BrotherRole, GameStep } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../scenario/gameConfig'
 import { findPhase1Event } from '../../scenario/phase1Events'
+import { findPhase2Event } from '../../scenario/phase2Events'
+import { PHASE3_EVENT_ID, buildPhase3Event } from '../../scenario/phase3Scene'
 import { hasAttribute, hasJudgment, isRollJudgment } from '../../scenario/scenarioTypes'
 import type { Choice, JudgmentChoice, ScenarioEvent } from '../../scenario/scenarioTypes'
 import { botRollOwnDice } from '../bots/botPolicy'
@@ -20,13 +28,46 @@ import type { GameState, JudgmentState } from '../state/gameState'
  * 다른 단계 처리기도 쓰는 판정 계산 헬퍼를 함께 둔다.
  */
 
+/**
+ * 이벤트 id로 시나리오를 찾는다 (룰북 §12, §13, §14).
+ * Phase 3 장면은 루트와 1인 플레이 여부에 따라 선택지가 달라지므로 그때그때 구성한다 (룰북 §14.5).
+ */
+export function findScenarioEvent(state: GameState, eventId: string): ScenarioEvent | undefined {
+  if (eventId === PHASE3_EVENT_ID) {
+    return buildPhase3Event({
+      purifyRoute: state.phase3?.route === PHASE3_ROUTE.PURIFY,
+      soloTargetIsSelf: state.phase3?.soloPlayTargetIsSelf ?? false,
+    })
+  }
+  return findPhase1Event(eventId) ?? findPhase2Event(eventId)
+}
+
+/** 순서표의 n번째 이벤트 */
+export function scenarioEventAt(state: GameState, index: number): ScenarioEvent {
+  const eventId = state.progress.eventOrder[index]
+  if (eventId === undefined) throw new Error(`이벤트 순서표 밖이다: ${index}`)
+  const event = findScenarioEvent(state, eventId)
+  if (event === undefined) throw new Error(`시나리오에 없는 이벤트다: ${eventId}`)
+  return event
+}
+
 /** 진행 중인 이벤트의 시나리오 데이터 */
 export function currentScenarioEvent(state: GameState): ScenarioEvent {
   const eventId = state.currentEvent?.eventId
   if (eventId === undefined) throw new Error('현재 이벤트가 없다')
-  const event = findPhase1Event(eventId)
+  const event = findScenarioEvent(state, eventId)
   if (event === undefined) throw new Error(`시나리오에 없는 이벤트다: ${eventId}`)
   return event
+}
+
+/**
+ * 선택지를 채택한 뒤 갈 단계 (아키텍처 §5.3).
+ * 14A는 주사위 대신 부적 제출 창으로 간다 (룰북 §13.5).
+ */
+export function nextStepAfterAdopt(choice: Choice): GameStep {
+  if (!hasJudgment(choice)) return GAME_STEP.RESOLUTION
+  if (choice.judgment.kind === JUDGMENT_KIND.ITEM) return GAME_STEP.TALISMAN_WINDOW
+  return GAME_STEP.ROLL_WAIT
 }
 
 /** 채택된 선택지에 확정된 변이를 적용한 사본 (룰북 §6.2) */
@@ -84,13 +125,16 @@ export function judgmentThreshold(choice: JudgmentChoice): number {
   return choice.judgment.threshold
 }
 
-/** 굴려서 나온 주사위 값. 협동은 최고값 (룰북 §5.3) */
+/** 굴려서 나온 주사위 값. 협동과 대립(팀 측)은 최고값 (룰북 §5.3, §14.4) */
 export function baseDiceValue(judgment: JudgmentState): number {
   const values = judgment.dice
     .map((die) => die.value)
     .filter((value): value is number => value !== null)
   if (values.length === 0) return 0
-  return judgment.kind === JUDGMENT_KIND.COOP ? Math.max(...values) : (values[0] as number)
+  if (judgment.kind === JUDGMENT_KIND.COOP || judgment.kind === JUDGMENT_KIND.CONTEST) {
+    return Math.max(...values)
+  }
+  return values[0] as number
 }
 
 /** 최종값 = D6 + 직업 보정 + 버프/디버프 + 부적 (룰북 §5.1) */
@@ -103,10 +147,20 @@ export function judgmentFinalValue(judgment: JudgmentState): number {
   )
 }
 
-/** 성패를 다시 계산한다. 강제 성공은 계산을 덮어쓴다 (룰북 §3.2) */
+/**
+ * 성패를 다시 계산한다 (룰북 §3.2, §14.3).
+ * 강제 성공은 계산을 덮어쓰고, 대립 판정은 동점이 배신자 승이라 상대값을 **넘어야** 한다.
+ */
 export function evaluateJudgment(judgment: JudgmentState): boolean {
   if (judgment.forcedSuccess) return true
-  return judgmentFinalValue(judgment) >= judgment.threshold
+
+  const finalValue = judgmentFinalValue(judgment)
+  if (judgment.contest) {
+    const opponent = judgment.opponentDie?.value
+    if (opponent === null || opponent === undefined) return false
+    return finalValue > opponent
+  }
+  return finalValue >= judgment.threshold
 }
 
 /**

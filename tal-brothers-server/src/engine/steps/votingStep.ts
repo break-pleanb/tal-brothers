@@ -1,8 +1,7 @@
-import { BROTHER_ROLE, COMMAND_TYPE, CUE_KIND, GAME_STEP } from 'tal-brothers-shared'
+import { BROTHER_ROLE, COMMAND_TYPE, CUE_KIND } from 'tal-brothers-shared'
 import type { BrotherRole } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../scenario/gameConfig'
-import { hasJudgment } from '../../scenario/scenarioTypes'
 import type { StepHandler } from '../dispatch'
 import { LOG_CODE, REJECTION_REASON, reject } from '../engineTypes'
 import type { EngineContext, Rejection, StepOutput } from '../engineTypes'
@@ -10,14 +9,15 @@ import { pickOne } from '../random'
 import { applySeatErosion } from '../rules/erosion'
 import { PUBLIC_NOTICE_KIND, SEAT_ORDER } from '../state/gameState'
 import type { CurrentEventState, GameState } from '../state/gameState'
-import { adoptChoice, currentScenarioEvent } from './rollStep'
+import { adoptChoice, currentScenarioEvent, nextStepAfterAdopt } from './rollStep'
 
 /**
- * 투표 (룰북 §8) + 투표 시간 중 행동 (룰북 §3.4, §9.1).
+ * 투표 (룰북 §8) + 투표 시간 중 행동 (룰북 §3.4, §9.1, M2 계획 10.1).
  *
  * - 투표권은 인간 좌석 전원. 봇은 투표하지 않으며 조기 마감 판정에서도 제외한다 (룰북 §11)
  * - 마감 전 재전송으로 선택을 바꿀 수 있다 (아키텍처 §8)
  * - 동률은 동률 선택지 중 무작위, 전원 기권은 전체 선택지 중 무작위 (룰북 §8)
+ * - 부적 보유 상한 초과분(보류함)은 이 시간에 양도·버림으로 정리하고, 마감 시 남으면 자동으로 버린다
  */
 
 function requireCurrentEvent(state: GameState): CurrentEventState {
@@ -29,10 +29,37 @@ function humanSeats(state: GameState): BrotherRole[] {
   return SEAT_ORDER.filter((role) => !state.seats[role].isBot)
 }
 
-/** 연결된 인간 전원이 투표했는지 (아키텍처 §8). M1은 전원 연결 상태로 본다 */
+/** 연결된 인간 전원이 투표했는지 (아키텍처 §8). M2는 전원 연결 상태로 본다 */
 function allHumansVoted(state: GameState): boolean {
   const current = requireCurrentEvent(state)
-  return humanSeats(state).every((role) => current.votes[role] !== undefined)
+  const humans = humanSeats(state)
+  // 인간이 없는 구성(봇 자동 대전)은 조기 마감하지 않고 투표 시간을 그대로 흘린다 (M2 계획 10절 12번)
+  if (humans.length === 0) return false
+  return humans.every((role) => current.votes[role] !== undefined)
+}
+
+/**
+ * 투표 마감 시점에 남은 보류함 부적을 모두 버린다 (M2 계획 10.1).
+ * 보유 여부는 비공개이므로 Display 알림을 남기지 않는다 (룰북 §9.1).
+ */
+export function discardRemainingOverflow(
+  draft: GameState,
+  context: EngineContext,
+  out: StepOutput,
+): void {
+  for (const role of SEAT_ORDER) {
+    const seat = draft.seats[role]
+    if (seat.talismanOverflow <= 0) continue
+
+    const discarded = seat.talismanOverflow
+    seat.talismanOverflow = 0
+    out.logs.push({
+      at: context.now,
+      code: LOG_CODE.TALISMAN_OVERFLOW,
+      message: `${role} 보류함 부적 ${discarded}개 자동 폐기 (투표 마감)`,
+      data: { seat: role, discarded, reason: 'voteClosed' },
+    })
+  }
 }
 
 /**
@@ -87,8 +114,10 @@ function tallyAndAdopt(
     },
   })
 
-  const choice = adoptChoice(draft, adopted)
-  out.next = hasJudgment(choice) ? GAME_STEP.ROLL_WAIT : GAME_STEP.RESOLUTION
+  // 투표 시간이 끝나면 보류함을 정리한다 (M2 계획 10.1)
+  discardRemainingOverflow(draft, context, out)
+
+  out.next = nextStepAfterAdopt(adoptChoice(draft, adopted))
 }
 
 export const VOTING_HANDLER: StepHandler = {
@@ -138,6 +167,7 @@ export const VOTING_HANDLER: StepHandler = {
           draft.seats[seat].abilityUsed = true
         }
 
+        // 가짜 라벨을 무시하고 항상 진짜를 보여준다 (룰북 §3.4)
         out.cues.push({
           kind: CUE_KIND.TRUE_SIGHT_RESULT,
           audience: seat,
@@ -157,7 +187,7 @@ export const VOTING_HANDLER: StepHandler = {
       }
 
       case COMMAND_TYPE.TALISMAN_HEAL: {
-        // 튜토리얼 부적은 판정 보정 전용이라 회복에 쓸 수 없다 (룰북 §9.2)
+        // 튜토리얼 부적은 판정 보정 전용이고, 보류함 부적은 어느 용도로도 쓸 수 없다 (룰북 §9.2, M2 계획 10.1)
         if (draft.seats[seat].talismanCount < 1) {
           return reject(REJECTION_REASON.NOT_ALLOWED, '회복에 쓸 낡은 부적이 없다')
         }
@@ -172,6 +202,57 @@ export const VOTING_HANDLER: StepHandler = {
           at: context.now,
           code: LOG_CODE.TALISMAN_HEALED,
           message: `${seat} 부적 회복 -${GAME_CONFIG.talismanHealPercent}%`,
+        })
+        return undefined
+      }
+
+      case COMMAND_TYPE.TALISMAN_TRANSFER: {
+        const giver = draft.seats[seat]
+        if (giver.talismanOverflow < 1) {
+          return reject(REJECTION_REASON.NOT_ALLOWED, '정리할 보류함 부적이 없다')
+        }
+        if (command.toSeat === seat) {
+          return reject(REJECTION_REASON.NOT_ALLOWED, '자기 자신에게는 양도할 수 없다')
+        }
+
+        const receiver = draft.seats[command.toSeat]
+        if (receiver === undefined) {
+          return reject(REJECTION_REASON.WRONG_SEAT, command.toSeat)
+        }
+        // 받는 좌석도 상한을 넘길 수 없다 (룰북 §9.1)
+        if (receiver.talismanCount >= GAME_CONFIG.talismanLimit) {
+          return reject(REJECTION_REASON.NOT_ALLOWED, '받는 좌석이 이미 보유 상한이다')
+        }
+
+        giver.talismanOverflow -= 1
+        receiver.talismanCount += 1
+
+        // 받는 사람에게만 알린다. Display에는 표시하지 않는다 (룰북 §21)
+        out.cues.push({
+          kind: CUE_KIND.TUTORIAL_TALISMAN_GRANTED,
+          audience: command.toSeat,
+          text: '형제가 낡은 부적 1개를 건넸다',
+        })
+        out.logs.push({
+          at: context.now,
+          code: LOG_CODE.TALISMAN_OVERFLOW,
+          message: `${seat} → ${command.toSeat} 보류함 부적 1개 양도`,
+          data: { seat, toSeat: command.toSeat, reason: 'transfer' },
+        })
+        return undefined
+      }
+
+      case COMMAND_TYPE.TALISMAN_DISCARD: {
+        if (draft.seats[seat].talismanOverflow < 1) {
+          return reject(REJECTION_REASON.NOT_ALLOWED, '버릴 보류함 부적이 없다')
+        }
+
+        draft.seats[seat].talismanOverflow -= 1
+        out.logs.push({
+          at: context.now,
+          code: LOG_CODE.TALISMAN_OVERFLOW,
+          message: `${seat} 보류함 부적 1개 버림`,
+          data: { seat, discarded: 1, reason: 'discard' },
         })
         return undefined
       }

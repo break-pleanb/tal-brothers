@@ -2,6 +2,7 @@ import {
   ATTRIBUTE,
   BROTHER_ROLE,
   COMMAND_TYPE,
+  GAME_PHASE,
   GAME_STEP,
   JUDGMENT_KIND,
   VARIANT_KIND,
@@ -370,16 +371,18 @@ export function runPhase1(options: SimOptions): SimResult {
 
   // `last`는 클로저 안에서 갱신되므로 단계는 그때그때 함수로 읽는다
   const stepNow = (): GameStep => last.state.progress.step
+  // Phase 1 시뮬레이터는 Phase 2로 넘어가는 순간 멈춘다 (M2에서 Phase 2 진입이 이어진다)
+  const phase1Done = (): boolean => last.state.progress.phase !== GAME_PHASE.PHASE_1
 
   for (let guard = 0; guard < MAX_ACTIONS; guard += 1) {
-    if (stepNow() === GAME_STEP.PHASE2_ENTRY) break
+    if (phase1Done()) break
 
     const step = stepNow()
     if (step === GAME_STEP.VOTING) actVoting(runner, policyRng)
     else if (step === GAME_STEP.ROLL_WAIT) actRollWait(runner, policyRng)
     else actIntervention(runner, policyRng)
 
-    if (stepNow() === GAME_STEP.PHASE2_ENTRY) break
+    if (phase1Done()) break
 
     const deadline = last.nextDeadline
     if (deadline === null) {
@@ -404,13 +407,14 @@ export function runPhase1(options: SimOptions): SimResult {
     options.onStep?.(last)
   }
 
-  // 마지막 이벤트 기록은 루프가 어디서 끝나도 한 번만 확정한다
-  if (events[events.length - 1] !== record) {
+  // 마지막 이벤트 기록은 루프가 어디서 끝나도 한 번만 확정한다.
+  // Phase 2 첫 이벤트로 넘어간 뒤라면 이미 4개가 쌓여 있으므로 더 담지 않는다
+  if (events.length < totalEvents && events[events.length - 1] !== record) {
     events.push(record)
     lines.push(...formatEvent(record, last.state, events.length, totalEvents, now))
   }
 
-  if (stepNow() !== GAME_STEP.PHASE2_ENTRY) {
+  if (!phase1Done()) {
     throw new Error(`Phase 1이 끝나지 않았다: ${stepNow()}`)
   }
 

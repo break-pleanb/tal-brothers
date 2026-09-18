@@ -1,19 +1,30 @@
 import { describe, expect, it } from 'vitest'
-import { BROTHER_ROLE, COMMAND_TYPE, GAME_STEP } from 'tal-brothers-shared'
+import { BROTHER_ROLE, COMMAND_TYPE, GAME_PHASE, GAME_STEP } from 'tal-brothers-shared'
 import type { BrotherRole, Command, GameStep } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../../src/scenario/gameConfig'
-import { shouldBotForceSuccess } from '../../../src/engine/bots/botPolicy'
+import { applyBotSabotage, shouldBotForceSuccess } from '../../../src/engine/bots/botPolicy'
 import { dispatch } from '../../../src/engine/dispatch'
-import { ACTION_KIND } from '../../../src/engine/engineTypes'
-import type { DispatchResult, DispatchSuccess } from '../../../src/engine/engineTypes'
+import { ACTION_KIND, createStepOutput } from '../../../src/engine/engineTypes'
+import type {
+  DispatchResult,
+  DispatchSuccess,
+  EngineContext,
+} from '../../../src/engine/engineTypes'
 import type { Rng } from '../../../src/engine/random'
 import { createGame, seatSetupForHumans } from '../../../src/engine/state/createGame'
-import type { GameState, JudgmentState, SeatState } from '../../../src/engine/state/gameState'
+import type {
+  GameState,
+  InterventionRecord,
+  JudgmentState,
+  SeatState,
+} from '../../../src/engine/state/gameState'
 
 const START = 1_700_000_000_000
 
 const LOW: Rng = { nextInt: () => 0 }
+/** 항상 최댓값 — `pickOne`은 마지막 항목 */
+const HIGH: Rng = { nextInt: (bound) => bound - 1 }
 /** 주사위를 `value`로 고정한다 */
 const diceRng = (value: number): Rng => ({ nextInt: (bound) => (value - 1) % bound })
 /** 주사위 값을 순서대로 내주고 소진되면 1을 낸다 */
@@ -112,6 +123,21 @@ function judgment(game: Game): JudgmentState {
   return value
 }
 
+/**
+ * 개입이 성공으로 바뀌면 결과 적용과 다음 이벤트 진입까지 한 처리 안에서 끝나
+ * 상태로는 관찰되지 않는다. 그래서 개입 기록은 로그의 구조화된 값에서 읽는다 (M1 노트)
+ */
+function interventionRecords(game: Game, kind: string): InterventionRecord[] {
+  return game.last.logs
+    .filter((log) => log.code === 'interventionUsed')
+    .map((log) => log.data?.intervention as InterventionRecord | undefined)
+    .filter((record): record is InterventionRecord => record?.kind === kind)
+}
+
+function ctx(rng: Rng): EngineContext {
+  return { now: START, rng }
+}
+
 function seat(game: Game, role: BrotherRole): SeatState {
   return game.state.seats[role]
 }
@@ -152,9 +178,10 @@ describe('봇의 기본 행동 (룰북 §11)', () => {
     expect(seat(game, BROTHER_ROLE.THIRD).isBot).toBe(true)
 
     const before = seat(game, BROTHER_ROLE.THIRD).erosionPercent
-    game.tickUntil(GAME_STEP.PHASE2_ENTRY, 10)
-    // 흉 변이가 걸린 이장 B 실패 → 판정자 +30% (앞선 비공개 판정 대가와 별개)
-    expect(seat(game, BROTHER_ROLE.THIRD).erosionPercent - before).toBe(30)
+    while (game.state.progress.phase !== GAME_PHASE.PHASE_2) game.tick()
+    // 흉 변이가 걸린 이장 B 실패 +30%에, 이어지는 Phase 2 진입 환청 +20%가 더해진다
+    // (부적 미보유자, 룰북 §13.1). 봇도 인간과 같은 규칙으로 오른다
+    expect(seat(game, BROTHER_ROLE.THIRD).erosionPercent - before).toBe(50)
   })
 })
 
@@ -247,9 +274,7 @@ describe('봇 부적 자동 사용 (룰북 §11 확정)', () => {
     expect(
       game.last.logs.some((log) => log.code === 'interventionUsed' && log.message.includes('봇')),
     ).toBe(true)
-    expect(
-      judgment(game).interventions.filter((record) => record.kind === 'talisman'),
-    ).toMatchObject([
+    expect(interventionRecords(game, 'talisman')).toMatchObject([
       {
         step: GAME_STEP.INTERVENTION_TALISMAN,
         seat: BROTHER_ROLE.THIRD,
@@ -261,7 +286,8 @@ describe('봇 부적 자동 사용 (룰북 §11 확정)', () => {
     ])
 
     // 성공으로 바뀌어 결과까지 진행된다 (이장 B 성공 → 판정자 +5%, 부적 1개)
-    expect(game.state.progress.step).toBe(GAME_STEP.PHASE2_ENTRY)
+    expect(game.state.progress.phase).toBe(GAME_PHASE.PHASE_2)
+    // Phase 2 진입 시 부적 보유자는 경고만 받고 잠식이 오르지 않는다 (룰북 §13.1)
     expect(seat(game, BROTHER_ROLE.THIRD).erosionPercent - erosionBefore).toBe(5)
     // 부적 1개를 쓰고 보상으로 1개를 받았다
     expect(seat(game, BROTHER_ROLE.THIRD).talismanCount).toBe(1)
@@ -317,9 +343,7 @@ describe('봇 부적 자동 사용 (룰북 §11 확정)', () => {
     // 봇 판단 시각(마감 1초 전) 전에는 인간이 쓸 수 있다
     expect(game.send(BROTHER_ROLE.FIRST, useTalisman).rejected).toBe(false)
     expect(seat(game, BROTHER_ROLE.FIRST).talismanCount).toBe(0)
-    expect(
-      judgment(game).interventions.filter((record) => record.kind === 'talisman'),
-    ).toMatchObject([
+    expect(interventionRecords(game, 'talisman')).toMatchObject([
       {
         step: GAME_STEP.INTERVENTION_TALISMAN,
         seat: BROTHER_ROLE.FIRST,
@@ -351,10 +375,64 @@ describe('첫째 봇 강제 성공 (룰북 §11)', () => {
     expect(judgment(game).forcedSuccess).toBe(false)
 
     game.tick()
-    expect(game.state.progress.step).toBe(GAME_STEP.PHASE2_ENTRY)
-    expect(seat(game, BROTHER_ROLE.FIRST).erosionPercent).toBe(0)
+    expect(game.state.progress.phase).toBe(GAME_PHASE.PHASE_2)
+    // 강제 성공 대가(+15%)를 치르지 않았고, Phase 2 진입 환청 +20%만 올랐다 (룰북 §13.1)
+    expect(seat(game, BROTHER_ROLE.FIRST).erosionPercent).toBe(20)
     expect(ALL_SEATS.every((role) => !seat(game, role).abilityUsed || role === BROTHER_ROLE.SECOND)).toBe(
       true,
     )
+  })
+})
+
+describe('봇 100% 방해 (룰북 §11)', () => {
+  /** 방해만 따로 보기 위해 좌석 상태를 직접 만든다 */
+  function sabotageGame(): Game {
+    const game = start(1, LOW)
+    game.state.seats[BROTHER_ROLE.THIRD].erosionPercent = 95
+    return game
+  }
+
+  it('게임당 1회만 발동한다', () => {
+    const game = sabotageGame()
+    const out = createStepOutput()
+
+    const first = applyBotSabotage(game.state, BROTHER_ROLE.THIRD, ctx(LOW), out, {
+      selfOnly: false,
+    })
+    expect(first).not.toBeNull()
+    expect(seat(game, BROTHER_ROLE.THIRD).botSabotageUsed).toBe(true)
+
+    const second = applyBotSabotage(game.state, BROTHER_ROLE.THIRD, ctx(LOW), out, {
+      selfOnly: false,
+    })
+    expect(second).toBeNull()
+  })
+
+  it('팀 디버프는 하한 -2를 넘지 않는다 (룰북 §5.5)', () => {
+    const game = sabotageGame()
+    game.state.teamModifier = GAME_CONFIG.debuffFloor
+
+    // 부적 보유자가 없으면 팀 디버프만 후보가 된다
+    const kind = applyBotSabotage(game.state, BROTHER_ROLE.THIRD, ctx(LOW), createStepOutput(), {
+      selfOnly: false,
+    })
+    expect(kind).toBe('teamDebuff')
+    expect(game.state.teamModifier).toBe(GAME_CONFIG.debuffFloor)
+  })
+
+  it('부적 소멸은 보유자 1명의 1개만 없앤다', () => {
+    const game = sabotageGame()
+    game.state.seats[BROTHER_ROLE.FIRST].talismanCount = 2
+    game.state.seats[BROTHER_ROLE.SECOND].talismanCount = 0
+
+    // 마지막 후보(부적 소멸)를 고르는 난수
+    const kind = applyBotSabotage(game.state, BROTHER_ROLE.THIRD, ctx(HIGH), createStepOutput(), {
+      selfOnly: false,
+    })
+
+    expect(kind).toBe('talismanBurn')
+    expect(seat(game, BROTHER_ROLE.FIRST).talismanCount).toBe(1)
+    expect(seat(game, BROTHER_ROLE.SECOND).talismanCount).toBe(0)
+    expect(game.state.teamModifier).toBe(0)
   })
 })

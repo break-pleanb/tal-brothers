@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BROTHER_ROLE, COMMAND_TYPE, GAME_STEP } from 'tal-brothers-shared'
+import { BROTHER_ROLE, COMMAND_TYPE, GAME_PHASE, GAME_STEP } from 'tal-brothers-shared'
 import type { BrotherRole, Command, GameStep } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../../src/scenario/gameConfig'
@@ -146,7 +146,7 @@ describe('개입 창 열림 조건 (룰북 §7.1)', () => {
     chief.send(BROTHER_ROLE.SECOND, roll)
     expect(judgment(chief).succeeded).toBe(true)
     chief.tick()
-    expect(chief.state.progress.step).toBe(GAME_STEP.PHASE2_ENTRY)
+    expect(chief.state.progress.phase).toBe(GAME_PHASE.PHASE_2)
   })
 })
 
@@ -321,15 +321,19 @@ describe('강제 성공 (룰북 §3.2)', () => {
     expect(game.state.progress.step).toBe(GAME_STEP.INTERVENTION_FORCE)
 
     expect(game.send(BROTHER_ROLE.FIRST, forceSuccess).rejected).toBe(false)
-    expect(game.state.seats[BROTHER_ROLE.FIRST].erosionPercent).toBe(
-      GAME_CONFIG.forceSuccessCostPercent,
-    )
     expect(game.state.seats[BROTHER_ROLE.FIRST].abilityUsed).toBe(true)
-    expect(game.state.progress.step).toBe(GAME_STEP.PHASE2_ENTRY)
+    expect(game.state.progress.phase).toBe(GAME_PHASE.PHASE_2)
+
+    // 이장이 Phase 1 마지막 이벤트라 결과 적용에 Phase 2 진입 환청 +20%가 이어진다 (룰북 §13.1).
+    // 부적을 아무도 들고 있지 않으므로 세 좌석 모두 +20%다
+    const entry = GAME_CONFIG.phase2EntryNoTalismanPercent
+    expect(game.state.seats[BROTHER_ROLE.FIRST].erosionPercent).toBe(
+      GAME_CONFIG.forceSuccessCostPercent + entry,
+    )
 
     // 강제 성공은 보상을 제거하고 부작용만 남긴다 (이장 B: 부적 없음, 판정자 +5%)
     expect(game.state.seats[BROTHER_ROLE.THIRD].talismanCount).toBe(0)
-    expect(game.state.seats[BROTHER_ROLE.THIRD].erosionPercent).toBe(15)
+    expect(game.state.seats[BROTHER_ROLE.THIRD].erosionPercent).toBe(15 + entry)
   })
 
   it('첫째만 쓸 수 있다', () => {
@@ -350,7 +354,7 @@ describe('강제 성공 (룰북 §3.2)', () => {
     game.tick()
     game.tick()
     // 첫째 단계를 건너뛰고 결과로 간다 (본게임이므로 설명 표시 없음)
-    expect(game.state.progress.step).toBe(GAME_STEP.PHASE2_ENTRY)
+    expect(game.state.progress.phase).toBe(GAME_PHASE.PHASE_2)
   })
 
   it('비공개 판정에는 쓸 수 없다', () => {
