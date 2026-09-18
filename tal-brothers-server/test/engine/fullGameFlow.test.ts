@@ -254,6 +254,11 @@ describe('시뮬레이터 이벤트 블록 — 심리전 요소 (로드맵 M2-7)
     expect(corpus).toMatch(/익명 표기\s+Display "누군가/)
   })
 
+  it('Phase 3 판정을 대립과 고정 기준으로 나눠 적는다 (룰북 §14.3, §14.4)', () => {
+    expect(corpus).toMatch(/판정\s+대립 · 상대 주사위 [1-6] 초과/)
+    expect(corpus).toMatch(/판정\s+고정 기준 · 기준 [45]/)
+  })
+
   it('부적 이동을 좌석·보유 수 변화와 함께 적는다 (룰북 §9.1, §13.5)', () => {
     for (const label of [
       '획득 +',

@@ -95,9 +95,11 @@ function startPhase2Event(eventIds: string[], before?: (state: GameState) => voi
 }
 
 describe('엔딩 확정 (룰북 §15)', () => {
-  it('엔딩 7종이 모두 확정되고 승패가 엔딩표와 일치한다', () => {
+  it('배신자가 있는 판은 엔딩 7종의 승패가 엔딩표와 일치한다', () => {
     for (const id of Object.values(ENDING_ID)) {
       const state = newGame()
+      state.seats[BROTHER_ROLE.SECOND].erosionPercent = 100
+      state.seats[BROTHER_ROLE.SECOND].isTraitor = true
       const out = createStepOutput()
 
       requestEnding(state, id as EndingId)
@@ -111,6 +113,25 @@ describe('엔딩 확정 (룰북 §15)', () => {
       expect(out.cues.some((cue) => cue.kind === CUE_KIND.ENDING), id).toBe(true)
       expect(
         out.logs.some((log) => log.code === 'endingDecided' && log.data?.endingId === id),
+        id,
+      ).toBe(true)
+    }
+  })
+
+  it('배신자가 한 명도 없으면 승패를 판정하지 않는다 (룰북 §15)', () => {
+    for (const id of Object.values(ENDING_ID)) {
+      const state = newGame()
+      const out = createStepOutput()
+
+      requestEnding(state, id as EndingId)
+      enterStep(state, GAME_STEP.ENDING, { now: START, rng: LOW }, out)
+
+      // 엔딩표의 배신자 열은 배신자라는 주체가 있어야 성립한다 (룰북 §10.3, §15)
+      expect(state.ending?.traitorWon, id).toBeNull()
+      expect(
+        out.logs.some(
+          (log) => log.code === 'endingDecided' && log.message.includes('해당 없음'),
+        ),
         id,
       ).toBe(true)
     }
@@ -163,7 +184,8 @@ describe('타임오버 (룰북 §2.1, §14.2)', () => {
 
     expect(game.state.progress.step).toBe(GAME_STEP.ENDING)
     expect(game.state.ending?.id).toBe(ENDING_ID.FORCED_EROSION)
-    expect(game.state.ending?.traitorWon).toBe(true)
+    // 이 판에는 배신자가 없으므로 승패를 판정하지 않는다 (룰북 §15)
+    expect(game.state.ending?.traitorWon).toBeNull()
     expect(game.state.clock.expiredAt).not.toBeNull()
     expect(game.last.logs.some((log) => log.code === 'clockTimeout')).toBe(true)
   })

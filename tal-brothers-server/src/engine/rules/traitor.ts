@@ -79,3 +79,13 @@ export function turnTraitor(
 export function traitorWonFor(endingId: EndingId): boolean {
   return ENDINGS[endingId].traitorWon
 }
+
+/**
+ * 이 판의 배신자 승패 (룰북 §15).
+ * 엔딩표의 배신자 열은 배신자라는 주체가 있어야 성립하므로(§10.3),
+ * 배신자가 한 명도 없으면 승패를 판정하지 않고 `null`(해당 없음)을 돌려준다.
+ */
+export function traitorOutcome(state: GameState, endingId: EndingId): boolean | null {
+  if (traitorSeats(state).length === 0) return null
+  return traitorWonFor(endingId)
+}

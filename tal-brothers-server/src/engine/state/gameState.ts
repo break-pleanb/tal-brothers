@@ -212,8 +212,11 @@ export type Phase3State = {
 
 export type EndingState = {
   id: EndingId
-  /** 배신자 승패 (룰북 §15) */
-  traitorWon: boolean
+  /**
+   * 배신자 승패 (룰북 §15).
+   * 배신자가 한 명도 없는 판에서는 승패를 판정하지 않으므로 `null`(해당 없음)이다.
+   */
+  traitorWon: boolean | null
   /** 전용 내레이션 키. 기본 내레이션이면 null (룰북 §14.5) */
   narrationKey: string | null
 }

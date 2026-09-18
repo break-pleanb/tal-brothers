@@ -47,6 +47,13 @@ export type InterventionView = {
  */
 export type JudgmentView = {
   kind: JudgmentKind
+  /**
+   * 상대 주사위와 겨루는 대립 판정인지 (룰북 §14.3, §14.4).
+   * Phase 3 판정(`kind: 'contest'`)은 타겟이 인간 배신자일 때만 대립이고,
+   * 그 밖에는 `false`로 나가 **고정 기준 판정**임을 알린다.
+   * 투표 화면의 `ChoiceView`에는 넣지 않는다. 굴림 전에 알리면 배신자 여부가 새기 때문이다 (룰북 §17)
+   */
+  contest: boolean
   dice: DiceView[] | null
   /** 대립 판정 상대 측 주사위 (룰북 §14.3) */
   opponentValue: number | null

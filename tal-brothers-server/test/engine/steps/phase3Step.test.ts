@@ -5,6 +5,7 @@ import {
   ENDING_ID,
   GAME_PHASE,
   GAME_STEP,
+  JUDGMENT_KIND,
   PHASE3_ROUTE,
 } from 'tal-brothers-shared'
 import type { BrotherRole, Command, GameStep } from 'tal-brothers-shared'
@@ -12,6 +13,7 @@ import type { BrotherRole, Command, GameStep } from 'tal-brothers-shared'
 import { GAME_CONFIG } from '../../../src/scenario/gameConfig'
 import { PHASE3_CHOICE_ID } from '../../../src/scenario/phase3Scene'
 import { dispatch, enterStep, finishDispatch } from '../../../src/engine/dispatch'
+import { projectDisplay } from '../../../src/engine/projection/projectDisplay'
 import { ACTION_KIND, REJECTION_REASON, createStepOutput } from '../../../src/engine/engineTypes'
 import type { DispatchResult, DispatchSuccess } from '../../../src/engine/engineTypes'
 import type { Rng } from '../../../src/engine/random'
@@ -295,6 +297,38 @@ describe('대립 판정 (룰북 §14.3, §14.4)', () => {
     game.send(BROTHER_ROLE.FIRST, roll)
     // 주사위 4, 직업 보정 없음 → 기준 4 이상이라 성공
     expect(game.state.currentJudgment?.succeeded).toBe(true)
+  })
+
+  it('투영이 대립과 고정 기준을 구분해 표기한다 (룰북 §14.3, §14.4)', () => {
+    const contested = startPhase3({
+      humans: 2,
+      rng: HIGH,
+      before: (state) => {
+        traitorTarget(state)
+        state.seats[BROTHER_ROLE.FIRST].hasJadeHairpin = true
+      },
+    })
+    contested.send(BROTHER_ROLE.FIRST, roll)
+    const contestedView = projectDisplay(contested.state).judgment
+    expect(contestedView?.kind).toBe(JUDGMENT_KIND.CONTEST)
+    expect(contestedView?.contest).toBe(true)
+    expect(contestedView?.opponentValue).toBe(6)
+
+    // 타겟이 봇이면 같은 `contest` 판정 유형이어도 고정 기준이다
+    const fixed = startPhase3({
+      humans: 1,
+      rng: scriptRng([3]),
+      before: (state) => {
+        state.seats[BROTHER_ROLE.THIRD].erosionPercent = 80
+        state.seats[BROTHER_ROLE.FIRST].hasJadeHairpin = true
+      },
+    })
+    fixed.send(BROTHER_ROLE.FIRST, roll)
+    const fixedView = projectDisplay(fixed.state).judgment
+    expect(fixedView?.kind).toBe(JUDGMENT_KIND.CONTEST)
+    expect(fixedView?.contest).toBe(false)
+    expect(fixedView?.opponentValue).toBeNull()
+    expect(fixedView?.threshold).toBe(GAME_CONFIG.thresholdBase)
   })
 
   it('A-2는 타겟을 제외한 전원이 굴리고 고정 기준은 5다', () => {

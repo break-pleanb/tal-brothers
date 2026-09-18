@@ -314,6 +314,15 @@ export const ROLL_WAIT_HANDLER: StepHandler = {
   },
 }
 
+/**
+ * 성패를 가른 기준의 표기 (룰북 §14.3, §14.4).
+ * 대립 판정은 상대값을 **넘어야** 하고(동점은 배신자 승), 그 밖에는 고정 기준 이상이면 성공이다.
+ */
+export function judgmentCriterionText(judgment: JudgmentState): string {
+  if (judgment.contest) return `상대 ${judgment.opponentDie?.value ?? '-'} 초과`
+  return `기준 ${judgment.threshold}`
+}
+
 function rollerOrThrow(roller: BrotherRole | null): BrotherRole {
   if (roller === null) throw new Error('개인·비공개 판정에 판정자가 없다')
   return roller
@@ -344,7 +353,7 @@ export const ROLL_REVEAL_HANDLER: StepHandler = {
       out.cues.push({
         kind: CUE_KIND.JUDGMENT_RESULT,
         audience: CUE_AUDIENCE.DISPLAY,
-        text: `최종값 ${judgmentFinalValue(judgment)} / 기준 ${judgment.threshold} — ${
+        text: `최종값 ${judgmentFinalValue(judgment)} / ${judgmentCriterionText(judgment)} — ${
           judgment.succeeded ? '성공' : '실패'
         }`,
       })
@@ -353,9 +362,10 @@ export const ROLL_REVEAL_HANDLER: StepHandler = {
     out.logs.push({
       at: context.now,
       code: LOG_CODE.JUDGMENT_RESOLVED,
-      message: `${judgment.kind} 판정 최종값 ${judgmentFinalValue(judgment)} 기준 ${
-        judgment.threshold
-      } → ${judgment.succeeded ? '성공' : '실패'}`,
+      message: `${judgment.kind} 판정 최종값 ${judgmentFinalValue(judgment)} ${judgmentCriterionText(
+        judgment,
+      )} → ${judgment.succeeded ? '성공' : '실패'}`,
+      data: { kind: judgment.kind, contest: judgment.contest },
     })
   },
 

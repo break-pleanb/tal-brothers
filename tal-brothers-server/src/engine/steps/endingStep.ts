@@ -6,7 +6,7 @@ import type { EndingNarrationKey } from '../../scenario/endings'
 import type { StepHandler } from '../dispatch'
 import { CUE_AUDIENCE, LOG_CODE } from '../engineTypes'
 import type { EngineContext, StepOutput } from '../engineTypes'
-import { traitorSeats, traitorWonFor } from '../rules/traitor'
+import { traitorOutcome, traitorSeats } from '../rules/traitor'
 import { PUBLIC_NOTICE_KIND, SEAT_ORDER } from '../state/gameState'
 import type { GameState } from '../state/gameState'
 
@@ -31,9 +31,15 @@ export function requestEnding(
 ): void {
   draft.ending = {
     id,
-    traitorWon: traitorWonFor(id),
+    traitorWon: traitorOutcome(draft, id),
     narrationKey: request.narrationKey ?? null,
   }
+}
+
+/** 배신자 승패 표기 — 배신자가 없는 판은 승패를 판정하지 않는다 (룰북 §15) */
+export function traitorOutcomeLabel(traitorWon: boolean | null): string {
+  if (traitorWon === null) return '승패 해당 없음'
+  return traitorWon ? '승리' : '패배'
 }
 
 function narrationOf(state: GameState): string {
@@ -78,7 +84,7 @@ export const ENDING_HANDLER: StepHandler = {
     out.logs.push({
       at: context.now,
       code: LOG_CODE.ENDING_DECIDED,
-      message: `엔딩 ${definition.title} (배신자 ${ending.traitorWon ? '승리' : '패배'})`,
+      message: `엔딩 ${definition.title} (배신자 ${traitorOutcomeLabel(ending.traitorWon)})`,
       data: {
         endingId: ending.id,
         traitorWon: ending.traitorWon,

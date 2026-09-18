@@ -23,7 +23,8 @@ export type MatchSummary = {
   seed: number
   humans: number
   endingId: EndingId | null
-  traitorWon: boolean
+  /** 배신자 승패. 배신자가 한 명도 없는 판은 승패를 판정하지 않아 null이다 (룰북 §15) */
+  traitorWon: boolean | null
   /** Phase 3 진입 시점(= Phase 2 종료 시) 잠식도. Phase 3에 못 갔으면 null */
   erosionAtPhase2End: ErosionBySeat | null
   finalErosion: ErosionBySeat
@@ -83,7 +84,7 @@ export function summarize(run: GameRunResult): MatchSummary {
     seed: run.seed,
     humans: run.humans,
     endingId: run.finalState.ending?.id ?? null,
-    traitorWon: run.finalState.ending?.traitorWon ?? false,
+    traitorWon: run.finalState.ending?.traitorWon ?? null,
     erosionAtPhase2End: null,
     finalErosion: erosionOf(run.finalState),
     traitorCount: 0,
@@ -262,6 +263,9 @@ export type Aggregate = {
   traitorMean: number
   traitorTurnEventIndexes: number[]
   endings: Record<string, number>
+  /** 배신자 승패를 판정한 판수 = 배신자가 1명 이상인 판 (룰북 §15) */
+  traitorDecidedGames: number
+  /** 배신자 승률. 모집단은 `traitorDecidedGames`다 */
   traitorWinRate: number
   /** Phase 1~2 타임오버로 강제 종료된 비율 */
   forcedTimeoutRate: number
@@ -330,6 +334,7 @@ export function aggregate(summaries: MatchSummary[]): Aggregate {
   }
 
   const games = summaries.length
+  const decidedGames = summaries.filter((summary) => summary.traitorWon !== null).length
   return {
     humans: summaries[0]?.humans ?? 0,
     games,
@@ -343,7 +348,12 @@ export function aggregate(summaries: MatchSummary[]): Aggregate {
       summary.traitorTurnedAt.map((turn) => turn.eventIndex),
     ),
     endings: countBy(summaries.map((summary) => summary.endingId ?? 'none')),
-    traitorWinRate: games === 0 ? 0 : summaries.filter((s) => s.traitorWon).length / games,
+    // 배신자가 없는 판은 승패 자체를 판정하지 않으므로 모집단에서 뺀다 (룰북 §15)
+    traitorDecidedGames: decidedGames,
+    traitorWinRate:
+      decidedGames === 0
+        ? 0
+        : summaries.filter((s) => s.traitorWon === true).length / decidedGames,
     forcedTimeoutRate: games === 0 ? 0 : summaries.filter((s) => s.forcedTimeout).length / games,
     clockExpiredRate: games === 0 ? 0 : summaries.filter((s) => s.clockExpired).length / games,
     elapsedMeanMs: mean(summaries.map((summary) => summary.elapsedMs)),
@@ -427,7 +437,11 @@ export function formatAggregate(result: Aggregate): string[] {
     const title = id === 'none' ? '엔딩 없음' : (ENDINGS[id as EndingId]?.title ?? id)
     lines.push(`    ${title.padEnd(14)} ${count}판 (${percent(games === 0 ? 0 : count / games)})`)
   }
-  lines.push(`- 배신자 승률 ${percent(result.traitorWinRate)}`)
+  lines.push(
+    result.traitorDecidedGames === 0
+      ? '- 배신자 승률 — (배신자가 나온 판이 없어 승패를 판정하지 않았다)'
+      : `- 배신자 승률 ${percent(result.traitorWinRate)} (배신자 1명 이상 ${result.traitorDecidedGames}판 기준)`,
+  )
   lines.push('')
 
   lines.push('### 시계 (룰북 §2.1, §14.4)')

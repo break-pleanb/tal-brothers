@@ -28,6 +28,7 @@ import { createGame, seatSetupForHumans } from '../engine/state/createGame'
 import { BOT_SABOTAGE_KIND } from '../engine/bots/botPolicy'
 import { INTERVENTION_KIND, PUBLIC_NOTICE_KIND, SEAT_ORDER } from '../engine/state/gameState'
 import type { GameState, InterventionRecord } from '../engine/state/gameState'
+import { traitorOutcomeLabel } from '../engine/steps/endingStep'
 import { findScenarioEvent } from '../engine/steps/rollStep'
 import { DEFAULT_HUMAN_POLICY, planHumanInputs } from './humanPolicy'
 import type { HumanPolicyConfig, PlannedInput } from './humanPolicy'
@@ -59,6 +60,13 @@ const JUDGMENT_LABEL: Record<JudgmentKind, string> = {
   [JUDGMENT_KIND.ITEM]: '아이템',
   [JUDGMENT_KIND.CONTEST]: '대립',
 }
+
+/**
+ * Phase 3 판정 표기 (룰북 §14.3, §14.4).
+ * 타겟이 인간 배신자일 때만 상대 D6와 겨루는 **대립**이고,
+ * 봇이거나 배신자가 아닌 인간이면 **고정 기준** 판정이다.
+ */
+const CONTEST_THRESHOLD_LABEL = '고정 기준'
 
 export const VARIANT_LABEL: Record<VariantKind, string> = {
   [VARIANT_KIND.ILL]: '흉',
@@ -710,12 +718,18 @@ function judgmentLine(record: SimEventRecord, state: GameState): string {
       ? ` (대가 +${GAME_CONFIG.hiddenJudgmentCostPercent}%)`
       : ''
   const roller = record.rollerSeat === null ? '' : ` · 판정자 ${ROLE_LABEL[record.rollerSeat]}`
-  const opponent =
-    record.judgment.opponentValue === null
-      ? ''
-      : ` · 상대 주사위 ${record.judgment.opponentValue}`
 
-  return `${JUDGMENT_LABEL[record.judgment.kind]}${attribute} · 기준 ${record.judgment.threshold}${roller}${cost}${opponent}`
+  // 대립은 상대값을 넘어야 하고(동점은 배신자 승), 고정 기준은 기준 이상이면 성공이다
+  const contestKind = record.judgment.kind === JUDGMENT_KIND.CONTEST
+  const label =
+    contestKind && !record.judgment.contest
+      ? CONTEST_THRESHOLD_LABEL
+      : JUDGMENT_LABEL[record.judgment.kind]
+  const criterion = record.judgment.contest
+    ? ` · 상대 주사위 ${record.judgment.opponentValue ?? '-'} 초과`
+    : ` · 기준 ${record.judgment.threshold}`
+
+  return `${label}${attribute}${criterion}${roller}${cost}`
 }
 
 function diceLine(record: SimEventRecord, state: GameState): string {
@@ -805,7 +819,12 @@ function interventionLines(record: SimEventRecord): string[] {
         ? ''
         : ` · ${ROLE_LABEL[used.dieSeat]} 주사위 ${used.diceBefore} → ${used.diceAfter ?? '-'}`
     const value = ` · 최종값 ${used.finalValueBefore} → ${used.finalValueAfter}`
-    const verdict = ` · 기준 ${used.threshold} ${used.succeeded ? '성공' : '실패'}`
+    // 대립 판정은 기준이 아니라 상대값을 넘어야 한다 (룰북 §14.3, §14.4)
+    const criterion =
+      record.judgment?.contest === true
+        ? `상대 ${record.judgment.opponentValue ?? '-'} 초과`
+        : `기준 ${used.threshold}`
+    const verdict = ` · ${criterion} ${used.succeeded ? '성공' : '실패'}`
 
     return row(index === 0 ? '개입' : '', `${who} ${means}${dice}${value}${verdict}`)
   })
@@ -984,7 +1003,7 @@ export function formatRun(run: GameRunResult): string[] {
     `# 한 판 시뮬레이션 — seed ${run.seed}, 인간 ${run.humans}명`,
     '',
     ...run.lines,
-    `엔딩: ${ending?.id ?? '없음'} (배신자 ${ending?.traitorWon === true ? '승리' : '패배'})`,
+    `엔딩: ${ending?.id ?? '없음'} (배신자 ${traitorOutcomeLabel(ending?.traitorWon ?? null)})`,
     row('소요', formatDuration(run.endedAt - run.startedAt)),
     row('좌석', seatLine(run.finalState)),
   ]

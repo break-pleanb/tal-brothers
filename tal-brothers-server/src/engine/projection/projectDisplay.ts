@@ -102,6 +102,7 @@ function projectJudgment(judgment: JudgmentState | null): JudgmentView | null {
   if (judgment.kind === JUDGMENT_KIND.HIDDEN) {
     return {
       kind: judgment.kind,
+      contest: false,
       dice: null,
       opponentValue: null,
       finalValue: null,
@@ -115,6 +116,8 @@ function projectJudgment(judgment: JudgmentState | null): JudgmentView | null {
   const rolled = judgment.dice.some((die) => die.value !== null)
   return {
     kind: judgment.kind,
+    // 대립이면 기준이 아니라 상대값을 넘어야 한다. 고정 기준 판정과 구분해 표기한다 (룰북 §14.3, §14.4)
+    contest: judgment.contest,
     dice: judgment.dice.map((die) => ({ seat: die.seat, value: die.value })),
     opponentValue: judgment.opponentDie?.value ?? null,
     finalValue: rolled ? judgmentFinalValue(judgment) : null,
