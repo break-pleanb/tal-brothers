@@ -1,7 +1,10 @@
 import { ASSET_KEY, ATTRIBUTE, GAME_PHASE, JUDGMENT_KIND } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from './gameConfig'
-import { EFFECT_CATEGORY, EFFECT_KIND, EFFECT_TARGET, WHISPER_KIND } from './scenarioTypes'
+import { EFFECT_CATEGORY } from './constants/effectCategory'
+import { EFFECT_KIND } from './constants/effectKind'
+import { EFFECT_TARGET } from './constants/effectTarget'
+import { WHISPER_KIND } from './constants/whisperKind'
 import type { ScenarioEvent } from './scenarioTypes'
 
 /**

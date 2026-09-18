@@ -2,7 +2,9 @@ import { JUDGMENT_KIND, VARIANT_KIND } from 'tal-brothers-shared'
 import type { VariantKind } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../scenario/gameConfig'
-import { EFFECT_CATEGORY, EFFECT_KIND, hasJudgment } from '../../scenario/scenarioTypes'
+import { EFFECT_CATEGORY } from '../../scenario/constants/effectCategory'
+import { EFFECT_KIND } from '../../scenario/constants/effectKind'
+import { hasJudgment } from '../../scenario/scenarioTypes'
 import type { Choice, Effect, JudgmentSpec, ScenarioEvent } from '../../scenario/scenarioTypes'
 import { pickWeighted, type Rng } from '../random'
 

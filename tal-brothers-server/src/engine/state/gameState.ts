@@ -1,7 +1,7 @@
 import { BROTHER_ROLE } from 'tal-brothers-shared'
 import type { BrotherRole, GamePhase, GameStep, JudgmentKind, VariantKind } from 'tal-brothers-shared'
 
-import type { WhisperKind } from '../../scenario/scenarioTypes'
+import type { WhisperKind } from '../../scenario/constants/whisperKind'
 
 /**
  * 게임 상태 (아키텍처 §5.2 중 M1 범위).

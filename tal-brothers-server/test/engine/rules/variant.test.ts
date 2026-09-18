@@ -3,12 +3,10 @@ import { ATTRIBUTE, JUDGMENT_KIND, VARIANT_KIND } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../../src/scenario/gameConfig'
 import { findPhase1Event } from '../../../src/scenario/phase1Events'
-import {
-  EFFECT_CATEGORY,
-  EFFECT_KIND,
-  EFFECT_TARGET,
-  hasJudgment,
-} from '../../../src/scenario/scenarioTypes'
+import { EFFECT_CATEGORY } from '../../../src/scenario/constants/effectCategory'
+import { EFFECT_KIND } from '../../../src/scenario/constants/effectKind'
+import { EFFECT_TARGET } from '../../../src/scenario/constants/effectTarget'
+import { hasJudgment } from '../../../src/scenario/scenarioTypes'
 import type { Choice, Effect, JudgmentChoice, PlainChoice } from '../../../src/scenario/scenarioTypes'
 import { createSeededRng } from '../../../src/engine/random'
 import {

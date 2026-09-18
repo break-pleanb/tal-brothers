@@ -3,12 +3,10 @@ import { BROTHER_ROLE } from 'tal-brothers-shared'
 import type { BrotherRole } from 'tal-brothers-shared'
 
 import { findPhase1Event } from '../../../src/scenario/phase1Events'
-import {
-  EFFECT_CATEGORY,
-  EFFECT_KIND,
-  EFFECT_TARGET,
-  hasJudgment,
-} from '../../../src/scenario/scenarioTypes'
+import { EFFECT_CATEGORY } from '../../../src/scenario/constants/effectCategory'
+import { EFFECT_KIND } from '../../../src/scenario/constants/effectKind'
+import { EFFECT_TARGET } from '../../../src/scenario/constants/effectTarget'
+import { hasJudgment } from '../../../src/scenario/scenarioTypes'
 import type { Effect, JudgmentChoice } from '../../../src/scenario/scenarioTypes'
 import { createSeededRng } from '../../../src/engine/random'
 import { applyEffects, resolveTargetSeats, stripRewards } from '../../../src/engine/rules/effects'

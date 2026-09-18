@@ -3,7 +3,9 @@ import { ASSET_KEY, ATTRIBUTE, GAME_PHASE, JUDGMENT_KIND } from 'tal-brothers-sh
 
 import { GAME_CONFIG } from '../../src/scenario/gameConfig'
 import { PHASE1_EVENTS, findPhase1Event } from '../../src/scenario/phase1Events'
-import { EFFECT_CATEGORY, EFFECT_KIND, hasJudgment } from '../../src/scenario/scenarioTypes'
+import { EFFECT_CATEGORY } from '../../src/scenario/constants/effectCategory'
+import { EFFECT_KIND } from '../../src/scenario/constants/effectKind'
+import { hasJudgment } from '../../src/scenario/scenarioTypes'
 import type { Choice, Effect, ScenarioEvent } from '../../src/scenario/scenarioTypes'
 
 const ASSET_KEY_VALUES: string[] = Object.values(ASSET_KEY)

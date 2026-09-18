@@ -89,6 +89,7 @@ tal-brothers-server/
 │  │     └─ projectSeat.ts         # 배신자·셋째·가짜 라벨 분기
 │  │
 │  ├─ scenario/                    # 룰북 v3 데이터 (서버 전용)
+│  │  ├─ constants/                # 효과 분류·대상·종류, 귓속말 종류 (파일명 ↔ export명 1:1)
 │  │  ├─ scenarioTypes.ts
 │  │  ├─ gameConfig.ts             # GAME_CONFIG (룰북 §19 + 운영 규칙 설정값)
 │  │  ├─ phase1Events.ts           # PHASE1_EVENTS

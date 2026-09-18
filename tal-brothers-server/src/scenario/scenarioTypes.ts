@@ -1,59 +1,17 @@
 import { JUDGMENT_KIND } from 'tal-brothers-shared'
 import type { AssetKey, Attribute, GamePhase } from 'tal-brothers-shared'
 
+import { EFFECT_KIND } from './constants/effectKind'
+import type { EffectCategory } from './constants/effectCategory'
+import type { EffectTarget } from './constants/effectTarget'
+import type { WhisperKind } from './constants/whisperKind'
+
 /**
  * 시나리오 데이터 모델 (아키텍처 §5.4).
  * 선택지의 결과는 효과 목록으로 표현하고, 모든 효과에 분류를 붙인다.
  * 성공 기준·보상·페널티는 서버 전용이므로 이 모듈은 shared로 내보내지 않는다.
+ * 분류 값 자체는 `constants/`에 상수 파일로 나눠 둔다 (상수 파일명 ↔ export명 1:1).
  */
-
-/** 효과 분류 (아키텍처 §5.4) */
-export const EFFECT_CATEGORY = {
-  /** 보상 — 강제 성공 시 제거, 길 변이에서 +1단계 */
-  REWARD: 'reward',
-  /** 성공에 따라오는 부작용 — 강제 성공 시 유지, 변이 영향 없음 */
-  SIDE_EFFECT: 'sideEffect',
-  /** 실패 페널티·우회 시간 비용 — 흉은 가산, 길은 감산 */
-  PENALTY: 'penalty',
-} as const
-
-export type EffectCategory = (typeof EFFECT_CATEGORY)[keyof typeof EFFECT_CATEGORY]
-
-/** 효과 대상 (룰북 §4.1, §5.3) */
-export const EFFECT_TARGET = {
-  /** 판정자 1명 */
-  ROLLER: 'roller',
-  /** 봇과 배신자를 포함한 형제 전원 */
-  ALL: 'all',
-  /** 협동 판정의 보상 수령자 — 개입 후 최종 최고값 주사위의 주인 (룰북 §5.3) */
-  COOP_TOP_ROLLER: 'coopTopRoller',
-} as const
-
-export type EffectTarget = (typeof EFFECT_TARGET)[keyof typeof EFFECT_TARGET]
-
-/** 효과 종류 */
-export const EFFECT_KIND = {
-  /** 잠식도 증감. +는 상승, -는 회복 */
-  EROSION: 'erosion',
-  /** 낡은 부적 획득 */
-  TALISMAN: 'talisman',
-  /** 팀 플래그 — 다음 1회 판정에 적용되고 소멸 (룰북 §5.5) */
-  TEAM_MODIFIER: 'teamModifier',
-  /** 게임 시계 증감. -는 시간 소모 (룰북 §2.1) */
-  TIME_DELTA: 'timeDelta',
-  /** 귓속말 (룰북 §16) */
-  WHISPER: 'whisper',
-} as const
-
-export type EffectKind = (typeof EFFECT_KIND)[keyof typeof EFFECT_KIND]
-
-/** 귓속말 종류 (룰북 §16). M1 범위는 T2 귓속말 1종 */
-export const WHISPER_KIND = {
-  /** T2-2 A 성공/실패 → 이장 이벤트 선택지 1개의 변이 */
-  T2_VARIANT: 't2Variant',
-} as const
-
-export type WhisperKind = (typeof WHISPER_KIND)[keyof typeof WHISPER_KIND]
 
 export type ErosionEffect = {
   category: EffectCategory

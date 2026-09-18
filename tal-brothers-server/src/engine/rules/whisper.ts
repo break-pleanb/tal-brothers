@@ -1,7 +1,7 @@
 import { VARIANT_KIND } from 'tal-brothers-shared'
 import type { BrotherRole, VariantKind } from 'tal-brothers-shared'
 
-import { WHISPER_KIND } from '../../scenario/scenarioTypes'
+import { WHISPER_KIND } from '../../scenario/constants/whisperKind'
 import type { ScenarioEvent } from '../../scenario/scenarioTypes'
 import { PUBLIC_NOTICE_KIND } from '../state/gameState'
 import type { GameState, PendingWhisper, ReceivedWhisper } from '../state/gameState'

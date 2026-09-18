@@ -1,7 +1,11 @@
 import type { BrotherRole } from 'tal-brothers-shared'
 
-import { EFFECT_CATEGORY, EFFECT_KIND, EFFECT_TARGET, WHISPER_KIND } from '../../scenario/scenarioTypes'
-import type { Effect, EffectTarget } from '../../scenario/scenarioTypes'
+import { EFFECT_CATEGORY } from '../../scenario/constants/effectCategory'
+import { EFFECT_KIND } from '../../scenario/constants/effectKind'
+import { EFFECT_TARGET } from '../../scenario/constants/effectTarget'
+import type { EffectTarget } from '../../scenario/constants/effectTarget'
+import { WHISPER_KIND } from '../../scenario/constants/whisperKind'
+import type { Effect } from '../../scenario/scenarioTypes'
 import { PUBLIC_NOTICE_KIND, SEAT_ORDER } from '../state/gameState'
 import type { GameState } from '../state/gameState'
 import { applyErosionDelta } from './erosion'
