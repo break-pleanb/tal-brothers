@@ -8,7 +8,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "sim:phase1": "tsx src/sim/playPhase1.ts"
+    "sim:phase1": "tsx src/sim/playPhase1.ts",
+    "sim:game": "tsx src/sim/playGame.ts",
+    "sim:bots": "tsx src/sim/botMatch.ts"
   },
   "dependencies": {
     "express": "^5.2.1",

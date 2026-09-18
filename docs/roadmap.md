@@ -8,7 +8,7 @@
 |---|---|---|
 | M0 | 개발 환경 구성 | 완료 |
 | M1 | 엔진 핵심 + Phase 1 | 완료 |
-| M2 | Phase 2·3, 엔딩, 투영, 봇 자동 대전 | 진행 중 |
+| M2 | Phase 2·3, 엔딩, 투영, 봇 자동 대전 | 완료 |
 | M3 | 런타임, 통신, 인증, 로비, 운영 규칙 | 대기 |
 | M4 | Display·Controller 화면 (임시 그래픽) | 대기 |
 | M5 | 에셋·연출, 세이브/불러오기, 배포 | 대기 |
@@ -250,10 +250,10 @@ tal-brothers-server/
 
 ### M2-7. 봇 자동 대전과 전체 흐름
 
-- [ ] `humanPolicy.ts` (가상 입력 지연 포함), `playGame.ts`, `playPhase1.ts` 축소
-- [ ] `botMatch.ts` CLI와 `sim:game` / `sim:bots` 스크립트
-- [ ] 전체 흐름 테스트와 집계 테스트
-- [ ] 300판 결과로 룰북 §19 조정 여부 판단
+- [x] `humanPolicy.ts` (가상 입력 지연 포함), `playGame.ts`, `playPhase1.ts` 축소
+- [x] `botMatch.ts` CLI와 `sim:game` / `sim:bots` 스크립트 (`--humans all` 구성 비교)
+- [x] 전체 흐름 테스트 15건과 집계 테스트 11건
+- [x] 구성별 300판(총 1200판) 결과로 룰북 §19 조정 대상 정리 → `docs/m2-notes.md`
 
 ## M3. 런타임, 통신, 인증, 로비, 운영 규칙
 

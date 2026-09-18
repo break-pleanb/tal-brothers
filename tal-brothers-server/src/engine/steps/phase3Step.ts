@@ -20,7 +20,7 @@ import {
   moveJadeHairpinAwayFromTarget,
   selectPhase3Target,
 } from '../rules/target'
-import { PUBLIC_NOTICE_KIND } from '../state/gameState'
+import { PUBLIC_NOTICE_KIND, SEAT_ORDER } from '../state/gameState'
 import type { CurrentEventState, GameState } from '../state/gameState'
 import { requestEnding } from './endingStep'
 import { adoptChoice, currentScenarioEvent, nextStepAfterAdopt } from './rollStep'
@@ -145,6 +145,19 @@ export const P3_TARGETING_HANDLER: StepHandler = {
       kind: CUE_KIND.PHASE_ENTERED,
       audience: CUE_AUDIENCE.DISPLAY,
       text: '마을 경계의 거대한 천하대장군 장승 앞. 추격대가 턱밑까지 왔다',
+    })
+    // Phase 2가 끝난 시점의 잠식도를 한 번 찍어 둔다 (봇 자동 대전 지표, M2 계획 8.1)
+    out.logs.push({
+      at: context.now,
+      code: LOG_CODE.PHASE_ENTERED,
+      message: 'Phase 3 진입',
+      data: {
+        phase: GAME_PHASE.PHASE_3,
+        erosion: Object.fromEntries(
+          SEAT_ORDER.map((role) => [role, draft.seats[role].erosionPercent]),
+        ),
+        clockRemainingMs: draft.clock.deadlineAt - context.now,
+      },
     })
 
     selectTarget(draft, context, out)

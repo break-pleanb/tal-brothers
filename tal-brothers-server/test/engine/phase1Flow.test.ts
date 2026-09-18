@@ -308,7 +308,7 @@ describe('시뮬레이터 인자 파싱 (로드맵 M1-5)', () => {
     for (const label of ['투표', '변이', '판정', '주사위', '결과', '개입', '좌석', '시계']) {
       expect(text).toContain(label)
     }
-    expect(text).toContain('[이벤트 4/4]')
+    expect(text).toContain('[이벤트 4]')
     expect(text).toContain('Phase 1 종료')
   })
 })
