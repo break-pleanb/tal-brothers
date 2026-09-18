@@ -245,8 +245,8 @@ tal-brothers-server/
 
 ### M2-6. 투영
 
-- [ ] `projectDisplay.ts`, `projectSeat.ts`
-- [ ] 은닉 테스트 18종 (계획 7.2)
+- [x] `projectDisplay.ts`, `projectSeat.ts` — 화이트리스트 투영
+- [x] 은닉 테스트와 구조 고정 테스트 20건 (계획 7.2)
 
 ### M2-7. 봇 자동 대전과 전체 흐름
 
