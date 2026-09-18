@@ -32,8 +32,8 @@ export const GAME_CONFIG = {
 
   /** 환경 잠식 — Phase 2 랜덤 이벤트마다 전원 (룰북 §4.2). M2 */
   environmentErosionPercent: 5,
-  /** Phase 2 진입 환청 — 부적 미보유자 (룰북 §13.1). M2 */
-  phase2EntryNoTalismanPercent: 20,
+  /** Phase 2 진입 환청 — 부적 미보유자 (룰북 §13.1). 2026-09-18 +20% → +10% (룰북 §21.1) */
+  phase2EntryNoTalismanPercent: 10,
   /** 비공개 판정 대가 — 성패 무관 고정 (룰북 §5.4) */
   hiddenJudgmentCostPercent: 10,
   /** 첫째 강제 성공 대가 (룰북 §3.2) */

@@ -196,7 +196,8 @@ describe('GAME_CONFIG', () => {
     expect(GAME_CONFIG.phase3TruncateMinutes).toBe(10)
 
     expect(GAME_CONFIG.environmentErosionPercent).toBe(5)
-    expect(GAME_CONFIG.phase2EntryNoTalismanPercent).toBe(20)
+    // 2026-09-18 조정: +20% → +10% (룰북 §21.1)
+    expect(GAME_CONFIG.phase2EntryNoTalismanPercent).toBe(10)
     expect(GAME_CONFIG.hiddenJudgmentCostPercent).toBe(10)
     expect(GAME_CONFIG.forceSuccessCostPercent).toBe(15)
     expect(GAME_CONFIG.talismanHealPercent).toBe(10)

@@ -179,9 +179,11 @@ describe('봇의 기본 행동 (룰북 §11)', () => {
 
     const before = seat(game, BROTHER_ROLE.THIRD).erosionPercent
     while (game.state.progress.phase !== GAME_PHASE.PHASE_2) game.tick()
-    // 흉 변이가 걸린 이장 B 실패 +30%에, 이어지는 Phase 2 진입 환청 +20%가 더해진다
+    // 흉 변이가 걸린 이장 B 실패 +30%에, 이어지는 Phase 2 진입 환청이 더해진다
     // (부적 미보유자, 룰북 §13.1). 봇도 인간과 같은 규칙으로 오른다
-    expect(seat(game, BROTHER_ROLE.THIRD).erosionPercent - before).toBe(50)
+    expect(seat(game, BROTHER_ROLE.THIRD).erosionPercent - before).toBe(
+      30 + GAME_CONFIG.phase2EntryNoTalismanPercent,
+    )
   })
 })
 
@@ -376,8 +378,10 @@ describe('첫째 봇 강제 성공 (룰북 §11)', () => {
 
     game.tick()
     expect(game.state.progress.phase).toBe(GAME_PHASE.PHASE_2)
-    // 강제 성공 대가(+15%)를 치르지 않았고, Phase 2 진입 환청 +20%만 올랐다 (룰북 §13.1)
-    expect(seat(game, BROTHER_ROLE.FIRST).erosionPercent).toBe(20)
+    // 강제 성공 대가(+15%)를 치르지 않았고, Phase 2 진입 환청만 올랐다 (룰북 §13.1)
+    expect(seat(game, BROTHER_ROLE.FIRST).erosionPercent).toBe(
+      GAME_CONFIG.phase2EntryNoTalismanPercent,
+    )
     expect(ALL_SEATS.every((role) => !seat(game, role).abilityUsed || role === BROTHER_ROLE.SECOND)).toBe(
       true,
     )
