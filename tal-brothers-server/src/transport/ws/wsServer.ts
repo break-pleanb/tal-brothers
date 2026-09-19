@@ -6,12 +6,16 @@ import type { RawData, WebSocket } from 'ws'
 import type { AuthVerifier } from '../../infra/authVerifier'
 import type { RoomRegistry } from '../../room/roomRegistry'
 import type { Scheduler } from '../../room/scheduler'
+import { createHeartbeat } from './heartbeat'
 import { createWsSession } from './wsSession'
 import type { SocketPort } from './socketPort'
 
 /**
  * ws 서버 부착 (M3 계획 M3-4).
  * 연결마다 세션을 하나 만들고, 소켓 구현을 `SocketPort`로 감싸 세션에 넘긴다.
+ *
+ * **하트비트로 죽은 소켓을 걸러낸다** (M4 실기 2차). 그래야 끊긴 Display가
+ * 연결 변화로 잡혀 자동 일시정지에 걸리고, 폰만 혼자 진행하는 일이 없다 (아키텍처 §8).
  */
 
 export const WS_PATH = '/ws'
@@ -22,6 +26,8 @@ export type WsServerDeps = {
   auth: AuthVerifier
   scheduler: Scheduler
   helloTimeoutMs: number
+  /** 하트비트 주기. 생략하면 기본값 */
+  heartbeatMs?: number
 }
 
 function toSocketPort(socket: WebSocket): SocketPort {
@@ -38,8 +44,17 @@ function toSocketPort(socket: WebSocket): SocketPort {
 
 export function attachWsServer(deps: WsServerDeps): WebSocketServer {
   const wss = new WebSocketServer({ server: deps.server, path: WS_PATH })
+  const heartbeat = createHeartbeat({
+    scheduler: deps.scheduler,
+    ...(deps.heartbeatMs === undefined ? {} : { intervalMs: deps.heartbeatMs }),
+  })
 
   wss.on('connection', (socket: WebSocket) => {
+    heartbeat.add(socket)
+    socket.on('pong', () => {
+      heartbeat.markAlive(socket)
+    })
+
     const session = createWsSession({
       socket: toSocketPort(socket),
       auth: deps.auth,
@@ -56,11 +71,17 @@ export function attachWsServer(deps: WsServerDeps): WebSocketServer {
       })
     })
     socket.on('close', () => {
+      heartbeat.remove(socket)
       session.handleClose()
     })
     socket.on('error', () => {
+      heartbeat.remove(socket)
       session.handleClose()
     })
+  })
+
+  wss.on('close', () => {
+    heartbeat.stop()
   })
 
   return wss

@@ -19,6 +19,7 @@ import { currentAccessToken } from './supabase'
  * - 연결 직후 `hello`로 토큰을 싣는다. URL에는 싣지 않는다 (아키텍처 §10)
  * - 상태 버전이 건너뛰면 `resync`를 보낸다. cue는 다시 오지 않는다
  * - 끊기면 물러나며 다시 붙는다. 재접속은 재동기화의 특수한 경우다
+ * - **죽었는데 닫히지 않은 소켓**은 양쪽 다 모른다. 스토어의 감시가 `reopen()`으로 강제로 새로 연다
  */
 
 export type SocketStatus = 'idle' | 'connecting' | 'open' | 'closed'
@@ -36,6 +37,12 @@ export type RoomSocketHandlers = {
 export type RoomSocket = {
   connect(): void
   send(command: Command): number
+  /**
+   * 지금 소켓을 버리고 새로 연다 (M4 실기 2차).
+   * 소켓이 죽었는데 `close` 이벤트가 오지 않으면 재시도 예약도 걸리지 않는다.
+   * 그 상태를 밖에서 알아챘을 때 부른다
+   */
+  reopen(): void
   close(): void
 }
 
@@ -152,8 +159,30 @@ export function createRoomSocket(options: RoomSocketOptions): RoomSocket {
     }
   }
 
+  /** 옛 소켓의 콜백을 떼어 낸다. 늦게 오는 메시지와 재시도 예약을 막는다 */
+  function detach(target: WebSocket): void {
+    target.onopen = null
+    target.onmessage = null
+    target.onclose = null
+    target.onerror = null
+  }
+
   return {
     connect,
+    reopen(): void {
+      const dying = socket
+      socket = null
+      lastVersion = null
+      retry = 0
+      if (retryTimer !== null) clearTimeout(retryTimer)
+      retryTimer = null
+
+      if (dying !== null) {
+        detach(dying)
+        dying.close()
+      }
+      connect()
+    },
     send(command): number {
       seq += 1
       socket?.send(JSON.stringify({ t: CLIENT_FRAME_TYPE.COMMAND, seq, command }))

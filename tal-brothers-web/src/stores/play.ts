@@ -45,6 +45,18 @@ export type QueuedCue = {
 /** 현재 스냅샷보다 이만큼 오래된 cue는 버린다 (M4 계획 9절 8번) */
 const CUE_STALE_VERSIONS = 2
 
+/**
+ * 연결 감시 (M4 실기 2차).
+ *
+ * 단계 마감이 지나면 서버는 **반드시** 다음 스냅샷을 보낸다. 그런데도 오지 않으면
+ * 소켓이 죽었는데 양쪽 다 모르는 상태다 — 실기에서 Display가 조용히 멈춘 증상이 그것이다.
+ */
+const STALE_GRACE_MS = 5_000
+/** 감시 주기 */
+const WATCHDOG_TICK_MS = 1_000
+/** 소켓을 다시 여는 간격. 한 번 열어 보고도 조용하면 다시 연다 */
+const REOPEN_INTERVAL_MS = 5_000
+
 function hasSeatConnections(snapshot: AnySnapshot): snapshot is DisplaySnapshot {
   return 'seatConnections' in snapshot
 }
@@ -68,9 +80,13 @@ export const usePlayStore = defineStore('play', () => {
    * 같은 Wi-Fi에서 수십 ms라 1초 단위 표시에는 영향이 없다
    */
   const clockOffsetMs = ref(0)
+  /** 단계 마감이 지났는데도 새 스냅샷이 오지 않는 상태 (M4 실기 2차) */
+  const stale = ref(false)
 
   let socket: RoomSocket | null = null
   let nextCueId = 1
+  let watchdog: ReturnType<typeof setInterval> | null = null
+  let lastReopenAt = 0
 
   // ── 파생 ───────────────────────────────────────────────────────────
 
@@ -110,9 +126,40 @@ export const usePlayStore = defineStore('play', () => {
   // ── 스냅샷과 cue ───────────────────────────────────────────────────
 
   function applySnapshot(received: SnapshotMessage): void {
+    // 늦게 도착한 옛 스냅샷이 화면을 과거로 되돌리지 않게 한다.
+    // 재동기화 응답과 밀린 스냅샷이 섞이면 순서가 뒤집힐 수 있다
+    const current = snapshot.value
+    if (current !== null && received.stateVersion <= current.stateVersion) return
+
     clockOffsetMs.value = received.serverNow - Date.now()
     snapshot.value = received.snapshot
+    stale.value = false
     pruneCues()
+  }
+
+  /**
+   * 단계 마감이 지났는데 새 스냅샷이 없으면 소켓을 다시 연다 (M4 실기 2차).
+   *
+   * 마감이 없는 단계(로비·일시정지·엔딩)에서는 아무것도 하지 않는다.
+   * 서버가 보내지 않는 것이 정상인 시간에 괜히 소켓을 흔들면 안 된다.
+   */
+  function checkStale(): void {
+    const current = snapshot.value
+    if (socket === null || current === null || current.stepDeadlineAt === null) {
+      stale.value = false
+      return
+    }
+
+    const serverNow = Date.now() + clockOffsetMs.value
+    if (serverNow - current.stepDeadlineAt < STALE_GRACE_MS) {
+      stale.value = false
+      return
+    }
+
+    stale.value = true
+    if (Date.now() - lastReopenAt < REOPEN_INTERVAL_MS) return
+    lastReopenAt = Date.now()
+    socket.reopen()
   }
 
   /**
@@ -165,6 +212,8 @@ export const usePlayStore = defineStore('play', () => {
     cueQueue.value = []
     message.value = null
     clockOffsetMs.value = 0
+    stale.value = false
+    lastReopenAt = 0
   }
 
   /**
@@ -203,12 +252,17 @@ export const usePlayStore = defineStore('play', () => {
       },
     })
     socket.connect()
+
+    if (watchdog === null) watchdog = setInterval(checkStale, WATCHDOG_TICK_MS)
   }
 
   /** 방을 떠난다. 라우트 이동이 아니라 **방을 벗어날 때만** 부른다 */
   function disconnect(): void {
+    if (watchdog !== null) clearInterval(watchdog)
+    watchdog = null
     socket?.close()
     socket = null
+    stale.value = false
     roomCode.value = null
     deviceRole.value = null
     status.value = 'idle'
@@ -232,6 +286,7 @@ export const usePlayStore = defineStore('play', () => {
     cueQueue,
     message,
     clockOffsetMs,
+    stale,
 
     mySeat,
     privateView,

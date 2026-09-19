@@ -87,6 +87,13 @@ const actionHint = computed(() => {
 /** 일시정지 중에는 전 화면을 덮고 조작을 막는다 (아키텍처 §8) */
 const pauseView = computed(() => view.value?.pause ?? null)
 
+/** 연결이 정상이 아닐 때만 한 줄 (M4 실기 2차). 정상이면 아무것도 띄우지 않는다 */
+const linkNotice = computed<string | null>(() => {
+  if (play.status === 'connecting') return '연결 중…'
+  if (play.status === 'closed') return '연결이 끊겼습니다. 다시 붙는 중…'
+  return play.stale ? '화면이 밀렸습니다. 다시 붙는 중…' : null
+})
+
 function vote(choiceId: string): void {
   socket.send({ type: COMMAND_TYPE.VOTE_SUBMIT, choiceId })
 }
@@ -123,7 +130,8 @@ function useIntervention(command: Command): void {
         class="controller-head__gauge"
       />
 
-      <p v-if="wakeLockNotice" class="controller-head__notice">{{ wakeLockNotice }}</p>
+      <p v-if="linkNotice !== null" class="controller-head__notice">{{ linkNotice }}</p>
+      <p v-else-if="wakeLockNotice" class="controller-head__notice">{{ wakeLockNotice }}</p>
     </header>
 
     <main class="controller-body">

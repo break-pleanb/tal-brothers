@@ -7,6 +7,7 @@ import ChoiceBoard from '@/components/display/ChoiceBoard.vue'
 import ClockHud from '@/components/display/ClockHud.vue'
 import DiceArena from '@/components/display/DiceArena.vue'
 import InterventionTrack from '@/components/display/InterventionTrack.vue'
+import LinkStatus from '@/components/display/LinkStatus.vue'
 import MaskApparition from '@/components/display/MaskApparition.vue'
 import NarrationPanel from '@/components/display/NarrationPanel.vue'
 import SeatStrip from '@/components/display/SeatStrip.vue'
@@ -92,13 +93,17 @@ const recentNotices = computed(() => (view.value?.notices ?? []).slice(-3))
 
   <div class="stage-layer stage-layer--hud">
     <div class="stage-safe display-hud">
-      <ClockHud
-        :phase="view?.phase ?? null"
-        :step="view?.step ?? null"
-        :event-number="view?.eventNumber ?? null"
-        :game-clock="gameClockLabel"
-        :step-clock="stepClockLabel"
-      />
+      <div class="display-hud__top">
+        <ClockHud
+          class="display-hud__clock"
+          :phase="view?.phase ?? null"
+          :step="view?.step ?? null"
+          :event-number="view?.eventNumber ?? null"
+          :game-clock="gameClockLabel"
+          :step-clock="stepClockLabel"
+        />
+        <LinkStatus :status="play.status" :stale="play.stale" />
+      </div>
 
       <div class="display-hud__bottom">
         <SeatStrip :seat-names="play.seatNames" :connections="play.seatConnections" />
@@ -154,6 +159,16 @@ const recentNotices = computed(() => (view.value?.notices ?? []).slice(-3))
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+}
+
+.display-hud__top {
+  display: flex;
+  flex-direction: column;
+  gap: 1cqh;
+}
+
+.display-hud__clock {
+  width: 100%;
 }
 
 .display-hud__bottom {
