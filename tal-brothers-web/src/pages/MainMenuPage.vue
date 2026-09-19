@@ -2,7 +2,10 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
+import { DEVICE_ROLE } from 'tal-brothers-shared'
+
 import { Button } from '@/components/ui/button'
+import { rememberDeviceRole } from '@/lib/deviceRole'
 import { ROUTE_NAME } from '@/constants/routeName'
 import { ApiError, createRoom } from '@/services/apiClient'
 import { useAuthStore } from '@/stores/auth'
@@ -24,6 +27,8 @@ async function makeRoom(): Promise<void> {
   message.value = null
   try {
     const room = await createRoom()
+    // 방을 만든 이 기기가 중계 화면이다 (아키텍처 §1)
+    rememberDeviceRole(room.roomCode, DEVICE_ROLE.DISPLAY)
     await router.push({ name: ROUTE_NAME.LOBBY, params: { roomCode: room.roomCode } })
   } catch (error) {
     message.value =

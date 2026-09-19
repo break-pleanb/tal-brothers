@@ -349,10 +349,11 @@ tal-brothers-server/
 
 ### M3-7. web 로비
 
-- [ ] `roomSocket.ts`, `useRoomSocket.ts`, `stores/lobby.ts`
-- [ ] `LobbyPage.vue`, `SeatBoard`·`BotToggle`·`JoinQrPanel`, Display·Controller 자리표시자
-- [ ] `vite.config.ts`의 `server.host`, `qrcode.vue` 설치
-- [ ] 실기 확인 (계획 7.4)
+- [x] `roomSocket.ts`(hello·재연결·resync), `useRoomSocket.ts`, `stores/lobby.ts`
+- [x] `LobbyPage.vue` — 기기 역할로 Display·Controller 패널을 가른다 (`lib/deviceRole.ts`)
+- [x] `SeatBoard`(연결 끊김 표기)·`BotToggle`·`JoinQrPanel`, Display·Controller 자리표시자
+- [x] `vite.config.ts`의 `server.host`, `qrcode.vue` 설치, 라우트 3개 추가
+- [ ] **사람 작업 대기:** 실기 확인 (계획 7.4) — Supabase·Google OAuth 설정이 끝나야 한다
 
 ## M4. Display·Controller 화면 (임시 그래픽)
 

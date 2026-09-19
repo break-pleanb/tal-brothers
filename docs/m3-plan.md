@@ -434,6 +434,7 @@ Vite가 `Network: http://<PC 내부 IP>:5173/`을 출력한다. 폰 브라우저
 | | `VITE_SUPABASE_ANON_KEY` | anon 키 |
 | | `VITE_API_BASE_URL` | `http://<PC 내부 IP>:3000` |
 | | `VITE_WS_URL` | `ws://<PC 내부 IP>:3000/ws` |
+| | `VITE_PUBLIC_WEB_ORIGIN` | 초대 QR에 실을 주소. PC를 `localhost`로 열 때만 필요하다 (`http://<PC 내부 IP>:5173`) |
 | `tal-brothers-server/.env` | `PORT` | `3000` |
 | | `SUPABASE_URL` | 위와 같음 |
 | | `SUPABASE_SERVICE_ROLE_KEY` | service role 키 (**절대 web에 넣지 않는다**) |
@@ -467,6 +468,7 @@ Vite가 `Network: http://<PC 내부 IP>:5173/`을 출력한다. 폰 브라우저
 ### 7.4 확인 순서
 
 1. PC 브라우저 `http://localhost:5173` → 로그인 → `/menu` → 방 만들기 → `/lobby/:code` (Display 패널, QR 표시)
+   - QR에는 **폰이 닿을 수 있는 주소**가 실려야 한다. PC를 `http://<PC 내부 IP>:5173`으로 열거나 `VITE_PUBLIC_WEB_ORIGIN`을 설정한다. 주소가 `localhost`면 QR 아래에 경고가 뜬다
 2. 폰 카메라로 QR → `/join/:code` → 로그인 → 참가 → `/lobby/:code` (Controller 패널)
 3. 폰에서 좌석 선택 → PC 좌석 보드가 즉시 갱신되는지 확인 (스냅샷 왕복)
 4. 폰 2대째로 2·3 반복, 남은 좌석은 봇 토글

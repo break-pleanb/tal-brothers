@@ -12,9 +12,18 @@ function required(key: string, value: string | undefined): string {
   return value.trim()
 }
 
+function optional(value: string | undefined): string | null {
+  return value === undefined || value.trim() === '' ? null : value.trim()
+}
+
 export const WEB_ENV = {
   supabaseUrl: required('VITE_SUPABASE_URL', import.meta.env.VITE_SUPABASE_URL),
   supabaseAnonKey: required('VITE_SUPABASE_ANON_KEY', import.meta.env.VITE_SUPABASE_ANON_KEY),
   apiBaseUrl: required('VITE_API_BASE_URL', import.meta.env.VITE_API_BASE_URL),
   wsUrl: required('VITE_WS_URL', import.meta.env.VITE_WS_URL),
+  /**
+   * 초대 QR에 실을 주소. 없으면 지금 보고 있는 주소를 쓴다.
+   * PC를 `localhost`로 열어 두면 폰이 그 주소로 올 수 없어 이 값이 필요하다
+   */
+  publicWebOrigin: optional(import.meta.env.VITE_PUBLIC_WEB_ORIGIN),
 } as const

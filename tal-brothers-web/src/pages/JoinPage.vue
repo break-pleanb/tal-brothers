@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { DEVICE_ROLE } from 'tal-brothers-shared'
 import type { RoomInfoResponse } from 'tal-brothers-shared'
 
 import { Button } from '@/components/ui/button'
 import { ROUTE_NAME } from '@/constants/routeName'
+import { rememberDeviceRole } from '@/lib/deviceRole'
 import { detectInAppBrowser } from '@/lib/inAppBrowser'
 import { ApiError, fetchRoom, joinRoom } from '@/services/apiClient'
 
@@ -36,6 +38,8 @@ async function join(): Promise<void> {
   message.value = null
   try {
     await joinRoom(roomCode)
+    // 초대 링크로 들어온 이 기기는 조작 기기다 (아키텍처 §1)
+    rememberDeviceRole(roomCode, DEVICE_ROLE.CONTROLLER)
     await router.replace({ name: ROUTE_NAME.LOBBY, params: { roomCode } })
   } catch (error) {
     message.value = error instanceof ApiError ? error.message : '참가하지 못했다'

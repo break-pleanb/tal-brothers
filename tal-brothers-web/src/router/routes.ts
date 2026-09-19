@@ -44,6 +44,24 @@ export const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true },
       },
       {
+        path: 'lobby/:roomCode',
+        name: ROUTE_NAME.LOBBY,
+        component: () => import('@/pages/LobbyPage.vue'),
+        meta: { requiresAuth: true },
+      },
+      {
+        path: 'display/:roomCode',
+        name: ROUTE_NAME.DISPLAY,
+        component: () => import('@/pages/DisplayPage.vue'),
+        meta: { requiresAuth: true },
+      },
+      {
+        path: 'play/:roomCode',
+        name: ROUTE_NAME.PLAY,
+        component: () => import('@/pages/ControllerPage.vue'),
+        meta: { requiresAuth: true },
+      },
+      {
         path: ':pathMatch(.*)*',
         name: ROUTE_NAME.NOT_FOUND,
         component: () => import('@/pages/NotFoundPage.vue'),
