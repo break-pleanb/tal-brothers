@@ -7,7 +7,7 @@ import type { ProtocolErrorCode } from '../constants/protocolErrorCode'
 import type { RejectionReason } from '../constants/rejectionReason'
 import { SERVER_MESSAGE_TYPE } from '../constants/serverMessageType'
 import type { Command } from './command'
-import type { DisplaySnapshot, SeatSnapshot } from './projection'
+import type { DisplaySnapshot, PublicSnapshot, SeatSnapshot } from './projection'
 
 /**
  * ws 프레임 봉투 (아키텍처 §7, M3 계획 3절).
@@ -63,7 +63,8 @@ export type WelcomeMessage = {
 export type SnapshotMessage = {
   t: typeof SERVER_MESSAGE_TYPE.SNAPSHOT
   stateVersion: number
-  snapshot: DisplaySnapshot | SeatSnapshot
+  /** Display는 `DisplaySnapshot`, 좌석은 `SeatSnapshot`, 좌석을 고르기 전에는 `PublicSnapshot` */
+  snapshot: DisplaySnapshot | SeatSnapshot | PublicSnapshot
 }
 
 export type CueMessage = {

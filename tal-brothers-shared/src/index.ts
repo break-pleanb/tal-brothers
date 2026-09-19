@@ -55,6 +55,7 @@ export type {
   NoticeView,
   PauseView,
   Phase3View,
+  PublicSnapshot,
   PublicView,
   SeatConnectionView,
   SeatPrivateView,

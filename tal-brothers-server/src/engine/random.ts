@@ -1,3 +1,5 @@
+import { randomInt } from 'node:crypto'
+
 /**
  * 난수 (아키텍처 §5.5).
  * 엔진은 `Math.random`을 직접 쓰지 않고 이 인터페이스만 주입받는다.
@@ -6,6 +8,21 @@
 export type Rng = {
   /** 0 이상 `boundExclusive` 미만의 정수 */
   nextInt(boundExclusive: number): number
+}
+
+/**
+ * 운영용 난수 (아키텍처 §5.5).
+ * 방마다 1개를 만들어 들고 있는다. 엔진은 이 구현을 알지 못하고 인터페이스만 받는다.
+ */
+export function createCryptoRng(): Rng {
+  return {
+    nextInt(boundExclusive: number): number {
+      if (!Number.isInteger(boundExclusive) || boundExclusive <= 0) {
+        throw new Error(`nextInt의 상한은 1 이상의 정수여야 한다: ${boundExclusive}`)
+      }
+      return randomInt(boundExclusive)
+    },
+  }
 }
 
 /** 주사위 면 수 (룰북 §5.1) */

@@ -317,8 +317,10 @@ tal-brothers-server/
 
 ### M3-3. room 런타임
 
-- [ ] `scheduler.ts`, `roomRuntime.ts`, `roomRegistry.ts`, `seatBinding.ts`
-- [ ] 런타임 테스트 (계획 9.1 M3-3 6건)
+- [x] `scheduler.ts`(시각 주입), `roomTypes.ts`, `roomRuntime.ts`, `roomRegistry.ts`, `seatBinding.ts`
+- [x] 방당 직렬 큐, 타이머 1개 예약·무효화, 대상별 스냅샷 → cue 전송, 중복 접속 밀어내기
+- [x] 자동 저장 호출 자리만 비워 둠 (M5, 아키텍처 §6)
+- [x] 런타임 테스트 18건 (계획 9.1 M3-3 6건 포함) → 누적 393건
 
 ### M3-4. ws 세션
 

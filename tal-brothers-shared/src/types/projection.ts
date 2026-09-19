@@ -184,6 +184,12 @@ export type SeatPrivateView = {
   botTakeover: boolean
 }
 
+/**
+ * 아직 좌석을 고르지 않은 Controller가 받는 스냅샷 — 공개 항목만.
+ * 로비에서 좌석을 고르기 전까지 쓰고, 좌석이 생기면 `SeatSnapshot`으로 바뀐다.
+ */
+export type PublicSnapshot = PublicView
+
 export type DisplaySnapshot = PublicView & {
   /** 좌석별 연결 상태 — Display 전용 (룰북 §17) */
   seatConnections: SeatConnectionView[]
