@@ -10,7 +10,7 @@
 - M3의 일은 **엔진을 실제 시간·소켓·계정에 연결하는 것**이다. 룰 계산을 새로 만들지 않는다
 - 화면은 최소 구성만 만든다. Display·Controller 게임 화면은 M4다
 - 세이브/불러오기는 M5다. M3는 저장 호출 자리만 비워 둔다 (10절 13번)
-- 룰북에 수치가 없는 항목은 만들지 않는다. 10절에 모아 두고 착수 전에 답을 받는다
+- 룰북에 수치가 없는 항목은 만들지 않는다. 10절에 모아 두었고 **15건 모두 2026-09-19에 확정**했다
 - **완료 기준(로드맵):** PC 1대와 폰 여러 대가 같은 방에 접속해 로비에서 게임을 시작할 수 있다
 
 ---
@@ -69,7 +69,7 @@
 |---|---|---|
 | `src/room/roomTypes.ts` | 생성 | `RoomHandle`, `RoomMember`, 전송 대상 타입 |
 | `src/room/scheduler.ts` | 생성 | `Scheduler` 인터페이스(`at(time, fn)` / `cancel`)와 실제 시각 구현. 테스트는 가짜를 넣는다 |
-| `src/room/roomRuntime.ts` | 생성 | 방당 액션 직렬 큐, 타이머 예약·무효화, 처리 결과 전송 (2절) |
+| `src/room/roomRuntime.ts` | 생성 | 방당 액션 직렬 큐, 타이머 예약·무효화, 처리 결과 전송 (2절). Phase 전환 시 자동 저장은 **호출 자리만 비워 둔다** (10절 13번, M5) |
 | `src/room/roomRegistry.ts` | 생성 | 메모리 내 방 목록, 방 코드 발급·조회·정리 |
 | `src/room/seatBinding.ts` | 생성 | 유저 ↔ 좌석, 소켓 ↔ 좌석, 연결 끊김 → presence 액션 |
 | `test/room/roomRuntime.test.ts` · `seatBinding.test.ts` | 생성 | 9절 참조 |
@@ -90,7 +90,7 @@
 |---|---|---|
 | `src/config/serverEnv.ts` | 생성 | `SERVER_ENV` — 환경 변수 읽기와 누락 시 즉시 실패 (7.2) |
 | `src/infra/supabaseAdmin.ts` | 생성 | service role 클라이언트 |
-| `src/infra/authVerifier.ts` | 생성 | Supabase JWT 검증. 인터페이스로 두고 테스트는 가짜를 넣는다 (10절 4번) |
+| `src/infra/authVerifier.ts` | 생성 | `supabase.auth.getUser(token)`으로 토큰 검증 (10절 4번). 인터페이스로 두고 테스트는 가짜를 넣는다 |
 | `src/infra/roomRepository.ts` | 생성 | `rooms` 테이블 기록·조회 (초대 코드 확인용) |
 | `src/transport/http/roomsRouter.ts` | 생성 | 방 생성·조회·참가 (4절) |
 | `src/transport/http/healthRouter.ts` | 생성 | `GET /healthz` |
@@ -126,8 +126,10 @@
 | `src/composables/useRoomSocket.ts` | 생성 | 스토어에 스냅샷·cue를 흘려 넣는 래퍼 |
 | `src/stores/lobby.ts` | 생성 | 로비 스냅샷, 내 좌석, 연결 상태 |
 | `src/pages/LobbyPage.vue` | 생성 | 기기 역할에 따라 Display 패널 / Controller 패널 (10절 14번) |
-| `src/components/lobby/SeatBoard.vue` · `BotToggle.vue` · `JoinQrPanel.vue` | 생성 | 아키 §9.1 |
+| `src/components/lobby/SeatBoard.vue` · `BotToggle.vue` · `JoinQrPanel.vue` | 생성 | 아키 §9.1. QR은 `qrcode.vue` 사용 (10절 3번) |
 | `src/pages/DisplayPage.vue` · `ControllerPage.vue` | 생성 | **M4 자리표시자.** 시작 후 이동할 곳만 만든다 |
+| `tal-brothers-web/vite.config.ts` | 수정 | `server.host: true` — 폰 접속을 위한 외부 노출 (7.1) |
+| `tal-brothers-web/package.json` | 수정 | `qrcode.vue` 의존성 추가 |
 
 ---
 
@@ -244,10 +246,12 @@ web: signInWithOAuth({ provider: 'google', redirectTo: <origin>/auth/callback })
    → REST는 Authorization: Bearer <access_token>
    → ws는 hello 본문에 같은 토큰
 server: authVerifier.verify(token) → { userId, email }
+         = service role 클라이언트의 auth.getUser(token) (10절 4번)
 ```
 
 - 전원 Google 로그인이다 (아키 §10). 익명 참가는 없다
 - 토큰을 URL·쿼리스트링에 싣지 않는다
+- 검증은 **연결당 1회**다. REST는 요청마다, ws는 hello 1회. 방당 소켓이 최대 4개라 네트워크 왕복 비용이 문제되지 않는다
 
 ### 4.2 REST
 
@@ -312,7 +316,7 @@ presence = { kind: 'presence', target: 좌석 | 'display', status: connected | d
 
 - **봇 대행 중인 인간 좌석은 여전히 인간이다.** 100%에 도달하면 배신자로 전환하고(룰북 §10.1), 봇 대행은 조작만 대신한다(§11)
 - Phase 3 A 루트의 유효표는 **실제로 들어온 표**만 센다. 봇 대행 좌석은 기권이 되고, 그래서 유효표 0 규칙(§14.4)이 그대로 작동한다
-- 봇 100% 방해(§11)는 봇 좌석의 규칙이므로 대행 좌석에는 적용하지 않는다 (10절 5번에서 확인받는다)
+- 봇 100% 방해(§11)는 봇 좌석의 규칙이므로 대행 좌석에는 적용하지 않는다 (10절 5번 확정)
 
 ### 5.4 일시정지
 
@@ -324,7 +328,7 @@ presence = { kind: 'presence', target: 좌석 | 'display', status: connected | d
 
 - 인간 좌석이 애초에 0명인 구성(봇 자동 대전)은 이 검사를 하지 않는다. 시뮬레이터에는 소켓이 없다
 - 자동 일시정지는 **게임당 누적 5분**까지다. 누적이 한도를 넘으면 정지하지 않고 계속 진행한다 (아키 §8)
-- 한도를 넘은 뒤 다시 끊겨도 더 이상 정지하지 않는다 (10절 10번)
+- 한도를 넘은 뒤에는 **그 회차만이 아니라 이후로도** 자동 정지를 하지 않는다. 다만 **호스트 수동 정지(`host.pause`)는 한도와 무관하게 계속 가능**하고, 수동 정지 시간은 자동 누적에 세지 않는다 (10절 10번)
 - 정지 중 도착한 좌석 명령은 `PAUSED` 단계 처리기가 거절한다. Controller에는 잠금 화면 (아키 §8)
 
 ### 5.5 일시정지·재개 시 시각 변환
@@ -398,8 +402,8 @@ presence = { kind: 'presence', target: 좌석 | 'display', status: connected | d
 
 | 역할 | 보여주는 것 |
 |---|---|
-| Display (호스트 PC) | 방 코드, 초대 QR(`/join/:code`), 좌석 3칸 현황, 봇 토글, 시작 버튼 |
-| Controller (폰) | 좌석 3칸 중 고르기, 내 좌석 표시, 대기 문구 |
+| Display (호스트 PC) | 방 코드, 초대 QR(`/join/:code`), 좌석 3칸 현황(좌석별 **연결 끊김** 표기 포함), 봇 토글, 시작 버튼, "시작 시 빈 좌석은 봇이 됩니다" 안내 (10절 8번·11번) |
+| Controller (폰) | 좌석 3칸 중 고르기, 내 좌석 표시, 대기 문구. **다른 좌석의 연결 상태는 표시하지 않는다** |
 
 - 브랜드 이미지는 `introMask.png`만 쓴다. **인게임 에셋 11종은 M4까지 노출하지 않는다** (로드맵 M3)
 - 시작하면 Display는 `/display/:code`, Controller는 `/play/:code`로 이동한다. 두 페이지는 M3에서 "M4 예정" 자리표시자다
@@ -415,10 +419,12 @@ presence = { kind: 'presence', target: 좌석 | 'display', status: connected | d
 npm run dev:server
 
 # 터미널 2 — web (외부 접속 허용)
-npm run dev:web -- --host
+npm run dev:web
 ```
 
 Vite가 `Network: http://<PC 내부 IP>:5173/`을 출력한다. 폰 브라우저로 그 주소를 연다.
+
+- **외부 노출은 사람이 플래그를 붙이는 일이 아니라 M3-7의 구현에 포함한다.** `vite.config.ts`에 `server.host: true`를 넣어 `npm run dev:web`만으로 폰이 접속할 수 있게 한다. 매번 `-- --host`를 기억하지 않아도 되고 팀원 사이에 실행 방법이 갈리지 않는다
 
 ### 7.2 환경 변수
 
@@ -439,20 +445,21 @@ Vite가 `Network: http://<PC 내부 IP>:5173/`을 출력한다. 폰 브라우저
 
 ### 7.3 사람이 해야 하는 작업 목록
 
-코드로 대신할 수 없는 것만 적는다. **M3-5 착수 전에 1~5번이, 실기 확인 전에 6~10번이 끝나 있어야 한다.**
+코드로 대신할 수 없는 것만 적는다. **M3-5 착수 전에 1~6번이, 실기 확인 전에 7~11번이 끝나 있어야 한다.**
 
 | # | 할 일 | 어디서 |
 |---|---|---|
 | 1 | Supabase 프로젝트 생성(또는 기존 프로젝트 확인)하고 **URL·anon 키·service role 키** 확보 | Supabase 대시보드 |
-| 2 | Google Cloud에서 OAuth 클라이언트(웹) 생성. 승인된 리디렉션 URI에 `https://<project-ref>.supabase.co/auth/v1/callback` 등록 | Google Cloud Console |
-| 3 | Supabase Authentication → Providers → Google 사용 설정, 2번의 클라이언트 ID·시크릿 입력 | Supabase 대시보드 |
-| 4 | Authentication → URL Configuration에서 Site URL `http://localhost:5173`, Additional Redirect URLs에 `http://localhost:5173/**`와 `http://<PC 내부 IP>:5173/**` 추가 | Supabase 대시보드 |
-| 5 | `docs/supabase-setup.sql`(M3-5에서 작성)을 SQL Editor에서 실행해 `profiles`·`rooms` 테이블과 RLS 정책 생성 | Supabase 대시보드 |
-| 6 | `ipconfig`로 PC 내부 IP 확인 | PowerShell |
-| 7 | `.env.local`·`.env` 두 파일을 7.2 표대로 작성 | 에디터 |
-| 8 | Windows 방화벽에서 Node.js 인바운드(3000, 5173) 허용. 첫 실행 때 뜨는 창에서 **개인 네트워크** 체크 | Windows 보안 경고 |
-| 9 | 폰을 PC와 **같은 Wi-Fi**에 연결 (게스트 망이나 모바일 데이터면 접속되지 않는다) | 폰 |
-| 10 | 좌석을 사람 2~3명으로 채워 볼 거라면 **Google 계정 2~3개**를 준비하고 OAuth 동의 화면 테스트 사용자에 모두 추가 | Google Cloud Console |
+| 2 | **OAuth 동의 화면 구성** — 사용자 유형 "외부", 게시 상태 "테스트". 앱 이름·지원 이메일만 채우고 범위는 기본값을 쓴다. **동의 화면이 없으면 3번의 클라이언트를 만들 수 없다** | Google Cloud Console |
+| 3 | OAuth 클라이언트(웹) 생성. 승인된 리디렉션 URI에 `https://<project-ref>.supabase.co/auth/v1/callback` 등록 | Google Cloud Console |
+| 4 | Supabase Authentication → Providers → Google 사용 설정, 3번의 클라이언트 ID·시크릿 입력 | Supabase 대시보드 |
+| 5 | Authentication → URL Configuration에서 Site URL `http://localhost:5173`, Additional Redirect URLs에 `http://localhost:5173/**`와 `http://<PC 내부 IP>:5173/**` 추가 | Supabase 대시보드 |
+| 6 | `docs/supabase-setup.sql`(M3-5에서 작성)을 SQL Editor에서 실행해 `profiles`·`rooms` 테이블과 RLS 정책 생성 | Supabase 대시보드 |
+| 7 | `ipconfig`로 PC 내부 IP 확인 | PowerShell |
+| 8 | `.env.local`·`.env` 두 파일을 7.2 표대로 작성 | 에디터 |
+| 9 | Windows 방화벽에서 Node.js 인바운드(3000, 5173) 허용. 첫 실행 때 뜨는 창에서 **개인 네트워크** 체크 | Windows 보안 경고 |
+| 10 | 폰을 PC와 **같은 Wi-Fi**에 연결 (게스트 망이나 모바일 데이터면 접속되지 않는다) | 폰 |
+| 11 | 좌석을 사람 2~3명으로 채워 볼 거라면 **Google 계정 2~3개**를 준비하고 2번 동의 화면의 테스트 사용자에 모두 추가 | Google Cloud Console |
 
 - OAuth 동의 화면의 **프로덕션 게시는 M5**다. M3에서는 테스트 모드 + 테스트 사용자로 충분하다
 - 카카오톡 등 인앱 브라우저로 초대 링크를 열면 Google이 로그인을 막는다. JoinPage의 안내대로 외부 브라우저로 열어야 한다
@@ -503,10 +510,12 @@ M2의 `createGame`은 만들자마자 Phase 1 첫 이벤트로 들어간다. M3�
 | `PublicView` | `lobby: LobbyView \| null`, `pause: PauseView \| null` |
 | `LobbyView` | 좌석별 `{ role, isBot, occupied, displayName \| null }`, 시작 가능 여부 |
 | `PauseView` | `{ reason, pausedAt }` — 누적 시간은 보내지 않는다(운영 수치) |
+| `DisplaySnapshot`의 좌석 요약 | 좌석별 `connection` — **Display 전용** (10절 11번) |
 | `SeatPrivateView` | `connection`, `botTakeover` — **본인 것만** |
 
-- 다른 좌석의 연결 상태는 공개하지 않는다. 로비에서는 좌석 점유 여부만 보이면 된다 (10절 11번에서 확인받는다)
-- 은닉 테스트에 **"Display·좌석 투영 어디에도 `userId`가 없다"** 를 추가한다
+- **좌석별 연결 상태는 Display 투영에만 싣는다** (룰북 §17, 아키 §7.3). 값은 연결/끊김 두 가지뿐이고, `botTakeover`는 Display에도 보내지 않는다 — 화면 표기를 "연결 끊김"으로 통일해 "봇 대행"이 드러나지 않게 한다
+- 좌석 투영에는 **본인 좌석의** 연결 상태만 싣는다. 다른 좌석의 연결 상태는 Controller에 보내지 않는다
+- 은닉 테스트에 **"Display·좌석 투영 어디에도 `userId`가 없다"** 와 **"좌석 투영에 다른 좌석의 `connection`이 없다"** 를 추가한다
 
 ### 8.5 `GAME_CONFIG`
 
@@ -590,34 +599,34 @@ M2의 `createGame`은 만들자마자 Phase 1 첫 이벤트로 들어간다. M3�
 
 ---
 
-## 10. 해석이 필요한 항목
+## 10. 해석이 필요한 항목 — 확인 완료 (2026-09-19)
 
-> 룰북·아키텍처에 없거나, 아키텍처를 고쳐야 하는 항목이다. **M3 착수 전에 답을 받는다.**
+> 15건 모두 답을 받았다. 아래 **결정** 열이 확정 내용이며, 이 문서의 각 절과 아키텍처·룰북은 결정에 맞춰 고쳐 두었다.
 
-| # | 항목 | 계획의 가정 | 확인받을 것 |
+| # | 항목 | 결정 (2026-09-19) | 반영한 곳 |
 |---|---|---|---|
-| 1 | 연결 변화를 엔진에 넣는 방법 | `ACTION_KIND.PRESENCE`를 새로 만든다. 연결 상태가 상태에 남아 세이브·재현·테스트가 기존 방식 그대로가 된다 | 아키 §5.1의 "액션은 두 종류뿐이다"를 세 종류로 고쳐도 되는가 |
-| 2 | `REJECTION_REASON`의 위치 | 서버 `engineTypes`에서 shared로 옮긴다. `rejected` 메시지가 값을 그대로 싣고 클라이언트가 분기한다 | M2의 알림·귓속말 종류 이동과 같은 판단이면 승인 |
-| 3 | QR 생성 라이브러리 | `qrcode`(또는 동급)를 web에 추가한다. 직접 구현하지 않는다 | **의존성 추가 승인 필요** (CLAUDE.md 작업 규칙 2) |
-| 4 | Supabase JWT 검증 방식 | JWKS로 **로컬 검증**한다(`jose` 의존성 1개). 접속마다 Supabase를 호출하지 않아 빠르고 오프라인 테스트가 쉽다 | 로컬 검증(의존성 +1) vs `supabase.auth.getUser(token)`(의존성 0, 네트워크 왕복) 중 어느 쪽인가 |
-| 5 | 봇 대행 좌석과 봇 100% 방해 | 적용하지 않는다. 대행 좌석은 인간이라 배신자 전환 경로를 타므로(룰북 §10.1) 방해까지 겹치면 이중 적용이다 | 룰북 §11의 방해가 좌석 구성 기준인지 조작 주체 기준인지 |
-| 6 | 운영 설정값 3종 | 방 코드 6자(혼동 문자 제외), hello 타임아웃 10초, 방 보관 기간(마지막 활동 후 6시간) | 룰이 아니므로 `GAME_CONFIG`가 아닌 `SERVER_ENV`에 둔다. 값 자체를 확정받을 것 |
-| 7 | 같은 계정·같은 역할로 중복 접속 | 나중 소켓이 이전 소켓을 밀어낸다. 이전 소켓에는 사유를 보내고 닫는다 | 밀어내기 vs 나중 접속 거절 |
-| 8 | 좌석을 고르지 않은 인간이 있는 채로 시작 | 시작 시점에 비어 있는 좌석은 자동으로 봇이 된다 (룰북 §1 "빈 좌석은 봇") | 승인이면 로비에 "시작 시 빈 좌석은 봇" 안내만 표시한다 |
-| 9 | 로비에서의 좌석 변경·해제 | 시작 전에는 자유롭게 바꾸고 뺄 수 있다 | 승인 여부 |
-| 10 | 자동 정지 한도를 넘긴 뒤 | 한도를 넘으면 그 뒤로는 자동 정지를 하지 않는다. 호스트 수동 정지는 계속 가능하다 | 아키 §8의 "초과 시 정지하지 않고 계속 진행"이 **그 회차만**인지 **이후 전부**인지 |
-| 11 | 다른 좌석의 연결 상태 공개 | 공개하지 않는다. 로비에서는 점유 여부만 보인다 | 룰북 §17에 없는 항목이다. 방송 재미를 위해 Display에 표시할 여지가 있어 확인이 필요하다 |
-| 12 | 좌석 복귀 기준 | userId로 복귀시킨다 (아키 §10). 같은 계정이 다른 기기로 접속하면 기기만 바뀌고 좌석은 유지된다 | 승인 여부 |
-| 13 | 자동 저장의 마일스톤 | M5로 미룬다. M3는 Phase 전환 지점에 호출 자리만 비워 둔다 | **문서 간 불일치.** 아키 §6은 자동 저장을 런타임 항목으로 적었고 로드맵은 세이브를 M5에 두었다. 어느 쪽으로 맞출지 |
-| 14 | 로비 화면을 Display·Controller로 나누는 방법 | 같은 `/lobby/:roomCode` 라우트에서 **기기 역할**로 패널을 가른다. 화면 폭으로 가르지 않는다 | 아키 §9.2는 로비를 Default 레이아웃 1개로 적었다. 이 해석이 맞는지 |
-| 15 | 게임 시작 후 이동 경로 | Display는 `/display/:code`, Controller는 `/play/:code`로 이동하고 M3에서는 두 페이지가 자리표시자다 | 승인 여부 |
+| 1 | 연결 변화를 엔진에 넣는 방법 | **승인.** `ACTION_KIND.PRESENCE`를 새로 만든다. 아키 §5.1의 "액션은 두 종류뿐이다"를 세 종류로 고쳤다 | 아키 §5.1, 5.1 |
+| 2 | `REJECTION_REASON`의 위치 | **승인.** 서버 `engineTypes`에서 shared로 옮긴다 | M3-1 |
+| 3 | QR 생성 라이브러리 | **승인.** `qrcode.vue`를 쓴다 — Vue 3 컴포넌트 1개, 런타임 의존성 없음, SVG로 렌더해 확대해도 깨지지 않는다. `npm install qrcode.vue -w tal-brothers-web` | M3-7, 6.3 |
+| 4 | Supabase JWT 검증 방식 | **`supabase.auth.getUser(token)`으로 한다.** 의존성이 늘지 않고 프로젝트의 JWT 서명 키 설정 차이에 영향받지 않는다. 연결당 1회만 호출하므로 방당 소켓 4개 수준에서는 비용이 없다. 성능이 문제가 되면 M5에서 다시 본다 | 아키 §10, 4.1, M3-5 |
+| 5 | 봇 대행 좌석과 봇 100% 방해 | **승인.** 대행 좌석에는 적용하지 않는다 (룰북 §11의 방해는 좌석 구성 기준) | 5.3 |
+| 6 | 운영 설정값 3종 | **승인.** 방 코드 6자(혼동 문자 제외), hello 타임아웃 10초, 방 보관 기간 6시간. `SERVER_ENV`에 둔다 | 8.5, M3-5 |
+| 7 | 같은 계정·같은 역할로 중복 접속 | **승인.** 나중 소켓이 이전 소켓을 밀어낸다 | 3.2 |
+| 8 | 좌석을 고르지 않은 인간이 있는 채로 시작 | **승인.** 시작 시점에 비어 있는 좌석은 봇이 된다. 로비에 안내 문구를 둔다 | M3-2, 6.3 |
+| 9 | 로비에서의 좌석 변경·해제 | **승인.** 시작 전에는 자유롭게 바꾸고 뺄 수 있다 | M3-2 |
+| 10 | 자동 정지 한도를 넘긴 뒤 | **한도를 넘기면 그 뒤로는 자동 정지를 하지 않는다.** 호스트 수동 정지는 계속 가능하다 | 아키 §8, 5.4 |
+| 11 | 다른 좌석의 연결 상태 공개 | **Display에만 좌석별 연결 상태를 표시한다.** "봇 대행"이라는 표현은 쓰지 않고 "연결 끊김"으로만 표기한다. Controller에는 표시하지 않는다. 잠식도·인벤토리와 무관해 심리전 정보가 아니며, 관전자가 특정 좌석이 조용한 이유를 알 수 있다 | 룰북 §17·§21, 아키 §7.3, 8.4 |
+| 12 | 좌석 복귀 기준 | **승인.** userId로 복귀시킨다 | M3-3 |
+| 13 | 자동 저장의 마일스톤 | **M5로 통일한다.** 아키 §6의 자동 저장을 M5 예정으로 고쳤고, M3는 Phase 전환 지점에 호출 자리만 비워 둔다 | 아키 §6, M3-3 |
+| 14 | 로비 화면을 Display·Controller로 나누는 방법 | **승인.** 같은 `/lobby/:roomCode` 라우트에서 기기 역할로 패널을 가른다 | 6.3 |
+| 15 | 게임 시작 후 이동 경로 | **승인.** Display는 `/display/:code`, Controller는 `/play/:code`. M3에서는 자리표시자 | 6.1 |
 
 ---
 
 ## 11. 진행 순서와 확인 방법
 
-1. **10절 항목 확인** → 답을 받아 10절에 반영하고 착수한다
-2. **7.3의 사람 작업 1~5번**을 먼저 끝낸다. M3-5가 여기에 막힌다
+1. ~~10절 항목 확인~~ → **완료 (2026-09-19).** 결정은 10절과 각 절, 아키텍처·룰북에 반영했다
+2. **7.3의 사람 작업 1~6번**을 먼저 끝낸다. M3-5가 여기에 막힌다
 3. **M3-1** → `typecheck -w tal-brothers-shared`, `-w tal-brothers-server`
 4. **M3-2** → 엔진 테스트. 기존 343건이 그대로 통과하는지 함께 본다
 5. **M3-3** → 런타임 테스트 (가짜 스케줄러)

@@ -9,7 +9,7 @@
 | M0 | 개발 환경 구성 | 완료 |
 | M1 | 엔진 핵심 + Phase 1 | 완료 |
 | M2 | Phase 2·3, 엔딩, 투영, 봇 자동 대전 | 완료 |
-| M3 | 런타임, 통신, 인증, 로비, 운영 규칙 | 대기 |
+| M3 | 런타임, 통신, 인증, 로비, 운영 규칙 | 진행 중 |
 | M4 | Display·Controller 화면 (임시 그래픽) | 대기 |
 | M5 | 에셋·연출, 세이브/불러오기, 배포 | 대기 |
 
@@ -279,8 +279,10 @@ tal-brothers-server/
 
 ## M3. 런타임, 통신, 인증, 로비, 운영 규칙
 
-> 실행 계획은 `docs/m3-plan.md`, 진행 기록은 `docs/m3-notes.md`(착수 시 생성).
-> 착수 전에 계획 10절의 해석 항목 15건을 확인받는다.
+> 실행 계획은 `docs/m3-plan.md`, 진행 기록은 `docs/m3-notes.md`.
+> 계획 10절의 해석 항목 15건은 **2026-09-19에 모두 확정**했다.
+
+### 범위
 
 - room 런타임: 방당 직렬 큐, 타이머 예약, 스냅샷·cue 전송
 - ws: `session.hello` 인증, 명령 검증, `rejected`, 재동기화
@@ -290,6 +292,56 @@ tal-brothers-server/
 - web: 인증 스토어, 라우터·가드, 최소 랜딩, 메뉴, 초대 페이지(인앱 브라우저 안내), 로비 페이지, 랜딩·메뉴 브랜드 이미지로 `introMask.png` 사용 (인게임 에셋은 M4까지 노출하지 않음)
 
 **완료 기준:** PC 1대와 폰 여러 대가 같은 방에 접속해 로비에서 게임을 시작할 수 있다
+
+### M3-0. 착수 전 결정 반영
+
+- [x] 계획 10절 해석 항목 15건 확정 내용을 `docs/m3-plan.md` 10절과 각 절에 반영
+- [x] 아키텍처 §5.1(액션 세 종류), §6(자동 저장 M5), §7.3(연결 상태 투영), §8(자동 정지 한도), §10(JWT 검증 방식) 수정
+- [x] 룰북 §17 좌석 연결 상태 공개, §21 (확정) 행 추가
+- [x] 7.3 사람 작업 목록에 OAuth 동의 화면 구성 추가, Vite 외부 노출을 M3-7 구현으로 이동
+
+### M3-1. shared 프로토콜·거절 사유·로비 투영 타입
+
+- [ ] `DEVICE_ROLE`·`REJECTION_REASON`·`SERVER_MESSAGE_TYPE`·`CLIENT_FRAME_TYPE`·`PAUSE_REASON`·`SEAT_CONNECTION` 상수
+- [ ] `types/protocol.ts`, `types/rest.ts`, 명령 타입 확장, `LobbyView`·`PauseView`
+- [ ] shared·server typecheck 통과
+
+### M3-2. 엔진: 로비 단계, 연결 상태, 봇 대행, 일시정지
+
+- [ ] `ACTION_KIND.PRESENCE`, 상태 확장(`userId`, `connection`, `botTakeover`, `pause`, `room`)
+- [ ] `createGame`이 `LOBBY`에서 멈추고 `lobby.start`가 Phase 1로 진입
+- [ ] `rules/seatControl.ts`, `rules/pause.ts`, `steps/lobbyStep.ts`, `steps/pausedStep.ts`
+- [ ] 엔진 테스트 (계획 9.1 M3-2 12건), 기존 테스트 유지
+
+### M3-3. room 런타임
+
+- [ ] `scheduler.ts`, `roomRuntime.ts`, `roomRegistry.ts`, `seatBinding.ts`
+- [ ] 런타임 테스트 (계획 9.1 M3-3 6건)
+
+### M3-4. ws 세션
+
+- [ ] `socketPort.ts`, `commandCodec.ts`, `wsSession.ts`, `wsServer.ts`
+- [ ] 세션 테스트 (계획 9.1 M3-4 7건)
+
+### M3-5. infra·REST·부트스트랩
+
+- [ ] `serverEnv.ts`, `supabaseAdmin.ts`, `authVerifier.ts`, `roomRepository.ts`
+- [ ] `roomsRouter.ts`, `healthRouter.ts`, `src/index.ts`
+- [ ] `docs/supabase-setup.sql`, `.env.example`, `.gitignore`
+- [ ] REST 테스트 (계획 9.1 M3-5 4건)
+
+### M3-6. web 기반
+
+- [ ] `services/supabase.ts`, `apiClient.ts`, `stores/auth.ts`
+- [ ] 라우터·가드, 레이아웃, 랜딩·콜백·메뉴·초대·404 페이지
+- [ ] Vite 템플릿 잔재 정리, `typecheck` 스크립트 추가
+
+### M3-7. web 로비
+
+- [ ] `roomSocket.ts`, `useRoomSocket.ts`, `stores/lobby.ts`
+- [ ] `LobbyPage.vue`, `SeatBoard`·`BotToggle`·`JoinQrPanel`, Display·Controller 자리표시자
+- [ ] `vite.config.ts`의 `server.host`, `qrcode.vue` 설치
+- [ ] 실기 확인 (계획 7.4)
 
 ## M4. Display·Controller 화면 (임시 그래픽)
 
