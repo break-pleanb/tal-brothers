@@ -137,6 +137,7 @@ const recentNotices = computed(() => (view.value?.notices ?? []).slice(-3))
           v-if="showDice"
           :judgment="view.judgment"
           :step="step"
+          :roller-seat="view.rollerSeat"
           :seat-names="play.seatNames"
         />
 

@@ -175,6 +175,14 @@ export type PublicView = {
   narration: string | null
   choices: ChoiceView[]
   adoptedChoiceId: string | null
+  /**
+   * 이번 판정을 굴리는 좌석 (룰북 §3.1, §5.2). 협동 판정과 판정 없는 선택지는 null.
+   *
+   * **비공개 판정에서도 판정자는 공개한다.** 판정자는 채택된 선택지의 속성 태그로 이미
+   * 드러나 있고(룰북 §3.1, §6.4), 감추는 것은 주사위·기준·성패뿐이다 (룰북 §5.4).
+   * 판정자가 직접 굴려야 대가를 치르고 진실을 모르는 정보를 받는 장면이 산다
+   */
+  rollerSeat: BrotherRole | null
   vote: VoteView | null
   judgment: JudgmentView | null
   notices: NoticeView[]

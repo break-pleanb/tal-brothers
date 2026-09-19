@@ -157,6 +157,7 @@ function useIntervention(command: Command): void {
       v-if="step === GAME_STEP.ROLL_WAIT"
       :judgment="view?.judgment ?? null"
       :my-seat="play.mySeat"
+      :roller-seat="view?.rollerSeat ?? null"
       @roll="roll"
     />
 

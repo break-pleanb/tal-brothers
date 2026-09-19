@@ -218,6 +218,8 @@ export function projectPublic(state: GameState): PublicView {
     narration: event?.narration ?? null,
     choices: event === null ? [] : event.choices.map(projectChoice),
     adoptedChoiceId: state.currentEvent?.adoptedChoiceId ?? null,
+    // 판정자는 비공개 판정에서도 공개한다. 감추는 것은 주사위·기준·성패다 (룰북 §5.4, §17)
+    rollerSeat: state.currentEvent?.rollerSeat ?? null,
     vote: projectVote(state),
     judgment: projectJudgment(state.currentJudgment),
     notices: projectNotices(state),

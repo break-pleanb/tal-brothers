@@ -36,6 +36,7 @@ const PUBLIC_KEYS = [
   'pause',
   'phase',
   'phase3',
+  'rollerSeat',
   'seatNames',
   'stateVersion',
   'step',

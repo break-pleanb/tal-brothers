@@ -264,6 +264,57 @@ describe('판정과 투표 (룰북 §5.4, §6.4, §8)', () => {
     }
   })
 
+  it('비공개 판정도 판정자는 공개하되 주사위·기준·성패는 감춘다 (룰북 §5.4, §21)', () => {
+    const state = phase2State('p2-02')
+    if (state.currentEvent !== null) {
+      state.currentEvent.adoptedChoiceId = 'p2-02-a'
+      state.currentEvent.rollerSeat = BROTHER_ROLE.THIRD
+    }
+    state.currentJudgment = {
+      kind: JUDGMENT_KIND.HIDDEN,
+      threshold: 4,
+      dice: [{ seat: BROTHER_ROLE.THIRD, value: 5 }],
+      opponentDie: null,
+      contest: false,
+      teamSeats: [],
+      roleBonus: 1,
+      teamModifierApplied: 0,
+      talismanBonus: 0,
+      succeeded: true,
+      forcedSuccess: false,
+      isPractice: false,
+      talismanUsedThisJudgment: false,
+      botTalismanDecided: false,
+      interventions: [],
+    }
+
+    for (const snapshot of [
+      projectDisplay(state),
+      projectSeat(state, BROTHER_ROLE.THIRD),
+      projectSeat(state, BROTHER_ROLE.FIRST),
+    ]) {
+      // 판정자는 속성 태그로 이미 드러나 있어 공개한다 (룰북 §3.1, §6.4)
+      expect(snapshot.rollerSeat).toBe(BROTHER_ROLE.THIRD)
+
+      // 판정자를 공개해도 결과는 한 조각도 실리지 않는다
+      expect(snapshot.judgment?.dice).toBeNull()
+      expect(snapshot.judgment?.opponentValue).toBeNull()
+      expect(snapshot.judgment?.finalValue).toBeNull()
+      expect(snapshot.judgment?.threshold).toBeNull()
+      expect(snapshot.judgment?.succeeded).toBeNull()
+      expect(snapshot.judgment?.interventions).toEqual([])
+
+      // 주사위 눈 5와 성공 여부가 어떤 경로로도 문자열에 남지 않는다
+      expect(JSON.stringify(snapshot.judgment)).not.toContain('5')
+      expect(JSON.stringify(snapshot.judgment)).not.toContain('true')
+    }
+  })
+
+  it('협동 판정과 판정 없는 선택지는 판정자가 없다 (룰북 §5.2)', () => {
+    const state = phase2State('p2-02')
+    expect(projectDisplay(state).rollerSeat).toBeNull()
+  })
+
   it('비공개 판정의 대가 표기는 모든 투영에 남는다 (수치 비공개의 유일한 예외)', () => {
     const state = phase2State('p2-02')
 

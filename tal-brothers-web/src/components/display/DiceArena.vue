@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { GAME_STEP, JUDGMENT_KIND } from 'tal-brothers-shared'
-import type { GameStep, JudgmentView, SeatNameView } from 'tal-brothers-shared'
+import type { BrotherRole, GameStep, JudgmentView, SeatNameView } from 'tal-brothers-shared'
 
 import { BROTHER_LABEL } from '@/constants/brotherLabel'
 import { JUDGMENT_LABEL } from '@/constants/judgmentLabel'
@@ -16,13 +16,15 @@ import { JUDGMENT_LABEL } from '@/constants/judgmentLabel'
 const props = defineProps<{
   judgment: JudgmentView | null
   step: GameStep | null
+  /** 판정자. 협동 판정은 null이다 (룰북 §5.2) */
+  rollerSeat: BrotherRole | null
   seatNames: SeatNameView[]
 }>()
 
 const isHidden = computed(() => props.judgment?.kind === JUDGMENT_KIND.HIDDEN)
 const waiting = computed(() => props.step === GAME_STEP.ROLL_WAIT)
 
-function nameOf(seat: SeatNameView['seat']): string {
+function nameOf(seat: BrotherRole): string {
   const found = props.seatNames.find((entry) => entry.seat === seat)
   return found?.displayName ?? BROTHER_LABEL[seat]
 }
@@ -40,6 +42,7 @@ const resultLabel = computed(() => {
   <div v-if="judgment !== null" class="dice-arena">
     <p class="dice-arena__kind">
       {{ JUDGMENT_LABEL[judgment.kind] }} 판정
+      <span v-if="rollerSeat !== null">· 판정자 {{ nameOf(rollerSeat) }}</span>
       <span v-if="judgment.contest" class="dice-arena__tag">· 대립</span>
     </p>
 
