@@ -167,7 +167,7 @@ LOBBY
  → ROLL_WAIT (판정자 버튼, 10초 후 자동 굴림)
  → ROLL_REVEAL (연출)
  → INTERVENTION_REROLL → INTERVENTION_TALISMAN → INTERVENTION_FORCE    ※ 공개 판정 실패 시에만
- → RESOLUTION
+ → RESOLUTION (3초)
  → 다음 이벤트 | 다음 Phase
 
 14A:      VOTING → TALISMAN_WINDOW (8초) → RESOLUTION
@@ -178,6 +178,11 @@ Phase 3:  P3_TARGETING → (B-1 즉시 판정 | P3_VOTING → 판정) → ENDING
 - T1·T2 성공 시 개입 창 대신 **연습 개입 창**(`PRACTICE_INTERVENTION`, 단일 단계 12초) 단계를 거친다 (룰북 §12)
 - 선택지가 1개인 이벤트(T2-1)는 `VOTING`을 생략하고 `EVENT_INTRO` → `ROLL_WAIT`로 진행한다 (룰북 §12)
 - `ROLL_REVEAL`은 3초 [설정값] 뒤 다음 단계로 넘어간다
+- `RESOLUTION`은 효과를 적용한 뒤 **3초 [설정값] 머물렀다가** 다음 이벤트·Phase로 넘어간다 (룰북 §19).
+  체류를 서버 단계로 두어야 Display와 모든 Controller가 같은 시점에 결과를 본다. Display만 연출로 겹쳐 보여주면
+  Controller는 결과를 못 보고, 연출 신호(cue)가 유실되면 아무 데도 뜨지 않는다
+- **효과 적용 직후 게임이 끝나는 경우(타임오버, 인간 전원 배신자, Phase 3)는 체류 없이 `ENDING`으로 간다.**
+  엔딩 화면이 곧 결과 화면이라 같은 내용을 두 번 기다리게 된다
 - 입력 유예 0.3초는 타이머를 `마감 시각 + 0.3초`에 발화시키는 것으로 처리한다
 
 ### 5.4 효과 모델
@@ -241,17 +246,21 @@ Phase 3:  P3_TARGETING → (B-1 즉시 판정 | P3_VOTING → 판정) → ENDING
 
 - 모든 명령은 엔진이 좌석과 단계를 검증한다. 클라이언트 버튼 비활성화는 편의일 뿐이다
 - 명령 이름은 shared의 `COMMAND_TYPE` 상수로 정의한다
+- **호스트 Display가 보내는 명령은 방 운영뿐이다** (`lobby.*`, `host.*`). 게임 조작은 좌석 Controller만 보낸다.
+  룰북 §1의 "Display에 조작 없음"은 게임 조작을 뜻하고, 방 운영은 그 예외다 (룰북 §21)
 
 ### 7.2 서버 → 클라이언트
 
 | 메시지 | 대상 | 내용 |
 |---|---|---|
-| `snapshot` | 각 대상 | 대상별 투영 전체 + 상태 버전 |
+| `snapshot` | 각 대상 | 대상별 투영 전체 + 상태 버전 + **서버의 현재 시각(`serverNow`)** |
 | `cue` | 각 대상 | 일회성 연출: 주사위 애니메이션, 귓속말 토스트, 붉은 메시지, 노이즈, 엔딩 시작 |
 | `rejected` | 명령 보낸 쪽 | 거절 사유 |
 
 - **진짜 붉은 메시지와 가짜 붉은 메시지는 같은 cue 형식**을 쓰고, 테스트로 고정한다
 - 클라이언트는 상태 버전이 건너뛰면 스냅샷을 다시 요청한다
+- 마감 시각은 모두 **서버 기준 절대 시각**이다. 스냅샷마다 `serverNow`를 함께 실어 클라이언트가
+  자기 시계와의 차이를 보정하게 한다. 보정이 없으면 폰 시계가 틀어진 만큼 카운트다운이 틀린다
 
 ### 7.3 투영
 
@@ -268,7 +277,13 @@ Phase 3:  P3_TARGETING → (B-1 즉시 판정 | P3_VOTING → 판정) → ENDING
 | 다른 좌석의 잠식도·인벤토리 | X | X | X | X |
 | 좌석별 연결 상태 | O (전 좌석, "연결 끊김"만) | 본인만 | 본인만 | 본인만 |
 
+| 좌석 표시 이름 | O | O | O | O |
+| 현재 진행 번호 (총 개수는 제외) | O | O | O | O |
+| 엔딩의 배신자 승패와 정체 | `ENDING`에서만 O | `ENDING`에서만 O | 동일 | 동일 |
+
 - 연결 상태는 잠식도·인벤토리와 무관해 심리전 정보가 아니다. **Display에만 좌석별로 표시**하고 표기는 "연결 끊김"으로 통일한다. "봇 대행"이라는 표현은 쓰지 않는다 (룰북 §17)
+- **총 이벤트 개수는 어떤 투영에도 넣지 않는다.** 남은 개수를 알면 부적 사용 시점이 계산 문제가 된다 (룰북 §17)
+- **배신자 정체는 `ENDING` 단계의 투영에만 들어간다.** 그 전에는 어떤 경로로도 나가지 않는다 (룰북 §15)
 - 투영 함수는 필요한 필드만 골라 **새 객체를 만든다**
 - 은닉 테스트 예: Display 투영에 잠식도 필드가 없음, 일반 좌석 투영에 다른 좌석 인벤토리가 없음, 배신자 좌석과 일반 좌석의 투영 구조(키 목록)가 같음
 
@@ -288,6 +303,8 @@ Phase 3:  P3_TARGETING → (B-1 즉시 판정 | P3_VOTING → 판정) → ENDING
 | Display 연결 끊김 | 자동 일시정지. 게임 시계와 단계 마감 시각을 남은 시간으로 변환해 저장, 재개 시 재계산, 대기 타이머 무효화. 정지 중 명령 거절, Controller에 잠금 화면 |
 | 자동 일시정지 한도 | 게임당 누적 5분. **한도를 넘기면 그 회차만이 아니라 이후로도 자동 정지를 하지 않는다.** 이후 연결이 끊겨도 정지 없이 계속 진행한다 |
 | 호스트 수동 일시정지 | 이벤트 사이에만. **자동 정지 한도와 무관하게 계속 가능하다** (누적에도 세지 않는다) |
+
+| 개발용 시계 단축 | 방 생성 요청에 게임 시계 분을 실어 짧은 판을 돌릴 수 있다. **개발 환경에서만 받는다** — 운영 환경에서는 값이 들어와도 무시한다. 룰북 §19의 100분은 그대로 두고, 이 방 하나의 시계만 바꾼다 |
 
 | 설정값 | 기본값 |
 |---|---|
@@ -319,7 +336,7 @@ tal-brothers-web/src/
 │  │                             # EndingSequence, NoiseOverlay
 │  └─ controller/                # ErosionGauge, InventoryPanel, VotePanel, RollButton, InterventionPanel,
 │                                # AbilityButton, WhisperToast, RedMessageOverlay, LockOverlay
-├─ stores/          auth.ts, lobby.ts, play.ts
+├─ stores/          auth.ts, play.ts        # play가 방 세션(소켓·스냅샷·cue)을 모두 갖는다
 ├─ composables/     useRoomSocket, useCountdown, useAssetPreload, useWakeLock
 ├─ services/        supabase.ts, apiClient.ts, roomSocket.ts
 ├─ constants/       routeName.ts (ROUTE_NAME), assetUrl.ts (ASSET_URL)
@@ -343,6 +360,8 @@ tal-brothers-web/src/
 
 - 레이아웃은 `meta` 분기가 아니라 **중첩 라우트의 부모 컴포넌트**로 둔다
 - 라우터 가드는 인증 스토어의 초기화 완료를 기다린 뒤 판단한다
+- **로비와 게임 화면은 같은 방의 같은 스냅샷을 본다.** 스토어를 나누면 라우트가 바뀔 때 소켓이 끊겼다 붙어
+  자동 일시정지 조건(§8)에 걸린다. `play.ts` 하나가 방 세션을 들고 로비 화면은 그 파생만 읽는다
 
 ### 9.3 원칙
 
