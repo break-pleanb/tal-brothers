@@ -340,9 +340,12 @@ tal-brothers-server/
 
 ### M3-6. web 기반
 
-- [ ] `services/supabase.ts`, `apiClient.ts`, `stores/auth.ts`
-- [ ] 라우터·가드, 레이아웃, 랜딩·콜백·메뉴·초대·404 페이지
-- [ ] Vite 템플릿 잔재 정리, `typecheck` 스크립트 추가
+- [x] `config/webEnv.ts`, `services/supabase.ts`, `apiClient.ts`, `stores/auth.ts`
+- [x] 라우터·가드(인증 준비 대기·복귀 경로 기억), `DefaultLayout`, 랜딩·콜백·메뉴·초대·404 페이지
+- [x] `lib/inAppBrowser.ts` — 카카오톡·인스타그램 등 감지와 외부 브라우저 안내
+- [x] Vite 템플릿 잔재 정리(`HelloWorld.vue`·hero/vite/vue 에셋), `typecheck` 스크립트 추가
+- [x] `vue-tsc` 타입 체크와 `vite build` 통과
+- [ ] **사람 작업 대기:** 실제 Google 로그인 확인 (Supabase 설정 필요)
 
 ### M3-7. web 로비
 
