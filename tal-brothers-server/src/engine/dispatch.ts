@@ -255,12 +255,13 @@ export function dispatch(
   action: EngineAction,
   context: EngineContext,
 ): DispatchResult {
-  if (state.progress.step === GAME_STEP.ENDING) {
-    return reject(REJECTION_REASON.GAME_FINISHED, '엔딩에 도달한 상태다')
-  }
-
+  // 연결 변화는 엔딩에 도달한 뒤에도 기록한다. 소켓이 붙고 떨어지는 사실은 룰이 아니라 방 운영이다
   if (action.kind === ACTION_KIND.PRESENCE) {
     return dispatchPresence(state, action, context)
+  }
+
+  if (state.progress.step === GAME_STEP.ENDING) {
+    return reject(REJECTION_REASON.GAME_FINISHED, '엔딩에 도달한 상태다')
   }
 
   if (

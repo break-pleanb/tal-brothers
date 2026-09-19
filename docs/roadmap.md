@@ -324,8 +324,10 @@ tal-brothers-server/
 
 ### M3-4. ws 세션
 
-- [ ] `socketPort.ts`, `commandCodec.ts`, `wsSession.ts`, `wsServer.ts`
-- [ ] 세션 테스트 (계획 9.1 M3-4 7건)
+- [x] `socketPort.ts`, `commandCodec.ts`(손으로 쓴 검증기), `wsSession.ts`, `wsServer.ts`
+- [x] hello 인증·타임아웃, 기기별 명령 검증(2겹), `rejected`에 seq, resync 전체 스냅샷
+- [x] `infra/authVerifier.ts` 인터페이스 (구현은 M3-5)
+- [x] 세션·검증기 테스트 22건 (계획 9.1 M3-4 7건 포함) → 누적 415건
 
 ### M3-5. infra·REST·부트스트랩
 
