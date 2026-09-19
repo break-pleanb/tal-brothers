@@ -5,8 +5,10 @@ import type { EndingId } from '../constants/endingId'
 import type { GamePhase } from '../constants/gamePhase'
 import type { GameStep } from '../constants/gameStep'
 import type { JudgmentKind } from '../constants/judgmentKind'
+import type { PauseReason } from '../constants/pauseReason'
 import type { Phase3Route } from '../constants/phase3Route'
 import type { PublicNoticeKind } from '../constants/publicNoticeKind'
+import type { SeatConnection } from '../constants/seatConnection'
 import type { WhisperKind } from '../constants/whisperKind'
 import type { VariantKind } from '../constants/variantKind'
 
@@ -96,6 +98,43 @@ export type EndingView = {
   narrationKey: string | null
 }
 
+/** 로비 좌석 1칸. 잠식도·인벤토리는 아직 없고 점유 여부만 보인다 */
+export type LobbySeatView = {
+  seat: BrotherRole
+  isBot: boolean
+  /** 사람이 이 좌석을 잡고 있는지 */
+  occupied: boolean
+  /** 좌석 주인의 표시 이름. 비어 있으면 null. `userId`는 어떤 투영에도 넣지 않는다 */
+  displayName: string | null
+}
+
+/** 로비 현황 (M3 계획 8.4). `LOBBY` 단계에서만 값이 있다 */
+export type LobbyView = {
+  seats: LobbySeatView[]
+  /**
+   * 시작 가능 여부 — 인간이 1명 이상 앉아야 한다 (룰북 §1).
+   * 시작 시점의 빈 좌석은 봇이 된다 (M3 계획 10절 8번)
+   */
+  canStart: boolean
+}
+
+/** 일시정지 표시 (아키텍처 §8). 자동 정지 누적 시간은 운영 수치라 보내지 않는다 */
+export type PauseView = {
+  reason: PauseReason
+  pausedAt: number
+  /** 정지 전에 머물던 단계. 재개하면 이 단계로 돌아간다 */
+  resumeStep: GameStep
+}
+
+/**
+ * Display에만 나가는 좌석별 연결 상태 (룰북 §17, 아키텍처 §7.3).
+ * 표기는 "연결 끊김"으로 통일하고 봇 대행 여부는 싣지 않는다.
+ */
+export type SeatConnectionView = {
+  seat: BrotherRole
+  connection: SeatConnection
+}
+
 /** Display와 좌석이 함께 받는 공개 항목 */
 export type PublicView = {
   stateVersion: number
@@ -116,6 +155,10 @@ export type PublicView = {
   grabbedSeat: BrotherRole | null
   phase3: Phase3View | null
   ending: EndingView | null
+  /** `LOBBY` 단계에서만 값이 있다 */
+  lobby: LobbyView | null
+  /** `PAUSED` 단계에서만 값이 있다 */
+  pause: PauseView | null
 }
 
 /** 본인 폰에만 나가는 항목 (룰북 §17) */
@@ -135,8 +178,15 @@ export type SeatPrivateView = {
    * 배신자와 절대 시야를 쓴 셋째는 진짜, 60~99%는 확정 저장된 가짜, 그 외에는 null (룰북 §6.4)
    */
   variantLabels: Record<string, VariantKind> | null
+  /** **본인 좌석의** 연결 상태. 다른 좌석의 연결 상태는 Controller에 보내지 않는다 (룰북 §17) */
+  connection: SeatConnection
+  /** 지금 서버가 대신 조작하고 있는지 (아키텍처 §8). 본인에게만 알린다 */
+  botTakeover: boolean
 }
 
-export type DisplaySnapshot = PublicView
+export type DisplaySnapshot = PublicView & {
+  /** 좌석별 연결 상태 — Display 전용 (룰북 §17) */
+  seatConnections: SeatConnectionView[]
+}
 
 export type SeatSnapshot = PublicView & SeatPrivateView

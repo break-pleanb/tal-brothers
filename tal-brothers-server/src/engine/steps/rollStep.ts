@@ -4,6 +4,7 @@ import {
   GAME_STEP,
   JUDGMENT_KIND,
   PHASE3_ROUTE,
+  REJECTION_REASON,
 } from 'tal-brothers-shared'
 import type { Attribute, BrotherRole, GameStep } from 'tal-brothers-shared'
 
@@ -17,7 +18,7 @@ import { hasAttribute, hasJudgment, isRollJudgment } from '../../scenario/scenar
 import type { Choice, JudgmentChoice, ScenarioEvent } from '../../scenario/scenarioTypes'
 import { botRollOwnDice } from '../bots/botPolicy'
 import type { StepHandler } from '../dispatch'
-import { CUE_AUDIENCE, LOG_CODE, REJECTION_REASON, reject } from '../engineTypes'
+import { CUE_AUDIENCE, LOG_CODE, reject } from '../engineTypes'
 import type { EngineContext, Rejection, StepOutput } from '../engineTypes'
 import { rollD6 } from '../random'
 import { roleBonusFor, rollerSeatFor } from '../rules/modifiers'

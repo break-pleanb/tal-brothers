@@ -15,8 +15,22 @@ export { PHASE3_ROUTE, type Phase3Route } from './constants/phase3Route'
 export { PUBLIC_NOTICE_KIND, type PublicNoticeKind } from './constants/publicNoticeKind'
 export { WHISPER_KIND, type WhisperKind } from './constants/whisperKind'
 
+export { DEVICE_ROLE, type DeviceRole } from './constants/deviceRole'
+export { REJECTION_REASON, type RejectionReason } from './constants/rejectionReason'
+export { SERVER_MESSAGE_TYPE, type ServerMessageType } from './constants/serverMessageType'
+export { CLIENT_FRAME_TYPE, type ClientFrameType } from './constants/clientFrameType'
+export { PROTOCOL_ERROR_CODE, type ProtocolErrorCode } from './constants/protocolErrorCode'
+export { API_ERROR_CODE, type ApiErrorCode } from './constants/apiErrorCode'
+export { PAUSE_REASON, type PauseReason } from './constants/pauseReason'
+export { SEAT_CONNECTION, type SeatConnection } from './constants/seatConnection'
+
 export type {
   Command,
+  LobbyPickSeatCommand,
+  LobbyToggleBotCommand,
+  LobbyStartCommand,
+  HostPauseCommand,
+  HostResumeCommand,
   VoteSubmitCommand,
   RollRequestCommand,
   AbilityTrueSightCommand,
@@ -36,11 +50,39 @@ export type {
   EndingView,
   InterventionView,
   JudgmentView,
+  LobbySeatView,
+  LobbyView,
   NoticeView,
+  PauseView,
   Phase3View,
   PublicView,
+  SeatConnectionView,
   SeatPrivateView,
   SeatSnapshot,
   VoteView,
   WhisperView,
 } from './types/projection'
+
+export type {
+  ClientFrame,
+  ClientFrameEnvelope,
+  CommandFrame,
+  CueMessage,
+  CueView,
+  ErrorMessage,
+  HelloFrame,
+  RejectedMessage,
+  ResyncFrame,
+  ServerMessage,
+  SnapshotMessage,
+  WelcomeMessage,
+} from './types/protocol'
+
+export type {
+  ApiErrorBody,
+  CreateRoomResponse,
+  EmptyRequestBody,
+  HealthResponse,
+  JoinRoomResponse,
+  RoomInfoResponse,
+} from './types/rest'

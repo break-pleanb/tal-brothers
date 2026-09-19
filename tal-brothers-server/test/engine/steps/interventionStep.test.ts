@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { BROTHER_ROLE, GAME_PHASE, GAME_STEP } from 'tal-brothers-shared'
+import { BROTHER_ROLE, GAME_PHASE, GAME_STEP, REJECTION_REASON } from 'tal-brothers-shared'
 import type { BrotherRole } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../../src/scenario/gameConfig'
-import { REJECTION_REASON } from '../../../src/engine/engineTypes'
 import { canForceSuccess } from '../../../src/engine/steps/interventionStep'
 import { coopTopSeat, judgmentFinalValue } from '../../../src/engine/steps/rollStep'
 import {

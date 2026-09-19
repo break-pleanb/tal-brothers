@@ -4,11 +4,12 @@ import {
   GAME_STEP,
   JUDGMENT_KIND,
   PUBLIC_NOTICE_KIND,
+  REJECTION_REASON,
 } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../scenario/gameConfig'
 import type { StepHandler } from '../dispatch'
-import { CUE_AUDIENCE, LOG_CODE, REJECTION_REASON, reject } from '../engineTypes'
+import { CUE_AUDIENCE, LOG_CODE, reject } from '../engineTypes'
 import type { Rejection } from '../engineTypes'
 import type { GameState, JudgmentState } from '../state/gameState'
 

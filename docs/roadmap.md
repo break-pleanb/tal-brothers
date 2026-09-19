@@ -302,9 +302,10 @@ tal-brothers-server/
 
 ### M3-1. shared 프로토콜·거절 사유·로비 투영 타입
 
-- [ ] `DEVICE_ROLE`·`REJECTION_REASON`·`SERVER_MESSAGE_TYPE`·`CLIENT_FRAME_TYPE`·`PAUSE_REASON`·`SEAT_CONNECTION` 상수
-- [ ] `types/protocol.ts`, `types/rest.ts`, 명령 타입 확장, `LobbyView`·`PauseView`
-- [ ] shared·server typecheck 통과
+- [x] `DEVICE_ROLE`·`REJECTION_REASON`·`SERVER_MESSAGE_TYPE`·`CLIENT_FRAME_TYPE`·`PAUSE_REASON`·`SEAT_CONNECTION` 상수 (+ `PROTOCOL_ERROR_CODE`·`API_ERROR_CODE`)
+- [x] `types/protocol.ts`, `types/rest.ts`, 명령 타입 확장, `LobbyView`·`PauseView`·`SeatConnectionView`
+- [x] `REJECTION_REASON`을 엔진에서 shared로 이동, 서버 import 9곳 교체
+- [x] shared·server typecheck 통과, 기존 테스트 343건 유지
 
 ### M3-2. 엔진: 로비 단계, 연결 상태, 봇 대행, 일시정지
 

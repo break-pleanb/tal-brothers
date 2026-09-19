@@ -35,6 +35,10 @@
 | 날짜 | 항목 | 계획 | 실제 | 이유 |
 |---|---|---|---|---|
 | 2026-09-19 | QR 라이브러리 | `qrcode`(또는 동급) | `qrcode.vue` | 라이브러리 선택을 위임받았다. `qrcode`는 캔버스·Node 스트림까지 들고 오는 범용 라이브러리라 Vue에서 쓰려면 `ref`와 `onMounted`로 캔버스를 직접 그려야 한다. `qrcode.vue`는 Vue 3 SFC 컴포넌트 하나에 런타임 의존성이 없고 `<Qrcode :value="url" />` 한 줄로 끝난다. SVG로 렌더해 Display의 큰 화면에서 확대해도 깨지지 않는다 |
+| 2026-09-19 | M3-1 | `session.hello`를 `Command` 유니온에 넣는다 | 넣지 않고 `protocol.ts`의 `HelloFrame`으로 둔다 | hello는 엔진 `dispatch`에 도달하지 않는 전송 계층 프레임이다 (계획 3.1의 프레임 표도 `command`와 별개의 `t`로 적었다). `Command`에 넣으면 엔진의 모든 분기가 절대 오지 않는 명령을 하나씩 더 처리해야 한다. `COMMAND_TYPE.SESSION_HELLO` 상수는 아키 §7.1 표기대로 남겨 둔다 |
+| 2026-09-19 | M3-1 | 계획 M3-1 파일 목록에 없음 | `constants/protocolErrorCode.ts`와 `constants/apiErrorCode.ts`를 더 만들었다 | 계획 3.1의 `error` 메시지와 4.2의 REST 실패 응답이 둘 다 `code` 필드를 요구하는데 그 값 목록이 계획에 없었다. 클라이언트가 분기하는 값이라 문자열 리터럴로 흩뿌리지 않고 상수 파일로 고정했다. 파일명 ↔ export명 1:1 규칙을 따른다 |
+| 2026-09-19 | M3-1 | `ACTION_KIND.PRESENCE` 추가가 M3-2 | 그대로 M3-2에 둔다 | 계획 M3-2 표대로다. `PresenceAction`을 유니온에 넣는 순간 `dispatch`의 명령 분기가 전부 함께 바뀌어야 해서 M3-1(= shared 범위, 서버는 컴파일만 유지)에서 떼어낼 수 없다 |
+| 2026-09-19 | M3-1 | — | 투영 함수의 새 필드(`lobby`·`pause`·`seatConnections`·`connection`·`botTakeover`)를 중립값으로 채웠다 | 투영 **타입**은 M3-1, 그 값을 채우는 **상태 필드**는 M3-2다. M3-1 종료 조건이 server typecheck 통과라 한 단위 동안만 중립값을 두고 `// M3-2에서 상태를 읽는다` 표시를 남겼다 |
 
 ## 확인 필요
 

@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { BROTHER_ROLE, GAME_STEP } from 'tal-brothers-shared'
+import { BROTHER_ROLE, GAME_STEP, REJECTION_REASON } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../../src/scenario/gameConfig'
-import { REJECTION_REASON } from '../../../src/engine/engineTypes'
 import { HIGH, LOW, heal, startGame as start, trueSight, vote } from '../../support/gameDriver'
 
 describe('투표 (룰북 §8)', () => {

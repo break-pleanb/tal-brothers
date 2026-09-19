@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { BROTHER_ROLE, COMMAND_TYPE, GAME_PHASE, GAME_STEP } from 'tal-brothers-shared'
+import {
+  BROTHER_ROLE,
+  COMMAND_TYPE,
+  GAME_PHASE,
+  GAME_STEP,
+  REJECTION_REASON,
+} from 'tal-brothers-shared'
 import type { GameStep } from 'tal-brothers-shared'
 
 import { dispatch } from '../../src/engine/dispatch'
-import { ACTION_KIND, REJECTION_REASON } from '../../src/engine/engineTypes'
+import { ACTION_KIND } from '../../src/engine/engineTypes'
 import type { DispatchSuccess, LogEntry } from '../../src/engine/engineTypes'
 import { createSeededRng } from '../../src/engine/random'
 import { createGame, seatSetupForHumans } from '../../src/engine/state/createGame'

@@ -6,12 +6,13 @@ import {
   GAME_STEP,
   PHASE3_ROUTE,
   PUBLIC_NOTICE_KIND,
+  REJECTION_REASON,
 } from 'tal-brothers-shared'
 import type { BrotherRole } from 'tal-brothers-shared'
 
 import { PHASE3_CHOICE_ID, PHASE3_EVENT_ID } from '../../scenario/phase3Scene'
 import type { StepHandler } from '../dispatch'
-import { CUE_AUDIENCE, LOG_CODE, REJECTION_REASON, reject } from '../engineTypes'
+import { CUE_AUDIENCE, LOG_CODE, reject } from '../engineTypes'
 import type { EngineContext, Rejection, StepOutput } from '../engineTypes'
 import { pickOne } from '../random'
 import { markClockExpired, truncateClockForPhase3 } from '../rules/clock'

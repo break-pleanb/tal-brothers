@@ -1,14 +1,8 @@
-import { ENDING_ID, GAME_STEP } from 'tal-brothers-shared'
+import { ENDING_ID, GAME_STEP, REJECTION_REASON } from 'tal-brothers-shared'
 import type { BrotherRole, Command, GameStep } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../scenario/gameConfig'
-import {
-  ACTION_KIND,
-  LOG_CODE,
-  REJECTION_REASON,
-  createStepOutput,
-  reject,
-} from './engineTypes'
+import { ACTION_KIND, LOG_CODE, createStepOutput, reject } from './engineTypes'
 import { isClockExpired, markClockExpired, timeoutEndsGame } from './rules/clock'
 import type {
   DispatchResult,

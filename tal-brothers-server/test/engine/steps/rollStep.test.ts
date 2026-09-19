@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { BROTHER_ROLE, GAME_STEP, JUDGMENT_KIND } from 'tal-brothers-shared'
+import { BROTHER_ROLE, GAME_STEP, JUDGMENT_KIND, REJECTION_REASON } from 'tal-brothers-shared'
 import type { BrotherRole } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../../src/scenario/gameConfig'
-import { REJECTION_REASON } from '../../../src/engine/engineTypes'
 import { judgmentFinalValue } from '../../../src/engine/steps/rollStep'
 import {
   HIGH,

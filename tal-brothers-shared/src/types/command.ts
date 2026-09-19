@@ -2,9 +2,40 @@ import { COMMAND_TYPE } from '../constants/commandType'
 import type { BrotherRole } from '../constants/brotherRole'
 
 /**
- * 클라이언트 → 서버 명령 (M2 범위 10종).
- * 좌석 식별은 명령 본문이 아니라 엔진 액션 봉투가 담으므로 여기에 좌석 필드를 두지 않는다 (아키텍처 §5.1).
+ * 클라이언트 → 서버 명령.
+ * 보낸 사람(좌석 또는 Display)은 명령 본문이 아니라 엔진 액션 봉투가 담으므로 여기에 좌석 필드를 두지 않는다 (아키텍처 §5.1).
+ *
+ * `session.hello`는 엔진에 도달하지 않는 **전송 계층 프레임**이라 이 유니온에 넣지 않는다.
+ * 모양은 `types/protocol.ts`의 `HelloFrame`이 정의한다.
  */
+
+/** 로비 좌석 선택 — 같은 명령을 빈 좌석에 보내면 옮겨가고, 지금 앉은 좌석에 보내면 일어선다 (M3 계획 10절 9번) */
+export type LobbyPickSeatCommand = {
+  type: typeof COMMAND_TYPE.LOBBY_PICK_SEAT
+  seat: BrotherRole
+}
+
+/** 로비 봇 토글 — 호스트 Display만. 사람이 앉은 좌석은 봇으로 돌릴 수 없다 */
+export type LobbyToggleBotCommand = {
+  type: typeof COMMAND_TYPE.LOBBY_TOGGLE_BOT
+  seat: BrotherRole
+  isBot: boolean
+}
+
+/** 로비 시작 — 호스트 Display만. 시작 시점의 빈 좌석은 봇이 된다 (룰북 §1, M3 계획 10절 8번) */
+export type LobbyStartCommand = {
+  type: typeof COMMAND_TYPE.LOBBY_START
+}
+
+/** 호스트 수동 일시정지 — 이벤트 사이에만 (아키텍처 §8) */
+export type HostPauseCommand = {
+  type: typeof COMMAND_TYPE.HOST_PAUSE
+}
+
+/** 호스트 재개 — 자동 정지도 호스트가 풀 수 있다 (아키텍처 §8) */
+export type HostResumeCommand = {
+  type: typeof COMMAND_TYPE.HOST_RESUME
+}
 
 /** 투표 — 마감 전 재전송으로 변경 (룰북 §8). Phase 3 A 루트 투표도 같은 명령 (룰북 §14.4) */
 export type VoteSubmitCommand = {
@@ -59,6 +90,11 @@ export type TalismanDiscardCommand = {
 }
 
 export type Command =
+  | LobbyPickSeatCommand
+  | LobbyToggleBotCommand
+  | LobbyStartCommand
+  | HostPauseCommand
+  | HostResumeCommand
   | VoteSubmitCommand
   | RollRequestCommand
   | AbilityTrueSightCommand

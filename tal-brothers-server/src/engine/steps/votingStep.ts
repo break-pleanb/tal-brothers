@@ -1,9 +1,15 @@
-import { BROTHER_ROLE, COMMAND_TYPE, CUE_KIND, PUBLIC_NOTICE_KIND } from 'tal-brothers-shared'
+import {
+  BROTHER_ROLE,
+  COMMAND_TYPE,
+  CUE_KIND,
+  PUBLIC_NOTICE_KIND,
+  REJECTION_REASON,
+} from 'tal-brothers-shared'
 import type { BrotherRole } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../scenario/gameConfig'
 import type { StepHandler } from '../dispatch'
-import { LOG_CODE, REJECTION_REASON, reject } from '../engineTypes'
+import { LOG_CODE, reject } from '../engineTypes'
 import type { EngineContext, Rejection, StepOutput } from '../engineTypes'
 import { pickOne } from '../random'
 import { applySeatErosion } from '../rules/erosion'

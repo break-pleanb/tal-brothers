@@ -6,13 +6,14 @@ import {
   GAME_STEP,
   JUDGMENT_KIND,
   PUBLIC_NOTICE_KIND,
+  REJECTION_REASON,
 } from 'tal-brothers-shared'
 import type { BrotherRole } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../../scenario/gameConfig'
 import { botTalismanUser, shouldBotForceSuccess, shouldBotReroll } from '../bots/botPolicy'
 import type { StepHandler } from '../dispatch'
-import { CUE_AUDIENCE, LOG_CODE, REJECTION_REASON, reject } from '../engineTypes'
+import { CUE_AUDIENCE, LOG_CODE, reject } from '../engineTypes'
 import type { EngineContext, Rejection, StepOutput } from '../engineTypes'
 import { rollD6 } from '../random'
 import { applySeatErosion } from '../rules/erosion'

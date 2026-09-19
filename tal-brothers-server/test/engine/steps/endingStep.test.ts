@@ -6,16 +6,13 @@ import {
   ENDING_ID,
   GAME_PHASE,
   GAME_STEP,
+  REJECTION_REASON,
 } from 'tal-brothers-shared'
 import type { EndingId } from 'tal-brothers-shared'
 
 import { ENDINGS } from '../../../src/scenario/endings'
 import { dispatch, enterStep, finishDispatch } from '../../../src/engine/dispatch'
-import {
-  ACTION_KIND,
-  REJECTION_REASON,
-  createStepOutput,
-} from '../../../src/engine/engineTypes'
+import { ACTION_KIND, createStepOutput } from '../../../src/engine/engineTypes'
 import { requestEnding } from '../../../src/engine/steps/endingStep'
 import { createGame, seatSetupForHumans } from '../../../src/engine/state/createGame'
 import type { GameState } from '../../../src/engine/state/gameState'

@@ -1,4 +1,4 @@
-import { JUDGMENT_KIND } from 'tal-brothers-shared'
+import { JUDGMENT_KIND, SEAT_CONNECTION } from 'tal-brothers-shared'
 import type {
   AssetKey,
   ChoiceView,
@@ -7,6 +7,7 @@ import type {
   NoticeView,
   Phase3View,
   PublicView,
+  SeatConnectionView,
   VoteView,
 } from 'tal-brothers-shared'
 
@@ -172,9 +173,27 @@ export function projectPublic(state: GameState): PublicView {
       state.ending === null
         ? null
         : { id: state.ending.id, narrationKey: state.ending.narrationKey },
+    // 로비·일시정지 상태는 M3-2에서 상태에 생긴다. 그전까지는 해당 단계가 없어 항상 null이다
+    lobby: null,
+    pause: null,
   }
 }
 
+/**
+ * 좌석별 연결 상태 — **Display에만** 나간다 (룰북 §17, 아키텍처 §7.3).
+ * 봇 대행 여부는 싣지 않는다. 표기가 갈리면 "봇 대행"이 드러난다.
+ */
+function projectSeatConnections(state: GameState): SeatConnectionView[] {
+  // M3-2에서 좌석 상태에 connection이 생기면 그 값을 읽는다
+  return SEAT_ORDER.map((role) => ({
+    seat: state.seats[role].role,
+    connection: SEAT_CONNECTION.CONNECTED,
+  }))
+}
+
 export function projectDisplay(state: GameState): DisplaySnapshot {
-  return projectPublic(state)
+  return {
+    ...projectPublic(state),
+    seatConnections: projectSeatConnections(state),
+  }
 }

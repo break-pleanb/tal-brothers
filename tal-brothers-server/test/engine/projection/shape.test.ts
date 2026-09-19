@@ -18,7 +18,8 @@ import type { GameState } from '../../../src/engine/state/gameState'
 const START = 1_700_000_000_000
 const LOW: Rng = { nextInt: () => 0 }
 
-const DISPLAY_KEYS = [
+/** Display와 좌석이 함께 받는 공개 항목 */
+const PUBLIC_KEYS = [
   'adoptedChoiceId',
   'background',
   'choices',
@@ -27,9 +28,11 @@ const DISPLAY_KEYS = [
   'eventTitle',
   'grabbedSeat',
   'judgment',
+  'lobby',
   'mask',
   'narration',
   'notices',
+  'pause',
   'phase',
   'phase3',
   'stateVersion',
@@ -38,8 +41,15 @@ const DISPLAY_KEYS = [
   'vote',
 ]
 
+/** 좌석별 연결 상태는 Display에만 나간다 (룰북 §17) */
+const DISPLAY_ONLY_KEYS = ['seatConnections']
+
+const DISPLAY_KEYS = [...PUBLIC_KEYS, ...DISPLAY_ONLY_KEYS].sort()
+
 const SEAT_ONLY_KEYS = [
   'abilityUsed',
+  'botTakeover',
+  'connection',
   'erosionPercent',
   'hasJadeHairpin',
   'myVote',
@@ -78,7 +88,7 @@ describe('투영 키 목록', () => {
   it('좌석 투영은 공개 항목 + 본인 항목으로만 이루어진다', () => {
     const state = phase2State()
     expect(Object.keys(projectSeat(state, BROTHER_ROLE.FIRST)).sort()).toEqual(
-      [...DISPLAY_KEYS, ...SEAT_ONLY_KEYS].sort(),
+      [...PUBLIC_KEYS, ...SEAT_ONLY_KEYS].sort(),
     )
   })
 
