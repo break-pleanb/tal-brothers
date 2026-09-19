@@ -9,8 +9,8 @@
 | M0 | 개발 환경 구성 | 완료 |
 | M1 | 엔진 핵심 + Phase 1 | 완료 |
 | M2 | Phase 2·3, 엔딩, 투영, 봇 자동 대전 | 완료 |
-| M3 | 런타임, 통신, 인증, 로비, 운영 규칙 | 진행 중 |
-| M4 | Display·Controller 화면 (임시 그래픽) | 대기 |
+| M3 | 런타임, 통신, 인증, 로비, 운영 규칙 | 완료 |
+| M4 | Display·Controller 화면 (임시 그래픽) | 진행 중 |
 | M5 | 에셋·연출, 세이브/불러오기, 배포 | 대기 |
 
 ---
@@ -281,6 +281,7 @@ tal-brothers-server/
 
 > 실행 계획은 `docs/m3-plan.md`, 진행 기록은 `docs/m3-notes.md`.
 > 계획 10절의 해석 항목 15건은 **2026-09-19에 모두 확정**했다.
+> **2026-09-19 완료.** 실기 확인으로 완료 기준(PC 1대 + 폰이 같은 방에서 게임 시작)을 충족했다.
 
 ### 범위
 
@@ -336,7 +337,7 @@ tal-brothers-server/
 - [x] `docs/supabase-setup.sql`, 서버·web `.env.example`, 서버 `.gitignore`
 - [x] REST 테스트 11건 (계획 9.1 M3-5 4건 포함) → 누적 426건
 - [x] 자리 값 환경 변수로 서버 기동과 `GET /healthz` 확인 (실제 Supabase 연결 아님)
-- [ ] **사람 작업 대기:** Supabase 프로젝트·Google OAuth 설정과 `docs/supabase-setup.sql` 실행
+- [x] **사람 작업:** Supabase 프로젝트·Google OAuth 설정과 `docs/supabase-setup.sql` 실행 (2026-09-19)
 
 ### M3-6. web 기반
 
@@ -345,7 +346,7 @@ tal-brothers-server/
 - [x] `lib/inAppBrowser.ts` — 카카오톡·인스타그램 등 감지와 외부 브라우저 안내
 - [x] Vite 템플릿 잔재 정리(`HelloWorld.vue`·hero/vite/vue 에셋), `typecheck` 스크립트 추가
 - [x] `vue-tsc` 타입 체크와 `vite build` 통과
-- [ ] **사람 작업 대기:** 실제 Google 로그인 확인 (Supabase 설정 필요)
+- [x] **사람 작업:** 실제 Google 로그인 확인 — PC·폰 모두 성공 (2026-09-19)
 
 ### M3-7. web 로비
 
@@ -353,13 +354,17 @@ tal-brothers-server/
 - [x] `LobbyPage.vue` — 기기 역할로 Display·Controller 패널을 가른다 (`lib/deviceRole.ts`)
 - [x] `SeatBoard`(연결 끊김 표기)·`BotToggle`·`JoinQrPanel`, Display·Controller 자리표시자
 - [x] `vite.config.ts`의 `server.host`, `qrcode.vue` 설치, 라우트 3개 추가
-- [ ] **사람 작업 대기:** 실기 확인 (계획 7.4) — Supabase·Google OAuth 설정이 끝나야 한다
+- [x] **사람 작업:** 실기 확인 (계획 7.4) 1~5번 — PC·폰으로 로비에서 게임 시작까지 확인 (2026-09-19).
+      6·7번(연결 끊김 봇 대행, 일시정지)은 **화면이 없어 눈으로 볼 수 없어 M4로 넘긴다** → `docs/m3-notes.md` 실기 확인
 
 ## M4. Display·Controller 화면 (임시 그래픽)
+
+> 실행 계획은 `docs/m4-plan.md`, 진행 기록은 `docs/m4-notes.md`(작업 시작 시 생성).
 
 - Display·Controller 레이아웃 (아키텍처 §9.4)
 - play 스토어, cue 큐, 남은 시간 표시
 - 투표, 굴림, 개입 창, 능력, 부적, 귓속말, 붉은 메시지, Phase 3, 엔딩 화면
+- M3에서 넘어온 항목: 연결 끊김 봇 대행·일시정지의 실기 확인, 로비 봇 지정 버튼 대비 수정
 
 **완료 기준:** 사람이 실제로 한 판을 처음부터 끝까지 플레이할 수 있다
 

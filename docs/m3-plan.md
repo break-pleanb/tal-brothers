@@ -458,7 +458,7 @@ Vite가 `Network: http://<PC 내부 IP>:5173/`을 출력한다. 폰 브라우저
 | 2 | **OAuth 동의 화면 구성** — 사용자 유형 "외부", 게시 상태 "테스트". 앱 이름·지원 이메일만 채우고 범위는 기본값을 쓴다. **동의 화면이 없으면 3번의 클라이언트를 만들 수 없다** | Google Cloud Console |
 | 3 | OAuth 클라이언트(웹) 생성. 승인된 리디렉션 URI에 `https://<project-ref>.supabase.co/auth/v1/callback` 등록 | Google Cloud Console |
 | 4 | Supabase Authentication → Providers → Google 사용 설정, 3번의 클라이언트 ID·시크릿 입력 | Supabase 대시보드 |
-| 5 | Authentication → URL Configuration에서 Site URL `http://localhost:5173`, Additional Redirect URLs에 `http://localhost:5173/**`와 `http://<PC 내부 IP>:5173/**` 추가 | Supabase 대시보드 |
+| 5 | Authentication → URL Configuration에서 **Site URL을 PC와 폰이 함께 접속할 주소(내부 IP)로 지정한다** — `http://<PC 내부 IP>:5173`. **`localhost`로 두면 폰이 로그인 후 복귀하지 못한다.** Additional Redirect URLs에는 `http://localhost:5173/**`와 `http://<PC 내부 IP>:5173/**`를 모두 추가한다 | Supabase 대시보드 |
 | 6 | `docs/supabase-setup.sql`(M3-5에서 작성)을 SQL Editor에서 실행해 `profiles`·`rooms` 테이블과 RLS 정책 생성 | Supabase 대시보드 |
 | 7 | `ipconfig`로 PC 내부 IP 확인 | PowerShell |
 | 8 | `.env.local`·`.env` 두 파일을 7.2 표대로 작성 | 에디터 |
