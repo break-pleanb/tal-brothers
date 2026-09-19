@@ -375,7 +375,11 @@ tal-brothers-server/
   - [x] `StageBackground`(배경 키 → 임시 색, 비네트는 **Phase로만** 짙어진다)·`ClockHud`·`SeatStrip`("연결 끊김"만)·`MaskApparition`
   - [x] `/display/:roomCode`를 `DisplayLayout` 중첩 라우트로, `?safe=1` 세이프존 경계선
   - [x] `constants/assetPlaceholder.ts` — 에셋 키 → 임시 색·이름 (M5가 `assetUrl.ts`로 교체)
-- [ ] M4-3 Controller 셸 — 세이프에어리어, 잠식도 게이지, 액션바, Wake Lock
+- [x] **M4-3 Controller 셸**
+  - [x] `ControllerLayout` — 세이프에어리어를 고정 요소마다 더한 3단 구성, 가운데만 스크롤, `100dvh`
+  - [x] `ErosionGauge`(**본인 잠식도만**, 30·60 눈금)·`ActionBar`(주 버튼 한 자리)·`LockOverlay`·`DesktopNotice`
+  - [x] `useWakeLock` — 복귀 시 재요청, 실패해도 진행하고 한 줄 안내만
+  - [x] `/play/:roomCode`를 `ControllerLayout` 중첩 라우트로, PC 접속은 안내만 하고 막지 않는다
 - [ ] M4-4 이벤트 본류 — 소개, 투표, 굴림, 개입 창
 - [ ] M4-5 개인 정보와 심리전 — 인벤토리, 능력, 귓속말, 붉은 메시지, 14A
 - [ ] M4-6 Phase 3·엔딩·비상 상황 — 타겟, 엔딩, 노이즈, 일시정지, 연결 끊김

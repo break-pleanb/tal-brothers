@@ -43,3 +43,17 @@ function storedDeviceRole(roomCode: string): DeviceRole | null {
 export function resolveDeviceRole(roomCode: string): DeviceRole {
   return storedDeviceRole(roomCode) ?? DEVICE_ROLE.CONTROLLER
 }
+
+/**
+ * 이 기기가 폰처럼 보이는지 (M4 계획 3.4).
+ *
+ * **화면 폭으로 가르지 않는다.** 창을 좁혀도 PC는 PC다.
+ * 손가락으로 누르는 기기인지(`pointer: coarse`)와 터치 점 개수로 본다.
+ * 틀리게 짚어도 안내만 뜨고 조작은 막지 않는다 (9절 6번).
+ */
+export function looksLikePhone(): boolean {
+  if (typeof window === 'undefined') return true
+  const coarse = window.matchMedia?.('(pointer: coarse)').matches === true
+  const touch = navigator.maxTouchPoints > 0
+  return coarse && touch
+}

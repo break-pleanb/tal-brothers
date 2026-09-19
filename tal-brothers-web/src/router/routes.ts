@@ -36,6 +36,19 @@ export const routes: RouteRecordRaw[] = [
     ],
   },
   {
+    // Controller는 세이프에어리어와 3단 고정 구성이 뷰포트를 통째로 쓴다 (M4 계획 3절)
+    path: '/play/:roomCode',
+    component: () => import('@/layouts/ControllerLayout.vue'),
+    children: [
+      {
+        path: '',
+        name: ROUTE_NAME.PLAY,
+        component: () => import('@/pages/ControllerPage.vue'),
+        meta: { requiresAuth: true },
+      },
+    ],
+  },
+  {
     path: '/',
     component: () => import('@/layouts/DefaultLayout.vue'),
     children: [
@@ -60,13 +73,6 @@ export const routes: RouteRecordRaw[] = [
         path: 'lobby/:roomCode',
         name: ROUTE_NAME.LOBBY,
         component: () => import('@/pages/LobbyPage.vue'),
-        meta: { requiresAuth: true },
-      },
-      {
-        // M4-3에서 `ControllerLayout` 중첩 라우트로 옮긴다
-        path: 'play/:roomCode',
-        name: ROUTE_NAME.PLAY,
-        component: () => import('@/pages/ControllerPage.vue'),
         meta: { requiresAuth: true },
       },
       {
