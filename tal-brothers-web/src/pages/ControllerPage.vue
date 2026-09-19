@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import { computed, ref, toRef } from 'vue'
 import { useRoute } from 'vue-router'
+import { COMMAND_TYPE, GAME_STEP } from 'tal-brothers-shared'
+import type { Command } from 'tal-brothers-shared'
 
 import ActionBar from '@/components/controller/ActionBar.vue'
 import DesktopNotice from '@/components/controller/DesktopNotice.vue'
 import ErosionGauge from '@/components/controller/ErosionGauge.vue'
+import InterventionPanel from '@/components/controller/InterventionPanel.vue'
 import LockOverlay from '@/components/controller/LockOverlay.vue'
+import RollButton from '@/components/controller/RollButton.vue'
+import VotePanel from '@/components/controller/VotePanel.vue'
 import { useCountdown } from '@/composables/useCountdown'
 import { useRoomSocket } from '@/composables/useRoomSocket'
 import { useWakeLock } from '@/composables/useWakeLock'
@@ -18,14 +23,16 @@ import { usePlayStore } from '@/stores/play'
  * Controller 화면 (M4 계획 3절, 5절).
  *
  * **본인 것만 보인다.** 다른 좌석의 잠식도·인벤토리·연결 상태는 이 기기에 오지 않는다 (룰북 §17).
- * 단계별 조작(투표·굴림·개입·부적·능력)은 M4-4부터 채우고, 여기서는 **자리와 잠금**만 잡는다.
+ * 하단 한 자리의 뜻이 단계마다 바뀌고 **자리는 바뀌지 않는다** (M4 계획 3.2).
+ *
+ * 인벤토리·능력·귓속말·붉은 메시지는 M4-5, Phase 3·엔딩은 M4-6이다.
  */
 
 const route = useRoute()
 const play = usePlayStore()
 
 const roomCode = String(route.params.roomCode ?? '').toUpperCase()
-useRoomSocket(roomCode, resolveDeviceRole(roomCode))
+const socket = useRoomSocket(roomCode, resolveDeviceRole(roomCode))
 
 const { notice: wakeLockNotice } = useWakeLock()
 const { label: stepClockLabel } = useCountdown(toRef(play, 'stepDeadlineAt'))
@@ -34,13 +41,62 @@ const { label: stepClockLabel } = useCountdown(toRef(play, 'stepDeadlineAt'))
 const dismissedDesktopNotice = ref(false)
 const showDesktopNotice = computed(() => !looksLikePhone() && !dismissedDesktopNotice.value)
 
-const seatLabel = computed(() =>
-  play.mySeat === null ? '자리 없음' : BROTHER_LABEL[play.mySeat],
+const step = computed(() => play.step)
+const view = computed(() => play.snapshot)
+const seatLabel = computed(() => (play.mySeat === null ? '자리 없음' : BROTHER_LABEL[play.mySeat]))
+const stepLabel = computed(() => (step.value === null ? '' : STEP_LABEL[step.value]))
+
+const isVoting = computed(
+  () => step.value === GAME_STEP.VOTING || step.value === GAME_STEP.P3_VOTING,
 )
-const stepLabel = computed(() => (play.step === null ? '' : STEP_LABEL[play.step]))
+
+const isIntervention = computed(() =>
+  step.value === null
+    ? false
+    : (
+        [
+          GAME_STEP.INTERVENTION_REROLL,
+          GAME_STEP.INTERVENTION_TALISMAN,
+          GAME_STEP.INTERVENTION_FORCE,
+          GAME_STEP.PRACTICE_INTERVENTION,
+        ] as string[]
+      ).includes(step.value),
+)
+
+/** 단계별 액션바 안내. 누를 것이 없는 단계에서는 문구만 남는다 (M4 계획 5절) */
+const actionHint = computed(() => {
+  switch (step.value) {
+    case GAME_STEP.EVENT_INTRO:
+      return '잠시 기다리세요'
+    case GAME_STEP.ROLL_REVEAL:
+      return '판정 결과를 확인하세요'
+    case GAME_STEP.TALISMAN_WINDOW:
+      return '부적 제출 창입니다 (M4-5)'
+    case GAME_STEP.RESOLUTION:
+      return '결과를 적용하는 중'
+    case GAME_STEP.PHASE2_ENTRY:
+      return '숲으로 들어갑니다'
+    case GAME_STEP.ENDING:
+      return '게임이 끝났습니다'
+    default:
+      return '잠시 기다리세요'
+  }
+})
 
 /** 일시정지 중에는 전 화면을 덮고 조작을 막는다 (아키텍처 §8) */
-const pauseView = computed(() => play.snapshot?.pause ?? null)
+const pauseView = computed(() => view.value?.pause ?? null)
+
+function vote(choiceId: string): void {
+  socket.send({ type: COMMAND_TYPE.VOTE_SUBMIT, choiceId })
+}
+
+function roll(): void {
+  socket.send({ type: COMMAND_TYPE.ROLL_REQUEST })
+}
+
+function useIntervention(command: Command): void {
+  socket.send(command)
+}
 </script>
 
 <template>
@@ -70,18 +126,53 @@ const pauseView = computed(() => play.snapshot?.pause ?? null)
     </header>
 
     <main class="controller-body">
-      <p v-if="play.snapshot === null" class="controller-body__waiting">방 정보를 받는 중…</p>
+      <p v-if="view === null" class="controller-body__waiting">방 정보를 받는 중…</p>
+
       <template v-else>
-        <p v-if="play.snapshot.narration !== null" class="controller-body__narration">
-          {{ play.snapshot.narration }}
+        <p v-if="view.eventTitle !== null" class="controller-body__title">{{ view.eventTitle }}</p>
+        <p v-if="view.narration !== null" class="controller-body__narration">
+          {{ view.narration }}
         </p>
-        <p class="controller-body__todo">단계별 조작은 M4-4부터 채웁니다.</p>
+
+        <VotePanel
+          v-if="isVoting"
+          :choices="view.choices"
+          :my-vote="play.privateView?.myVote ?? null"
+          :variant-labels="play.privateView?.variantLabels ?? null"
+          :disabled="play.privateView === null"
+          @select="vote"
+        />
+
+        <p v-else-if="view.adoptedChoiceId !== null" class="controller-body__adopted">
+          채택 —
+          {{ view.choices.find((choice) => choice.id === view?.adoptedChoiceId)?.text ?? '' }}
+        </p>
       </template>
 
       <p v-if="play.message" class="controller-body__message">{{ play.message }}</p>
     </main>
 
-    <ActionBar :label="null" hint="잠시 기다리세요" />
+    <RollButton
+      v-if="step === GAME_STEP.ROLL_WAIT"
+      :judgment="view?.judgment ?? null"
+      :my-seat="play.mySeat"
+      @roll="roll"
+    />
+
+    <InterventionPanel
+      v-else-if="isIntervention"
+      :step="step"
+      :judgment="view?.judgment ?? null"
+      :my-seat="play.mySeat"
+      :private-view="play.privateView"
+      @use="useIntervention"
+    />
+
+    <ActionBar
+      v-else
+      :label="null"
+      :hint="isVoting ? '마감 전에는 몇 번이든 바꿀 수 있습니다' : actionHint"
+    />
 
     <LockOverlay
       :visible="pauseView !== null"
@@ -124,16 +215,27 @@ const pauseView = computed(() => play.snapshot?.pause ?? null)
   color: #d9a066;
 }
 
-.controller-body__waiting,
-.controller-body__todo {
+.controller-body__waiting {
   font-size: 0.8125rem;
   color: rgba(245, 245, 245, 0.45);
 }
 
+.controller-body__title {
+  margin-bottom: 0.5rem;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
 .controller-body__narration {
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
   font-size: 0.9375rem;
   line-height: 1.6;
+  color: rgba(245, 245, 245, 0.82);
+}
+
+.controller-body__adopted {
+  font-size: 0.875rem;
+  color: rgba(245, 245, 245, 0.7);
 }
 
 .controller-body__message {
