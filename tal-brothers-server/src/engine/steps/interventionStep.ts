@@ -200,8 +200,9 @@ export const INTERVENTION_REROLL_HANDLER: StepHandler = {
 
     draft.progress.stepDeadlineAt = context.now + GAME_CONFIG.interventionRerollSeconds * 1000
 
-    // 둘째가 봇이면 진입 즉시 판단한다 (룰북 §11)
-    if (shouldBotReroll(draft, judgment, baseDiceValue(judgment))) {
+    // 둘째가 봇이면 진입 즉시 판단한다 (룰북 §11).
+    // 다시 굴릴 주사위는 사람과 같은 규칙으로 고른다 — 봇만 다른 대상을 고르면 안 된다 (룰북 §3.3)
+    if (shouldBotReroll(draft, judgment, rerollTargetDie(judgment), baseDiceValue(judgment))) {
       applyReroll(draft, context, out, event.isTutorial, true)
       reevaluate(draft, judgment, GAME_STEP.INTERVENTION_TALISMAN, out)
     }

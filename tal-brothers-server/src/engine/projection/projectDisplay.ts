@@ -149,11 +149,15 @@ function projectNotices(state: GameState): NoticeView[] {
 /**
  * 좌석 표시 이름 (룰북 §17, §21).
  * 로비뿐 아니라 게임 중에도 좌석 줄·공개 알림이 쓴다. `userId`는 담지 않는다.
+ *
+ * `isBot`은 **좌석 구성**이다. 봇 대행(`botTakeover`)은 담지 않는다 —
+ * 담으면 "연결 끊김"으로 통일한 표기가 무너져 봇 대행이 드러난다 (룰북 §17, 아키텍처 §8).
  */
 function projectSeatNames(state: GameState): SeatNameView[] {
   return SEAT_ORDER.map((role) => ({
     seat: role,
     displayName: state.seats[role].displayName,
+    isBot: state.seats[role].isBot,
   }))
 }
 

@@ -7,7 +7,7 @@ import { pickOne, rollD6 } from '../random'
 import { addTeamModifier } from '../rules/modifiers'
 import { isBotControlled } from '../rules/seatControl'
 import { INTERVENTION_KIND, SEAT_ORDER } from '../state/gameState'
-import type { GameState, JudgmentState } from '../state/gameState'
+import type { DiceRoll, GameState, JudgmentState } from '../state/gameState'
 
 /**
  * 봇 정책 (룰북 §11).
@@ -16,7 +16,8 @@ import type { GameState, JudgmentState } from '../state/gameState'
  * 반면 **100% 방해는 좌석 구성(`isBot`) 기준**이라 대행 좌석에는 적용하지 않는다 (M3 계획 10절 5번).
  *
  * - 투표하지 않는다. 판정 굴림만 담당한다
- * - 둘째 봇: 판정 실패 시 개입 창 1단계에서 자동 재굴림. 협동 판정은 본인 주사위가 현재 최고값일 때만
+ * - 둘째 봇: 판정 실패 시 개입 창 1단계에서 자동 재굴림. **개인 판정은 누구의 판정이든**(룰북 §3.3),
+ *   협동 판정은 본인 주사위가 현재 최고값일 때만
  * - 부적 자동 사용: 실패가 확정됐고 +1로 성공이 되는 경우에만. **판단 시점은 부적 단계 마감 1초 전**이고,
  *   그때까지 아무도 부적을 쓰지 않았어야 한다
  * - 첫째 봇: 보스 이벤트 실패 시에만 강제 성공
@@ -45,12 +46,18 @@ export function botRollOwnDice(draft: GameState, context: EngineContext, out: St
 }
 
 /**
- * 둘째 봇이 재굴림을 쓸지 판단한다 (룰북 §11).
- * 협동 판정에서는 본인 주사위가 현재 최고값(`topDiceValue`)일 때만 쓴다.
+ * 둘째 봇이 재굴림을 쓸지 판단한다 (룰북 §3.3, §11).
+ *
+ * - **개인·비공개 판정은 누구의 판정이든 다시 굴린다** (룰북 §3.3). 둘째가 판정자가 아니어도 쓴다
+ * - **협동·대립 판정은 본인 주사위가 현재 최고값(`topDiceValue`)일 때만** 쓴다 (룰북 §11)
+ *
+ * 어느 주사위를 다시 굴릴지는 단계 처리기가 정해 `targetDie`로 넘겨준다.
+ * 봇 정책이 판정 규칙을 다시 구현하면 사람과 봇의 규칙이 갈라진다.
  */
 export function shouldBotReroll(
   draft: GameState,
   judgment: JudgmentState,
+  targetDie: DiceRoll | undefined,
   topDiceValue: number,
 ): boolean {
   const second = draft.seats[BROTHER_ROLE.SECOND]
@@ -60,11 +67,12 @@ export function shouldBotReroll(
   if (judgment.interventions.some((record) => record.kind === INTERVENTION_KIND.REROLL)) {
     return false
   }
-
-  const ownDie = judgment.dice.find((die) => die.seat === BROTHER_ROLE.SECOND)
-  if (ownDie === undefined || ownDie.value === null) return false
+  // 다시 굴릴 주사위가 없거나 아직 굴리지 않았으면 쓸 수 없다
+  if (targetDie === undefined || targetDie.value === null) return false
 
   if (judgment.kind === JUDGMENT_KIND.COOP || judgment.kind === JUDGMENT_KIND.CONTEST) {
+    const ownDie = judgment.dice.find((die) => die.seat === BROTHER_ROLE.SECOND)
+    if (ownDie === undefined || ownDie.value === null) return false
     return ownDie.value === topDiceValue
   }
   return true

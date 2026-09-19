@@ -16,10 +16,18 @@ const route = useRoute()
 
 /** 개발 중에만 `?safe=1`로 세이프존 경계선을 띄운다. 기본은 꺼짐 (M4 계획 2.4) */
 const showGuides = computed(() => route.query.safe === '1')
+
+/**
+ * 방송 송출용 화면일 때만 커서를 숨긴다 (`?obs=1`).
+ *
+ * 룰북 §1의 "조작 없음"은 **게임 조작**을 뜻하고, 일시정지·재개 같은 방 운영은 예외다 (룰북 §21).
+ * 호스트가 방 운영 바를 쓰려면 커서가 보여야 하므로 기본은 커서를 숨기지 않는다.
+ */
+const hideCursor = computed(() => route.query.obs === '1')
 </script>
 
 <template>
-  <div class="display-viewport">
+  <div class="display-viewport" :class="{ 'display-viewport--obs': hideCursor }">
     <div class="display-stage" :class="{ 'display-stage--guides': showGuides }">
       <RouterView />
     </div>
@@ -35,7 +43,10 @@ const showGuides = computed(() => route.query.safe === '1')
   height: 100dvh;
   overflow: hidden;
   background: #000;
-  /* Display에는 게임 조작이 없다 (룰북 §1). 방 운영 바는 M4-6에서 마우스를 움직일 때만 커서를 되살린다 */
+}
+
+/** 송출 화면에서는 커서를 숨긴다. 호스트가 방 운영 바를 쓸 때는 커서가 보여야 한다 (룰북 §21) */
+.display-viewport--obs {
   cursor: none;
 }
 

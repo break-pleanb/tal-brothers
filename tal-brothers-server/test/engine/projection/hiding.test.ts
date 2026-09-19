@@ -402,6 +402,26 @@ describe('좌석 주인과 연결 상태 (룰북 §17, M3 계획 8.4)', () => {
     }
   })
 
+  it('봇 대행 중인 인간 좌석은 좌석 줄에 봇으로 나가지 않는다 (룰북 §17, 아키 §8)', () => {
+    const state = newState(1)
+    // 첫째는 사람, 둘째·셋째는 봇 구성이다
+    const human = state.seats[BROTHER_ROLE.FIRST]
+    human.connection = { status: SEAT_CONNECTION.DISCONNECTED, disconnectedAt: START }
+    human.botTakeover = true
+
+    for (const snapshot of [projectDisplay(state), projectSeat(state, BROTHER_ROLE.FIRST)]) {
+      const names = snapshot.seatNames
+      // 구성이 인간이면 대행 중이어도 봇이 아니다. 아니면 "봇 대행"이 표기로 드러난다
+      expect(names.find((entry) => entry.seat === BROTHER_ROLE.FIRST)?.isBot).toBe(false)
+      expect(names.find((entry) => entry.seat === BROTHER_ROLE.SECOND)?.isBot).toBe(true)
+      // 대행 여부 자체는 좌석 줄에 실리지 않는다
+      expect(names.every((entry) => !('botTakeover' in entry))).toBe(true)
+    }
+
+    // 본인에게만 대행 사실을 알린다 (아키 §8)
+    expect(projectSeat(state, BROTHER_ROLE.FIRST).botTakeover).toBe(true)
+  })
+
   it('좌석 투영에 다른 좌석의 연결 상태가 없다', () => {
     const state = newState(3)
     state.seats[BROTHER_ROLE.THIRD].connection = {

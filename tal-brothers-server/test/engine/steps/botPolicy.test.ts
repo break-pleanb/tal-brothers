@@ -102,6 +102,41 @@ describe('둘째 봇 재굴림 (룰북 §11)', () => {
     ).toHaveLength(1)
   })
 
+  it('판정자가 둘째가 아닌 개인 판정도 재굴림한다 (룰북 §3.3 "누구의 판정이든")', () => {
+    // 실기에서 나온 구성 — 첫째 봇, 둘째 봇, 셋째 사람. T1 A는 근력이라 판정자가 첫째다
+    const seats: SeatSetup = {
+      [BROTHER_ROLE.FIRST]: { isBot: true },
+      [BROTHER_ROLE.SECOND]: { isBot: true },
+      [BROTHER_ROLE.THIRD]: { isBot: false },
+    }
+    const game = start(seats, LOW)
+    game.tickUntil(GAME_STEP.VOTING)
+
+    // 첫째 주사위 2 + 담당 보정 1 = 3, 기준 4 → 실패
+    game.setRng(diceRng(2))
+    game.send(BROTHER_ROLE.THIRD, vote('t1-a'))
+    expect(game.state.currentEvent?.rollerSeat).toBe(BROTHER_ROLE.FIRST)
+    expect(game.state.progress.step).toBe(GAME_STEP.ROLL_REVEAL)
+    expect(judgment(game).succeeded).toBe(false)
+
+    // 개입 창 1단계 진입 즉시 둘째 봇이 첫째의 주사위를 다시 굴린다
+    game.setRng(diceRng(1))
+    game.tick()
+
+    const rerolls = judgment(game).interventions.filter((record) => record.kind === 'reroll')
+    expect(rerolls).toHaveLength(1)
+    expect(rerolls[0]?.seat).toBe(BROTHER_ROLE.SECOND)
+    // 둘째 본인 주사위가 아니라 판정자(첫째)의 주사위를 굴렸다
+    expect(rerolls[0]?.dieSeat).toBe(BROTHER_ROLE.FIRST)
+    expect(rerolls[0]?.diceBefore).toBe(2)
+    expect(rerolls[0]?.diceAfter).toBe(1)
+
+    // 재굴림도 실패라 창은 부적 단계로 넘어간다
+    expect(game.state.progress.step).toBe(GAME_STEP.INTERVENTION_TALISMAN)
+    // T1은 튜토리얼이라 능력 횟수를 소모하지 않는다 (룰북 §3.5)
+    expect(seat(game, BROTHER_ROLE.SECOND).abilityUsed).toBe(false)
+  })
+
   it('협동 판정에서 본인 주사위가 최고값일 때만 재굴림한다', () => {
     // 둘째 4 · 셋째 2 · 첫째 1 → 기준 5에 못 미치는 실패이고 최고값이 둘째 주사위
     const topIsSecond = start(1, LOW)

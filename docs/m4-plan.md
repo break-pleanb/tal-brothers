@@ -136,7 +136,7 @@
 
 | 파일 | 구분 | 핵심 내용 |
 |---|---|---|
-| `src/components/lobby/BotToggle.vue` | 수정 | **M3 이월** — 선택되지 않은 버튼의 글자가 배경과 대비가 낮아 어느 좌석인지 읽히지 않는다 |
+| ~~`src/components/lobby/BotToggle.vue`~~ | ~~수정~~ | **2026-09-20 완료** — 실기 1차에서 확인을 방해해 앞당겼다 (대비와 한국어 라벨) |
 | `docs/m4-notes.md` | 생성 | 계획과 달라진 결정, 확인 필요, 제안 (M3와 같은 구성) |
 | `docs/roadmap.md` | 수정 | M4 체크리스트와 진행 상태 표 |
 | `docs/rulebook-v3.md` · `architecture.md` | 수정 | 9절 결정이 규칙·설계를 바꿀 때만 |
