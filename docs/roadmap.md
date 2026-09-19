@@ -384,6 +384,7 @@ tal-brothers-server/
   - [x] Display: `NarrationPanel`·`ChoiceBoard`(수치 없음, 투표 중 참여 인원 수만)·`DiceArena`(비공개는 "판정 완료"만)·`InterventionTrack`
   - [x] Controller: `VotePanel`(재선택·변이 라벨)·`RollButton`·`InterventionPanel`(부적은 누른 즉시 비활성)
   - [x] 두 화면의 단계 분기 — `EVENT_INTRO`·`VOTING`·`ROLL_WAIT`·`ROLL_REVEAL`·개입 3단계·연습 창·`RESOLUTION`
+  - [x] `CueToast` — 토스트 cue 한 자리 (M4-5의 `WhisperToast`를 앞당겨 통합, 계획 10절 6번의 확인 순서 때문)
   - [ ] **확인 필요:** 비공개 판정의 판정자가 투영에 없어 굴림 버튼을 띄우지 못한다 → `docs/m4-notes.md`
 - [ ] M4-5 개인 정보와 심리전 — 인벤토리, 능력, 귓속말, 붉은 메시지, 14A
 - [ ] M4-6 Phase 3·엔딩·비상 상황 — 타겟, 엔딩, 노이즈, 일시정지, 연결 끊김

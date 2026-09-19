@@ -5,6 +5,7 @@ import { COMMAND_TYPE, GAME_STEP } from 'tal-brothers-shared'
 import type { Command } from 'tal-brothers-shared'
 
 import ActionBar from '@/components/controller/ActionBar.vue'
+import CueToast from '@/components/controller/CueToast.vue'
 import DesktopNotice from '@/components/controller/DesktopNotice.vue'
 import ErosionGauge from '@/components/controller/ErosionGauge.vue'
 import InterventionPanel from '@/components/controller/InterventionPanel.vue'
@@ -173,6 +174,8 @@ function useIntervention(command: Command): void {
       :label="null"
       :hint="isVoting ? '마감 전에는 몇 번이든 바꿀 수 있습니다' : actionHint"
     />
+
+    <CueToast />
 
     <LockOverlay
       :visible="pauseView !== null"
