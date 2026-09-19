@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch --env-file=.env src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -13,6 +13,7 @@
     "sim:bots": "tsx src/sim/botMatch.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
     "express": "^5.2.1",
     "tal-brothers-shared": "*",
     "ws": "^8.21.3"

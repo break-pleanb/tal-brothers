@@ -331,10 +331,12 @@ tal-brothers-server/
 
 ### M3-5. infra·REST·부트스트랩
 
-- [ ] `serverEnv.ts`, `supabaseAdmin.ts`, `authVerifier.ts`, `roomRepository.ts`
-- [ ] `roomsRouter.ts`, `healthRouter.ts`, `src/index.ts`
-- [ ] `docs/supabase-setup.sql`, `.env.example`, `.gitignore`
-- [ ] REST 테스트 (계획 9.1 M3-5 4건)
+- [x] `serverEnv.ts`, `supabaseAdmin.ts`, `authVerifier.ts`(getUser 구현), `roomRepository.ts`
+- [x] `httpApp.ts`·`requireAuth.ts`·`httpErrors.ts`, `roomsRouter.ts`, `healthRouter.ts`, `src/index.ts`
+- [x] `docs/supabase-setup.sql`, 서버·web `.env.example`, 서버 `.gitignore`
+- [x] REST 테스트 11건 (계획 9.1 M3-5 4건 포함) → 누적 426건
+- [x] 자리 값 환경 변수로 서버 기동과 `GET /healthz` 확인 (실제 Supabase 연결 아님)
+- [ ] **사람 작업 대기:** Supabase 프로젝트·Google OAuth 설정과 `docs/supabase-setup.sql` 실행
 
 ### M3-6. web 기반
 

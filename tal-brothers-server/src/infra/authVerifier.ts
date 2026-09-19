@@ -1,3 +1,5 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+
 /**
  * 토큰 검증 (아키텍처 §10, M3 계획 10절 4번).
  *
@@ -17,4 +19,28 @@ export type AuthUser = {
 export type AuthVerifier = {
   /** 토큰이 유효하면 사용자, 아니면 null */
   verify(token: string): Promise<AuthUser | null>
+}
+
+/**
+ * Supabase 토큰 검증 (M3 계획 10절 4번).
+ *
+ * `auth.getUser(token)`은 Supabase에 한 번 물어본다. 연결당 1회, REST는 요청당 1회라
+ * 방당 소켓 4개 수준에서는 비용이 없다. 성능이 문제가 되면 M5에서 JWKS 로컬 검증을 다시 본다.
+ */
+export function createSupabaseAuthVerifier(client: SupabaseClient): AuthVerifier {
+  return {
+    async verify(token): Promise<AuthUser | null> {
+      const { data, error } = await client.auth.getUser(token)
+      if (error !== null || data.user === null) return null
+
+      const metadata = data.user.user_metadata as Record<string, unknown> | null
+      const name = metadata?.['full_name'] ?? metadata?.['name']
+
+      return {
+        userId: data.user.id,
+        displayName: typeof name === 'string' && name.length > 0 ? name : null,
+        email: data.user.email ?? null,
+      }
+    },
+  }
 }

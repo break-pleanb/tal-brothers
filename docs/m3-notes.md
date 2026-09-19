@@ -52,6 +52,11 @@
 | 2026-09-19 | M3-4 | 계획 9.1 M3-4 3번은 "깨진 JSON·모르는 type·필드 타입 불일치가 `unknownCommand`로 거절된다" | **깨진 JSON과 모르는 프레임 종류는 `error(badFrame)`**, 명령 본문이 어긋난 경우만 `rejected(unknownCommand)` | 계획 안에서 3.1과 9.1이 어긋났다. 3.1의 프로토콜 표가 "프레임을 못 읽었거나"를 `error`에 배정했으므로 그쪽을 따랐다. `rejected`는 `seq`를 실어 보내는데, 프레임 자체를 못 읽으면 `seq`가 없어 클라이언트가 어느 명령인지 짚을 수 없다. 프레임을 못 읽어도 **소켓은 닫지 않는다** — 계획 3.2가 닫으라고 적은 것은 인증 실패와 hello 타임아웃뿐이다 |
 | 2026-09-19 | M3-4 | `infra/authVerifier.ts`는 M3-5 | 인터페이스(`AuthVerifier`·`AuthUser`)만 M3-4에서 먼저 만들었다 | ws 세션이 토큰 검증 포트를 필요로 한다. 구현(`supabase.auth.getUser`)은 계획대로 M3-5에서 붙인다 |
 | 2026-09-19 | M3-4 | — | 연결 변화(presence)는 **엔딩에 도달한 뒤에도** 받는다 | `dispatch`는 `ENDING`에서 모든 액션을 `gameFinished`로 거절했다. 그러면 엔딩 화면을 보는 중에 소켓이 붙어도 스냅샷이 나가지 않는다. 연결 사실은 룰이 아니라 방 운영이라 엔딩 검사보다 앞에서 처리한다. 정지·봇 대행 판단은 종료 단계에서 스스로 걸러진다 |
+| 2026-09-19 | M3-5 | 계획 M3-5 파일 목록에 없음 | `transport/http/httpApp.ts`(앱 조립), `httpErrors.ts`, `requireAuth.ts`를 나눠 만들었다 | `index.ts`는 포트를 연다. 그 파일에 앱 조립까지 넣으면 REST 테스트가 import만으로 서버를 띄우게 된다. 조립을 떼어 두면 테스트가 가짜 검증기·가짜 방 목록으로 앱만 만들 수 있다 (계획 9절) |
+| 2026-09-19 | M3-5 | `serverEnv.ts` → `SERVER_ENV` (파일명 ↔ export명 1:1) | `loadServerEnv()` 함수와 `SERVER_ENV_DEFAULTS` 상수를 export한다 | 모듈 최상위 상수로 두면 **import하는 순간** 환경 변수를 읽어 테스트가 전부 환경을 타게 된다. 누락 시 즉시 실패(계획 7.2)는 `index.ts`가 `loadServerEnv()`를 부르는 시점에 일어난다 |
+| 2026-09-19 | M3-5 | — | 서버 워크스페이스에 `@supabase/supabase-js`를 설치했다 | 계획 M3-5의 `infra/supabaseAdmin.ts`가 요구하는 의존성이다. web에만 있던 패키지를 서버에도 선언했다 (`npm install @supabase/supabase-js -w tal-brothers-server`) |
+| 2026-09-19 | M3-5 | 계획 4.2의 참가 응답만 정의 | 참가 정원을 **3명**으로 두었다 | 룰북 §1의 "인간 플레이어 1~3명"이 상한이다. 좌석이 3칸이므로 멤버가 4명이 되면 누군가는 앉을 자리가 없다. 이미 멤버인 계정의 재참가는 그대로 통과시킨다(초대 링크를 두 번 열 수 있다) |
+| 2026-09-19 | M3-5 | — | `tal-brothers-web/.env.example`도 함께 만들었다 | 계획 7.2 표가 web `.env.local` 키도 정의한다. 사람이 두 파일을 같은 방식으로 채울 수 있게 템플릿을 양쪽에 둔다 |
 
 ## 확인 필요
 
