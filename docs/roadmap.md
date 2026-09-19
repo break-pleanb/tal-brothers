@@ -370,7 +370,11 @@ tal-brothers-server/
   - [x] `stores/play.ts`로 스토어 통합, 소켓 수명을 방에 묶음 (9절 7번). `stores/lobby.ts` 삭제
   - [x] `useCountdown`·`useCueQueue`, 표기 사전 8종, `constants/cueChannel.ts`
   - [x] Display·Controller 자리표시자에 Phase·단계·남은 시간·진행 번호 표시
-- [ ] M4-2 Display 셸 — 16:9 스테이지, 레이어, HUD, 세이프존 (아키텍처 §9.4)
+- [x] **M4-2 Display 셸**
+  - [x] `DisplayLayout` — 16:9 레터박스 스테이지, 컨테이너 단위(cqw) 척도, 레이어 6단, 세이프존 4%·캠 자리 24%
+  - [x] `StageBackground`(배경 키 → 임시 색, 비네트는 **Phase로만** 짙어진다)·`ClockHud`·`SeatStrip`("연결 끊김"만)·`MaskApparition`
+  - [x] `/display/:roomCode`를 `DisplayLayout` 중첩 라우트로, `?safe=1` 세이프존 경계선
+  - [x] `constants/assetPlaceholder.ts` — 에셋 키 → 임시 색·이름 (M5가 `assetUrl.ts`로 교체)
 - [ ] M4-3 Controller 셸 — 세이프에어리어, 잠식도 게이지, 액션바, Wake Lock
 - [ ] M4-4 이벤트 본류 — 소개, 투표, 굴림, 개입 창
 - [ ] M4-5 개인 정보와 심리전 — 인벤토리, 능력, 귓속말, 붉은 메시지, 14A

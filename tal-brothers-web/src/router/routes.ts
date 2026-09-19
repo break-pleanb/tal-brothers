@@ -23,6 +23,19 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/AuthCallbackPage.vue'),
   },
   {
+    // Display는 16:9 레터박스 스테이지가 뷰포트를 통째로 쓴다 (M4 계획 2.1)
+    path: '/display/:roomCode',
+    component: () => import('@/layouts/DisplayLayout.vue'),
+    children: [
+      {
+        path: '',
+        name: ROUTE_NAME.DISPLAY,
+        component: () => import('@/pages/DisplayPage.vue'),
+        meta: { requiresAuth: true },
+      },
+    ],
+  },
+  {
     path: '/',
     component: () => import('@/layouts/DefaultLayout.vue'),
     children: [
@@ -50,12 +63,7 @@ export const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true },
       },
       {
-        path: 'display/:roomCode',
-        name: ROUTE_NAME.DISPLAY,
-        component: () => import('@/pages/DisplayPage.vue'),
-        meta: { requiresAuth: true },
-      },
-      {
+        // M4-3에서 `ControllerLayout` 중첩 라우트로 옮긴다
         path: 'play/:roomCode',
         name: ROUTE_NAME.PLAY,
         component: () => import('@/pages/ControllerPage.vue'),
