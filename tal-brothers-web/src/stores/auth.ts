@@ -63,8 +63,9 @@ export const useAuthStore = defineStore('auth', () => {
     await initialize()
   }
 
-  async function signIn(): Promise<void> {
-    await signInWithGoogle()
+  /** `next`는 로그인 후 돌아갈 앱 안의 경로다 */
+  async function signIn(next: string | null = null): Promise<void> {
+    await signInWithGoogle(next)
   }
 
   async function leave(): Promise<void> {

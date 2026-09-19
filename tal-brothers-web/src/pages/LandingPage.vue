@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import introMask from '@/assets/images/masks/introMask.png'
 import { Button } from '@/components/ui/button'
 import { ROUTE_NAME } from '@/constants/routeName'
+import { NEXT_QUERY_KEY, safeNextPath } from '@/lib/nextPath'
 import { useAuthStore } from '@/stores/auth'
 
 /**
@@ -13,20 +14,25 @@ import { useAuthStore } from '@/stores/auth'
  */
 
 const auth = useAuthStore()
+const route = useRoute()
 const router = useRouter()
 const pending = ref(false)
 const message = ref<string | null>(null)
 
+/** 가드가 실어 보낸 복귀 경로. 로그인 뒤 여기로 돌아간다 */
+const next = safeNextPath(route.query[NEXT_QUERY_KEY])
+
 onMounted(async () => {
   await auth.waitUntilReady()
-  if (auth.isSignedIn) await router.replace({ name: ROUTE_NAME.MAIN_MENU })
+  if (!auth.isSignedIn) return
+  await (next === null ? router.replace({ name: ROUTE_NAME.MAIN_MENU }) : router.replace(next))
 })
 
 async function signIn(): Promise<void> {
   pending.value = true
   message.value = null
   try {
-    await auth.signIn()
+    await auth.signIn(next)
   } catch (error) {
     pending.value = false
     message.value = error instanceof Error ? error.message : '로그인을 시작하지 못했다'

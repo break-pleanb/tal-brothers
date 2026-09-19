@@ -432,14 +432,18 @@ Vite가 `Network: http://<PC 내부 IP>:5173/`을 출력한다. 폰 브라우저
 |---|---|---|
 | `tal-brothers-web/.env.local` | `VITE_SUPABASE_URL` | Supabase 프로젝트 URL |
 | | `VITE_SUPABASE_ANON_KEY` | anon 키 |
-| | `VITE_API_BASE_URL` | `http://<PC 내부 IP>:3000` |
-| | `VITE_WS_URL` | `ws://<PC 내부 IP>:3000/ws` |
-| | `VITE_PUBLIC_WEB_ORIGIN` | 초대 QR에 실을 주소. PC를 `localhost`로 열 때만 필요하다 (`http://<PC 내부 IP>:5173`) |
+| | `VITE_API_BASE_URL` | **비워 둔다.** 비우면 지금 페이지를 연 호스트의 `:3000`을 쓴다. 서버가 다른 기기에 있을 때만 적는다 |
+| | `VITE_WS_URL` | **비워 둔다.** 위와 같은 규칙 |
+| | `VITE_SERVER_PORT` | 서버 포트를 3000에서 바꿨을 때만 |
+| | `VITE_PUBLIC_WEB_ORIGIN` | 초대 QR에 실을 주소. **QR 전용이고 로그인 리디렉션에는 쓰지 않는다.** PC를 `localhost`로 열 때만 필요하다 |
 | `tal-brothers-server/.env` | `PORT` | `3000` |
 | | `SUPABASE_URL` | 위와 같음 |
 | | `SUPABASE_SERVICE_ROLE_KEY` | service role 키 (**절대 web에 넣지 않는다**) |
-| | `SUPABASE_JWT_ISSUER` | `<SUPABASE_URL>/auth/v1` |
 | | `CORS_ORIGIN` | `http://localhost:5173,http://<PC 내부 IP>:5173` |
+
+- **접속 주소를 한 값으로 고정하지 않는다.** PC와 폰이 서로 다른 오리진으로 같은 앱을 열기 때문이다.
+  로그인 리디렉션(`redirectTo`)도, 서버 주소도 **지금 이 페이지를 연 주소**에서 끌어낸다
+- `SUPABASE_JWT_ISSUER`는 쓰지 않는다. 10절 4번에서 `auth.getUser(token)` 검증으로 확정해 JWKS 설정이 필요 없어졌다
 
 - Node 24는 `--env-file`을 기본 지원하므로 dotenv 의존성을 추가하지 않는다. `dev` 스크립트에 플래그를 붙인다
 - `.env`·`.env.local`은 커밋하지 않는다. 서버 워크스페이스에 `.gitignore`를 추가한다
