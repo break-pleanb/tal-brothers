@@ -22,6 +22,8 @@ export type HttpAppDeps = {
   auth: AuthVerifier
   repository: RoomRepository | null
   corsOrigins: string[]
+  /** 개발용 옵션(짧은 게임 시계)을 받을지. 운영에서는 false다 (아키텍처 §8) */
+  devOptionsEnabled?: boolean
   now(): number
 }
 
@@ -60,6 +62,7 @@ export function createHttpApp(deps: HttpAppDeps): Express {
       rooms: deps.rooms,
       repository: deps.repository,
       requireAuth: createRequireAuth(deps.auth),
+      devOptionsEnabled: deps.devOptionsEnabled === true,
       now: deps.now,
     }),
   )

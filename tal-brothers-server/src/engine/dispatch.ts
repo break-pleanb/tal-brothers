@@ -105,7 +105,7 @@ const MAX_TRANSITIONS = 32
 
 /**
  * 단계로 진입한다. 진입 처리가 또 다른 전이를 요청하면 연쇄로 처리한다
- * (예: `RESOLUTION`은 타이머 없이 곧바로 다음 이벤트로 넘어간다).
+ * (예: 선택지가 1개인 이벤트는 투표를 건너뛰고 곧바로 굴림 대기로 넘어간다).
  */
 export function enterStep(
   draft: GameState,

@@ -38,6 +38,11 @@ export type RoomOptions = {
   scheduler: Scheduler
   /** 방마다 운영용 난수 1개를 들고 있는다 (아키텍처 §5.5) */
   rng: Rng
+  /**
+   * 이 방의 게임 시계 길이(분). 생략하면 룰북 §19의 100분이다.
+   * **개발용 시계 단축**만 값을 넣는다 (아키텍처 §8)
+   */
+  clockMinutes?: number
 }
 
 type QueueItem = {
@@ -71,7 +76,11 @@ export function createRoom(options: RoomOptions): Room {
   const createdAt = scheduler.now()
 
   let state: GameState = createGame(
-    { roomCode: options.code, hostUserId: options.hostUserId },
+    {
+      roomCode: options.code,
+      hostUserId: options.hostUserId,
+      ...(options.clockMinutes === undefined ? {} : { clockMinutes: options.clockMinutes }),
+    },
     { now: createdAt, rng },
   ).state
 
@@ -100,6 +109,8 @@ export function createRoom(options: RoomOptions): Room {
     return {
       t: SERVER_MESSAGE_TYPE.SNAPSHOT,
       stateVersion: source.meta.stateVersion,
+      // 마감 시각이 서버 기준이라 받는 쪽이 시계 차이를 보정할 수 있게 함께 보낸다 (아키텍처 §7.2)
+      serverNow: scheduler.now(),
       snapshot,
     }
   }

@@ -63,6 +63,13 @@ export type WelcomeMessage = {
 export type SnapshotMessage = {
   t: typeof SERVER_MESSAGE_TYPE.SNAPSHOT
   stateVersion: number
+  /**
+   * 이 스냅샷을 보낸 **서버의 현재 시각** (epoch ms, 아키텍처 §7.2).
+   *
+   * 마감 시각(`stepDeadlineAt`·`clockDeadlineAt`)은 모두 서버 기준이라, 클라이언트 시계가
+   * 틀어져 있으면 카운트다운이 그만큼 틀린다. 받은 쪽이 `serverNow - Date.now()`를 오프셋으로 잡는다
+   */
+  serverNow: number
   /** Display는 `DisplaySnapshot`, 좌석은 `SeatSnapshot`, 좌석을 고르기 전에는 `PublicSnapshot` */
   snapshot: DisplaySnapshot | SeatSnapshot | PublicSnapshot
 }

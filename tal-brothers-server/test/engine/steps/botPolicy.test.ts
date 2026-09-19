@@ -188,7 +188,11 @@ describe('봇 부적 자동 사용 (룰북 §11 확정)', () => {
       },
     ])
 
-    // 성공으로 바뀌어 결과까지 진행된다 (이장 B 성공 → 판정자 +5%, 부적 1개)
+    // 성공으로 바뀌어 결과 적용까지 진행된다 (이장 B 성공 → 판정자 +5%, 부적 1개)
+    expect(game.state.progress.step).toBe(GAME_STEP.RESOLUTION)
+
+    // 결과 표시 3초가 지나야 다음 Phase로 간다 (룰북 §19)
+    game.tick()
     expect(game.state.progress.phase).toBe(GAME_PHASE.PHASE_2)
     // Phase 2 진입 시 부적 보유자는 경고만 받고 잠식이 오르지 않는다 (룰북 §13.1)
     expect(seat(game, BROTHER_ROLE.THIRD).erosionPercent - erosionBefore).toBe(5)
@@ -277,6 +281,8 @@ describe('첫째 봇 강제 성공 (룰북 §11)', () => {
     expect(seat(game, BROTHER_ROLE.FIRST).isBot).toBe(true)
     expect(judgment(game).forcedSuccess).toBe(false)
 
+    game.tick()
+    // 결과 표시 3초 뒤에 다음 Phase로 간다 (룰북 §19)
     game.tick()
     expect(game.state.progress.phase).toBe(GAME_PHASE.PHASE_2)
     // 강제 성공 대가(+15%)를 치르지 않았고, Phase 2 진입 환청만 올랐다 (룰북 §13.1)

@@ -18,6 +18,11 @@ export type ServerEnv = {
   helloTimeoutMs: number
   /** 마지막 활동 후 방을 보관하는 시간 */
   roomTtlMs: number
+  /**
+   * 개발용 옵션을 받을지 (아키텍처 §8).
+   * `NODE_ENV`가 `production`이 아닐 때만 켜진다. **운영에서는 요청에 값이 들어와도 무시한다**
+   */
+  devOptionsEnabled: boolean
 }
 
 export const SERVER_ENV_DEFAULTS = {
@@ -48,6 +53,7 @@ function optionalNumber(env: NodeJS.ProcessEnv, key: string, fallback: number): 
 
 export function loadServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
   return {
+    devOptionsEnabled: (env.NODE_ENV ?? '').trim() !== 'production',
     port: optionalNumber(env, 'PORT', SERVER_ENV_DEFAULTS.port),
     supabaseUrl: required(env, 'SUPABASE_URL'),
     supabaseServiceRoleKey: required(env, 'SUPABASE_SERVICE_ROLE_KEY'),

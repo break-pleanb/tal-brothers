@@ -31,6 +31,11 @@ export type RoomRegistryOptions = {
 export type CreateRoomRequest = {
   hostUserId: string
   hostDisplayName?: string | null
+  /**
+   * 이 방의 게임 시계 길이(분). 생략하면 룰북 §19의 100분이다.
+   * **개발용 시계 단축** 전용이고, 받을지 말지는 REST 계층이 판단한다 (아키텍처 §8)
+   */
+  clockMinutes?: number
 }
 
 export type RoomRegistry = {
@@ -76,6 +81,7 @@ export function createRoomRegistry(options: RoomRegistryOptions): RoomRegistry {
         hostDisplayName: request.hostDisplayName ?? null,
         scheduler: options.scheduler,
         rng: createRng(),
+        ...(request.clockMinutes === undefined ? {} : { clockMinutes: request.clockMinutes }),
       })
       rooms.set(code, room)
       return room

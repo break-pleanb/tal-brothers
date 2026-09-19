@@ -2,6 +2,7 @@ import { API_ERROR_CODE } from 'tal-brothers-shared'
 import type {
   ApiErrorBody,
   ApiErrorCode,
+  CreateRoomRequest,
   CreateRoomResponse,
   JoinRoomResponse,
   RoomInfoResponse,
@@ -56,8 +57,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T
 }
 
-export function createRoom(): Promise<CreateRoomResponse> {
-  return request<CreateRoomResponse>('/api/rooms', { method: 'POST' })
+/**
+ * 방을 만든다.
+ * `body`에는 개발용 항목만 들어간다. **운영 서버는 그 값을 무시한다** (아키텍처 §8)
+ */
+export function createRoom(body: CreateRoomRequest = {}): Promise<CreateRoomResponse> {
+  return request<CreateRoomResponse>('/api/rooms', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
 }
 
 export function fetchRoom(roomCode: string): Promise<RoomInfoResponse> {

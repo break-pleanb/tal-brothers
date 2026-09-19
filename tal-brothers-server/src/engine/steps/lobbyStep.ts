@@ -1,7 +1,6 @@
 import { COMMAND_TYPE, DEVICE_ROLE, GAME_STEP, REJECTION_REASON } from 'tal-brothers-shared'
 import type { BrotherRole, Command } from 'tal-brothers-shared'
 
-import { GAME_CONFIG } from '../../scenario/gameConfig'
 import { LOG_CODE, reject } from '../engineTypes'
 import type { ActionActor, EngineContext, Rejection, StepOutput } from '../engineTypes'
 import { isHumanSeat, isSeatOccupied, seatOfUser } from '../rules/seatControl'
@@ -79,7 +78,8 @@ function pickSeat(
 
   if (previous !== null) clearSeat(draft, previous)
   seat.userId = actor.userId
-  seat.displayName = null
+  // 표시 이름은 게임 중 좌석 줄·공개 알림에도 쓴다 (룰북 §17, §21)
+  seat.displayName = actor.displayName ?? null
 
   out.logs.push({
     at: context.now,
@@ -142,8 +142,9 @@ function startGame(
     filled.push(role)
   }
 
-  // 게임 시계는 로비가 아니라 시작 시점부터 흐른다 (룰북 §2.1)
-  draft.clock.deadlineAt = context.now + GAME_CONFIG.gameClockMinutes * 60_000
+  // 게임 시계는 로비가 아니라 시작 시점부터 흐른다 (룰북 §2.1).
+  // 길이는 방을 만들 때 정해진 값이다 — 기본은 룰북 §19의 100분이다 (아키텍처 §8)
+  draft.clock.deadlineAt = context.now + draft.clock.durationMs
 
   out.logs.push({
     at: context.now,

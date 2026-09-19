@@ -1,5 +1,10 @@
 import { API_ERROR_CODE, GAME_STEP } from 'tal-brothers-shared'
-import type { CreateRoomResponse, JoinRoomResponse, RoomInfoResponse } from 'tal-brothers-shared'
+import type {
+  CreateRoomRequest,
+  CreateRoomResponse,
+  JoinRoomResponse,
+  RoomInfoResponse,
+} from 'tal-brothers-shared'
 import { Router } from 'express'
 import type { Request, Response } from 'express'
 
@@ -27,7 +32,29 @@ export type RoomsRouterDeps = {
   /** `rooms` 테이블 기록. 실패해도 방 진행을 막지 않는다 (원본은 메모리) */
   repository: RoomRepository | null
   requireAuth: ReturnType<typeof import('./requireAuth').createRequireAuth>
+  /** 개발용 옵션을 받을지. 운영에서는 false라 본문의 개발용 값을 통째로 무시한다 (아키텍처 §8) */
+  devOptionsEnabled: boolean
   now(): number
+}
+
+/** 개발용 시계 단축의 허용 범위(분). 상한은 룰북 §19의 기본값이다 */
+const DEV_CLOCK_MINUTES_RANGE = { min: 1, max: 100 } as const
+
+/**
+ * 개발용 시계 단축 (아키텍처 §8).
+ *
+ * **운영 환경에서는 값이 들어와도 무시한다.** 범위를 벗어나거나 정수가 아니면 없는 것으로 본다 —
+ * 개발 편의 값 하나 때문에 방 생성이 실패하면 안 된다.
+ */
+function devClockMinutesOf(body: unknown, enabled: boolean): number | undefined {
+  if (!enabled) return undefined
+
+  const value = (body as CreateRoomRequest | undefined)?.devClockMinutes
+  if (typeof value !== 'number' || !Number.isInteger(value)) return undefined
+  if (value < DEV_CLOCK_MINUTES_RANGE.min || value > DEV_CLOCK_MINUTES_RANGE.max) {
+    return undefined
+  }
+  return value
 }
 
 /** Express 5의 경로 파라미터는 배열일 수 있다. 방 코드는 항상 한 개다 */
@@ -63,7 +90,12 @@ export function createRoomsRouter(deps: RoomsRouterDeps): Router {
 
   router.post('/rooms', deps.requireAuth, (request: Request, response: Response) => {
     const user = authUserOf(request)
-    const room = deps.rooms.create({ hostUserId: user.userId, hostDisplayName: user.displayName })
+    const clockMinutes = devClockMinutesOf(request.body, deps.devOptionsEnabled)
+    const room = deps.rooms.create({
+      hostUserId: user.userId,
+      hostDisplayName: user.displayName,
+      ...(clockMinutes === undefined ? {} : { clockMinutes }),
+    })
 
     const body: CreateRoomResponse = {
       roomCode: room.code,

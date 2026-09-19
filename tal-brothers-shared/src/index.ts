@@ -58,6 +58,7 @@ export type {
   PublicSnapshot,
   PublicView,
   SeatConnectionView,
+  SeatNameView,
   SeatPrivateView,
   SeatSnapshot,
   VoteView,
@@ -81,6 +82,7 @@ export type {
 
 export type {
   ApiErrorBody,
+  CreateRoomRequest,
   CreateRoomResponse,
   EmptyRequestBody,
   HealthResponse,

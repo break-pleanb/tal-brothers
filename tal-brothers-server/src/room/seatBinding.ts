@@ -28,6 +28,7 @@ export function actorOf(state: GameState, connection: RoomConnection): ActionAct
   return {
     device: connection.deviceRole,
     userId: connection.userId,
+    displayName: connection.displayName,
     seat: seatOfConnection(state, connection),
   }
 }

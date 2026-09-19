@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { ROUTE_NAME } from '@/constants/routeName'
 import { useRoomSocket } from '@/composables/useRoomSocket'
 import { resolveDeviceRole } from '@/lib/deviceRole'
-import { useLobbyStore } from '@/stores/lobby'
+import { usePlayStore } from '@/stores/play'
 
 /**
  * 로비 (M3 계획 6.3, 10절 14번).
@@ -22,16 +22,16 @@ import { useLobbyStore } from '@/stores/lobby'
 
 const route = useRoute()
 const router = useRouter()
-const lobby = useLobbyStore()
+const play = usePlayStore()
 
 const roomCode = String(route.params.roomCode ?? '').toUpperCase()
 const deviceRole = resolveDeviceRole(roomCode)
 const socket = useRoomSocket(roomCode, deviceRole)
 
-const seats = computed(() => lobby.lobby?.seats ?? [])
-const canStart = computed(() => lobby.lobby?.canStart === true)
+const seats = computed(() => play.lobby?.seats ?? [])
+const canStart = computed(() => play.lobby?.canStart === true)
 const statusLabel = computed(() => {
-  switch (lobby.status) {
+  switch (play.status) {
     case 'open':
       return '연결됨'
     case 'connecting':
@@ -57,7 +57,7 @@ function start(): void {
 
 // 시작하면 기기 역할에 따라 갈라진다 (M3 계획 10절 15번)
 watch(
-  () => lobby.step,
+  () => play.step,
   async (step) => {
     if (step === null || step === GAME_STEP.LOBBY) return
     const name = deviceRole === DEVICE_ROLE.DISPLAY ? ROUTE_NAME.DISPLAY : ROUTE_NAME.PLAY
@@ -72,7 +72,7 @@ watch(
       <div>
         <h1 class="text-2xl font-semibold tracking-widest">{{ roomCode }}</h1>
         <p class="text-xs text-neutral-400">
-          {{ lobby.isDisplay ? '중계 화면' : '조작 기기' }} · {{ statusLabel }}
+          {{ play.isDisplay ? '중계 화면' : '조작 기기' }} · {{ statusLabel }}
         </p>
       </div>
       <RouterLink class="text-sm text-neutral-400 underline" :to="{ name: ROUTE_NAME.MAIN_MENU }">
@@ -80,16 +80,16 @@ watch(
       </RouterLink>
     </header>
 
-    <p v-if="lobby.snapshot === null" class="text-sm text-neutral-400">방 정보를 받는 중…</p>
+    <p v-if="play.snapshot === null" class="text-sm text-neutral-400">방 정보를 받는 중…</p>
 
-    <template v-else-if="lobby.inLobby">
+    <template v-else-if="play.inLobby">
       <!-- Display: 방 코드, 초대 QR, 좌석 현황, 봇 토글, 시작 -->
-      <template v-if="lobby.isDisplay">
+      <template v-if="play.isDisplay">
         <JoinQrPanel :room-code="roomCode" />
         <SeatBoard
           :seats="seats"
-          :connections="lobby.seatConnections"
-          :my-seat="lobby.mySeat"
+          :connections="play.seatConnections"
+          :my-seat="play.mySeat"
           :selectable="false"
         />
         <BotToggle :seats="seats" @toggle="toggleBot" />
@@ -106,18 +106,18 @@ watch(
         <SeatBoard
           :seats="seats"
           :connections="null"
-          :my-seat="lobby.mySeat"
+          :my-seat="play.mySeat"
           :selectable="true"
           @pick="pickSeat"
         />
         <p class="text-sm text-neutral-400">
-          {{ lobby.mySeat === null ? '아직 자리를 고르지 않았습니다.' : '호스트가 시작하기를 기다립니다.' }}
+          {{ play.mySeat === null ? '아직 자리를 고르지 않았습니다.' : '호스트가 시작하기를 기다립니다.' }}
         </p>
       </template>
     </template>
 
     <p v-else class="text-sm text-neutral-400">게임이 시작됐습니다. 화면을 옮기는 중…</p>
 
-    <p v-if="lobby.message" class="text-sm text-amber-300">{{ lobby.message }}</p>
+    <p v-if="play.message" class="text-sm text-amber-300">{{ play.message }}</p>
   </section>
 </template>

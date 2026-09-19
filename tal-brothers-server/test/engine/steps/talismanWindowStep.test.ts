@@ -63,7 +63,9 @@ describe('14A 선택지 (룰북 §13.5)', () => {
 
     expect(game.send(BROTHER_ROLE.SECOND, submit).rejected).toBe(false)
 
-    // 결과 적용까지 한 번에 진행돼 다음 이벤트로 넘어간다
+    // 제출 즉시 결과가 적용되고, 결과 표시 3초 뒤에 다음 이벤트로 넘어간다 (룰북 §19)
+    expect(game.state.progress.step).toBe(GAME_STEP.RESOLUTION)
+    game.tick()
     expect(game.state.progress.eventIndex).toBe(1)
     expect(game.state.seats[BROTHER_ROLE.SECOND].erosionPercent).toBe(
       40 - 15 + GAME_CONFIG.environmentErosionPercent,
@@ -120,6 +122,9 @@ describe('14A 선택지 (룰북 §13.5)', () => {
 
     game.tick()
     // 제출 창 다음은 곧바로 결과 적용이라 개입 단계를 지나지 않는다
+    expect(game.state.progress.step).toBe(GAME_STEP.RESOLUTION)
+
+    game.tick()
     expect(game.state.progress.step).toBe(GAME_STEP.EVENT_INTRO)
     expect(game.state.currentEvent?.eventId).toBe('p2-02')
   })

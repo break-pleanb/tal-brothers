@@ -18,11 +18,19 @@ import type { GameState } from '../state/gameState'
 import { adoptedChoice, coopTopSeat, currentScenarioEvent } from './rollStep'
 
 /**
- * 결과 적용 (룰북 §3.2, §4.2, §5.4, §5.5, §9.2). 타이머 없이 곧바로 다음 단계로 넘어간다.
+ * 결과 적용 (룰북 §3.2, §4.2, §5.4, §5.5, §9.2).
  *
- * ① 비공개 판정 대가 고정 적용 ② 적용된 팀 플래그 소멸 ③ 변이 적용된 결과 선택
- * ④ 강제 성공이면 보상 제거 ⑤ 효과 적용 ⑥ 환경 잠식 ⑦ T1 종료 시 튜토리얼 부적 소멸
- * ⑧ 다음 이벤트 또는 다음 Phase
+ * 진입에서 효과를 모두 적용하고 **3초 머문다** (룰북 §19, 아키텍처 §5.3).
+ * 체류를 서버 단계로 두어야 Display와 모든 Controller가 같은 시점에 같은 결과를 본다.
+ * 다음 이벤트·Phase로 넘어가는 일은 타이머 만료가 한다.
+ *
+ * 진입: ① 비공개 판정 대가 고정 적용 ② 적용된 팀 플래그 소멸 ③ 변이 적용된 결과 선택
+ * ④ 강제 성공이면 보상 제거 ⑤ 효과 적용 ⑥ 환경 잠식 ⑦ T1 종료 시 튜토리얼 부적 소멸 ⑧ 체류 마감 설정
+ *
+ * 만료: 다음 이벤트 또는 다음 Phase
+ *
+ * **효과 적용 직후 게임이 끝나는 경우는 체류하지 않는다** — 타임오버, 인간 전원 배신자, Phase 3.
+ * 엔딩 화면이 곧 결과 화면이라 같은 내용을 두 번 기다리게 된다.
  */
 
 /** Phase 2 랜덤 이벤트가 끝날 때마다 전원 +5% (룰북 §4.2) */
@@ -204,6 +212,11 @@ export const RESOLUTION_HANDLER: StepHandler = {
       return
     }
 
+    // 결과를 볼 시간을 둔다. 다음 단계 전이는 타이머 만료가 한다 (룰북 §19, 아키텍처 §5.3)
+    draft.progress.stepDeadlineAt = context.now + GAME_CONFIG.resolutionSeconds * 1000
+  },
+
+  timeout(draft, context, out) {
     draft.progress.eventIndex += 1
     if (draft.progress.eventIndex < draft.progress.eventOrder.length) {
       out.next = GAME_STEP.EVENT_INTRO

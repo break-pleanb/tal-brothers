@@ -13,6 +13,8 @@ export const GAME_CONFIG = {
   votingSeconds: 180,
   /** 판정 연출 (룰북 §19) */
   rollRevealSeconds: 3,
+  /** 결과 표시 — 효과 적용 후 체류 (룰북 §19, §21 확정) */
+  resolutionSeconds: 3,
   /** 연습 개입 창 — 단일 단계 (룰북 §12) */
   practiceInterventionSeconds: 12,
   /** 개입 창 1단계 — 둘째 재굴림 (룰북 §7.2) */

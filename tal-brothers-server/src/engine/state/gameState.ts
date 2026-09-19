@@ -250,6 +250,12 @@ export type GameState = {
     displayConnected: boolean
   }
   clock: {
+    /**
+     * 이 방의 게임 시계 길이 (밀리초).
+     * 기본은 룰북 §19의 100분이고, **개발용 시계 단축**으로 방마다 줄일 수 있다 (아키텍처 §8).
+     * 시작 시점에 이 값으로 마감 시각을 건다
+     */
+    durationMs: number
     /** 게임 시계 마감 시각 (룰북 §2.1) */
     deadlineAt: number
     /** 시계가 0을 지난 시각. Phase 3는 0을 지나도 진행하므로 지난 사실만 남긴다 (룰북 §14.2) */

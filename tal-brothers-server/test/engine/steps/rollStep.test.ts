@@ -145,7 +145,11 @@ describe('비공개 판정 (룰북 §5.4, §7.1)', () => {
     expect(judgment(game).succeeded).toBe(false)
 
     game.tick()
-    // RESOLUTION은 타이머 없이 다음 이벤트로 넘어간다
+    // 개입 창을 거치지 않고 곧바로 결과 적용으로 간다
+    expect(game.state.progress.step).toBe(GAME_STEP.RESOLUTION)
+
+    // 결과 표시 3초 뒤에 다음 이벤트로 넘어간다 (룰북 §19)
+    game.tick()
     expect(game.state.progress.step).toBe(GAME_STEP.EVENT_INTRO)
     expect(game.state.currentEvent?.eventId).toBe('villageChief')
   })

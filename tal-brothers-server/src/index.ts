@@ -33,6 +33,7 @@ const app = createHttpApp({
   auth,
   repository: createRoomRepository(supabase),
   corsOrigins: env.corsOrigins,
+  devOptionsEnabled: env.devOptionsEnabled,
   now: () => scheduler.now(),
 })
 

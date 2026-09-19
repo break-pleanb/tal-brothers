@@ -126,17 +126,25 @@ describe('투표 집계 로그와 게임 시계 (룰북 §2.1, §8)', () => {
     game.send(BROTHER_ROLE.SECOND, vote('t2-2-b'))
     expect(game.state.progress.step).toBe(GAME_STEP.VOTING)
 
-    // 투표 마감 → 판정 없는 선택지라 RESOLUTION을 거쳐 다음 이벤트로 간다
+    // 투표 마감 → 판정 없는 선택지라 곧바로 결과 적용으로 간다
+    game.tick()
+    expect(game.state.progress.step).toBe(GAME_STEP.RESOLUTION)
+    // 집계 로그는 투표를 마감한 그 처리에 담긴다
+    const tally = tallyData(game.last.logs)
+
+    // 결과 표시 3초 뒤에 다음 이벤트로 간다 (룰북 §19)
     game.tick()
     expect(game.state.currentEvent?.eventId).toBe('villageChief')
 
     const elapsed = game.now - enteredAt
-    const introAndVoting = (GAME_CONFIG.eventIntroSeconds + GAME_CONFIG.votingSeconds) * 1000
-    expect(elapsed).toBe(introAndVoting + GAME_CONFIG.inputGraceMs * 2)
+    const stepSeconds =
+      GAME_CONFIG.eventIntroSeconds + GAME_CONFIG.votingSeconds + GAME_CONFIG.resolutionSeconds
+    // 단계 3개를 지났으므로 입력 유예도 3번 붙는다 (아키 §5.3)
+    expect(elapsed).toBe(stepSeconds * 1000 + GAME_CONFIG.inputGraceMs * 3)
 
     // 시간 페널티가 없으므로 게임 시계는 흐른 시간만큼만 줄어든다
     expect(remainingBefore - (game.state.clock.deadlineAt - game.now)).toBe(elapsed)
-    expect(tallyData(game.last.logs)).toMatchObject({ eventId: 't2-2', earlyClosed: false })
+    expect(tally).toMatchObject({ eventId: 't2-2', earlyClosed: false })
   })
 
   it('조기 마감이면 마지막 표까지 집계 로그에 담기고 투표 시간은 흐르지 않는다', () => {
@@ -146,10 +154,10 @@ describe('투표 집계 로그와 게임 시계 (룰북 §2.1, §8)', () => {
 
     game.send(BROTHER_ROLE.FIRST, vote('t2-2-b'))
     game.send(BROTHER_ROLE.SECOND, vote('t2-2-b'))
-    // 마지막 표는 집계·채택·다음 이벤트 진입이 한 처리 안에서 끝나 상태로는 남지 않는다
+    // 마지막 표는 집계·채택·결과 적용이 한 처리 안에서 끝난다
     game.send(BROTHER_ROLE.THIRD, vote('t2-2-a'))
 
-    expect(game.state.currentEvent?.eventId).toBe('villageChief')
+    expect(game.state.progress.step).toBe(GAME_STEP.RESOLUTION)
     expect(tallyData(game.last.logs)).toEqual({
       eventId: 't2-2',
       adoptedChoiceId: 't2-2-b',
@@ -157,6 +165,10 @@ describe('투표 집계 로그와 게임 시계 (룰북 §2.1, §8)', () => {
       earlyClosed: true,
     })
     expect(game.now).toBe(votingStartedAt)
+
+    // 결과 표시 3초만 지나고 투표 시간은 흐르지 않았다 (룰북 §19)
+    game.tick()
+    expect(game.state.currentEvent?.eventId).toBe('villageChief')
   })
 
   it('기권이 있으면 집계 로그에 던진 표만 담긴다', () => {

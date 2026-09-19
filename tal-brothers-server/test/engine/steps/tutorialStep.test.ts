@@ -124,6 +124,10 @@ describe('연습 개입 창 (룰북 §12, §19)', () => {
     toPracticeWindow(game)
 
     game.tick()
+    expect(game.state.progress.step).toBe(GAME_STEP.RESOLUTION)
+
+    // 결과 표시 3초 뒤에 다음 이벤트로 간다 (룰북 §19)
+    game.tick()
     expect(game.state.currentEvent?.eventId).toBe('t2-1')
   })
 })

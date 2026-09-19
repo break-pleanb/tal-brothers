@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import { DEVICE_ROLE } from 'tal-brothers-shared'
 
@@ -16,7 +16,19 @@ import { useAuthStore } from '@/stores/auth'
  */
 
 const auth = useAuthStore()
+const route = useRoute()
 const router = useRouter()
+
+/**
+ * 개발용 시계 단축 — `/menu?clock=3`으로 3분짜리 방을 만든다 (아키텍처 §8).
+ * 화면에 버튼을 두지 않는 이유는 **운영에서 쓰는 기능이 아니기** 때문이다.
+ * 서버가 개발 환경이 아니면 이 값을 무시한다
+ */
+const devClockMinutes = computed<number | undefined>(() => {
+  const raw = route.query.clock
+  const value = Number(Array.isArray(raw) ? raw[0] : raw)
+  return Number.isInteger(value) && value > 0 ? value : undefined
+})
 
 const creating = ref(false)
 const joinCode = ref('')
@@ -26,7 +38,9 @@ async function makeRoom(): Promise<void> {
   creating.value = true
   message.value = null
   try {
-    const room = await createRoom()
+    const room = await createRoom(
+      devClockMinutes.value === undefined ? {} : { devClockMinutes: devClockMinutes.value },
+    )
     // 방을 만든 이 기기가 중계 화면이다 (아키텍처 §1)
     rememberDeviceRole(room.roomCode, DEVICE_ROLE.DISPLAY)
     await router.push({ name: ROUTE_NAME.LOBBY, params: { roomCode: room.roomCode } })

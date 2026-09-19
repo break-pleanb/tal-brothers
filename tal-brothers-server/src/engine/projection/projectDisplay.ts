@@ -3,6 +3,7 @@ import type {
   AssetKey,
   ChoiceView,
   DisplaySnapshot,
+  EndingView,
   JudgmentView,
   LobbySeatView,
   LobbyView,
@@ -11,6 +12,7 @@ import type {
   Phase3View,
   PublicView,
   SeatConnectionView,
+  SeatNameView,
   VoteView,
 } from 'tal-brothers-shared'
 
@@ -20,6 +22,7 @@ import { hasAttribute, hasJudgment } from '../../scenario/scenarioTypes'
 import type { Choice, ScenarioEvent } from '../../scenario/scenarioTypes'
 import { canStartGame } from '../steps/lobbyStep'
 import { isHumanSeat, isSeatOccupied } from '../rules/seatControl'
+import { traitorSeats } from '../rules/traitor'
 import { SEAT_ORDER } from '../state/gameState'
 import type { GameState, JudgmentState } from '../state/gameState'
 import { findScenarioEvent, judgmentFinalValue } from '../steps/rollStep'
@@ -143,6 +146,50 @@ function projectNotices(state: GameState): NoticeView[] {
   return state.notices.map((notice) => ({ kind: notice.kind, text: notice.text }))
 }
 
+/**
+ * 좌석 표시 이름 (룰북 §17, §21).
+ * 로비뿐 아니라 게임 중에도 좌석 줄·공개 알림이 쓴다. `userId`는 담지 않는다.
+ */
+function projectSeatNames(state: GameState): SeatNameView[] {
+  return SEAT_ORDER.map((role) => ({
+    seat: role,
+    displayName: state.seats[role].displayName,
+  }))
+}
+
+/**
+ * 현재 Phase에서 몇 번째 이벤트인지 (1부터, 룰북 §17, §21).
+ *
+ * **총 개수는 담지 않는다.** 남은 개수를 알면 부적 사용 시점이 계산 문제가 되기 때문이다.
+ * 진행 중인 이벤트가 없는 단계(로비·Phase 3 장면·엔딩)는 null이다.
+ */
+function projectEventNumber(state: GameState): number | null {
+  const eventId = state.currentEvent?.eventId
+  if (eventId === undefined) return null
+
+  const index = state.progress.eventOrder.indexOf(eventId)
+  return index < 0 ? null : index + 1
+}
+
+/**
+ * 엔딩 (룰북 §15, §17, §21).
+ *
+ * **배신자 승패와 정체는 `ENDING` 단계에서만** 담는다. 판이 끝난 뒤라 심리전에 영향이 없다.
+ * 그 전에는 어떤 경로로도 나가지 않는다.
+ */
+function projectEnding(state: GameState): EndingView | null {
+  const ending = state.ending
+  if (ending === null) return null
+
+  const revealed = state.progress.step === GAME_STEP.ENDING
+  return {
+    id: ending.id,
+    narrationKey: ending.narrationKey,
+    traitorWon: revealed ? ending.traitorWon : null,
+    traitorSeats: revealed ? traitorSeats(state) : [],
+  }
+}
+
 /** Phase 3 공개 정보 — 타겟과 옥비녀 이동은 Display에 공개한다 (룰북 §17) */
 function projectPhase3(state: GameState): Phase3View | null {
   if (state.phase3 === null) return null
@@ -163,6 +210,8 @@ export function projectPublic(state: GameState): PublicView {
     step: state.progress.step,
     stepDeadlineAt: state.progress.stepDeadlineAt,
     clockDeadlineAt: state.clock.deadlineAt,
+    seatNames: projectSeatNames(state),
+    eventNumber: projectEventNumber(state),
     background: backgroundOf(state, event),
     mask: event?.maskAsset ?? null,
     eventTitle: event?.title ?? null,
@@ -174,10 +223,7 @@ export function projectPublic(state: GameState): PublicView {
     notices: projectNotices(state),
     grabbedSeat: state.currentEvent?.grabbedSeat ?? null,
     phase3: projectPhase3(state),
-    ending:
-      state.ending === null
-        ? null
-        : { id: state.ending.id, narrationKey: state.ending.narrationKey },
+    ending: projectEnding(state),
     lobby: projectLobby(state),
     pause: projectPause(state),
   }

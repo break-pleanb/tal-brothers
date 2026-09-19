@@ -10,8 +10,20 @@ import type { GameStep } from '../constants/gameStep'
  * - 좌석 선택은 여기에 없다. 좌석은 경쟁 자원이라 방당 직렬 큐를 지나야 한다 (ws `lobby.pickSeat`)
  */
 
-/** `POST /api/rooms`, `POST /api/rooms/:roomCode/join` 모두 본문이 없다 */
+/** `POST /api/rooms/:roomCode/join`은 본문이 없다 */
 export type EmptyRequestBody = Record<string, never>
+
+/**
+ * `POST /api/rooms` 본문 (아키텍처 §8).
+ * 개발용 항목뿐이라 모든 필드가 선택이다. **운영 환경의 서버는 이 본문을 통째로 무시한다.**
+ */
+export type CreateRoomRequest = {
+  /**
+   * 이 방의 게임 시계 길이(분). 타임오버·엔딩 화면을 짧은 판으로 확인하기 위한 **개발용**이다.
+   * 룰북 §19의 100분은 그대로 두고 이 방 하나만 바꾼다. 개발 환경에서만 받는다
+   */
+  devClockMinutes?: number
+}
 
 export type CreateRoomResponse = {
   roomCode: string

@@ -39,6 +39,11 @@ export type ActionActor = {
   device: DeviceRole
   /** 로그인 계정. 좌석을 고르지 않은 Controller도 이 값으로 구분한다. 시뮬·단위 테스트는 null */
   userId: string | null
+  /**
+   * 계정의 표시 이름. 좌석을 고를 때 좌석에 옮겨 적어 로비와 게임 화면이 함께 쓴다 (룰북 §17, §21).
+   * 프로필이 없거나 시뮬·단위 테스트면 없다
+   */
+  displayName?: string | null
   /** 이 소켓에 붙은 좌석. Display와 좌석 미선택 Controller는 null */
   seat: BrotherRole | null
 }

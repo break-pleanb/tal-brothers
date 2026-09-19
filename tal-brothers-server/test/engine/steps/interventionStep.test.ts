@@ -62,6 +62,10 @@ describe('개입 창 열림 조건 (룰북 §7.1)', () => {
     chief.send(BROTHER_ROLE.SECOND, roll)
     expect(judgment(chief).succeeded).toBe(true)
     chief.tick()
+    expect(chief.state.progress.step).toBe(GAME_STEP.RESOLUTION)
+
+    // 결과 표시 3초 뒤에 다음 Phase로 간다 (룰북 §19)
+    chief.tick()
     expect(chief.state.progress.phase).toBe(GAME_PHASE.PHASE_2)
   })
 })
@@ -104,6 +108,11 @@ describe('개입 창 순서와 시간 (룰북 §7.2, §7.3, §19)', () => {
     expect(game.send(BROTHER_ROLE.SECOND, reroll).rejected).toBe(false)
 
     // 성공으로 바뀌면 남은 단계를 건너뛰고 결과로 간다 (§7.2가 §12의 연습 창보다 우선)
+    expect(game.state.progress.step).toBe(GAME_STEP.RESOLUTION)
+    expect(game.state.currentEvent?.eventId).toBe('t1')
+
+    // 결과 표시 3초 뒤에 다음 이벤트로 간다 (룰북 §19)
+    game.tick()
     expect(game.state.progress.step).toBe(GAME_STEP.EVENT_INTRO)
     expect(game.state.currentEvent?.eventId).toBe('t2-1')
   })
@@ -238,6 +247,10 @@ describe('강제 성공 (룰북 §3.2)', () => {
 
     expect(game.send(BROTHER_ROLE.FIRST, forceSuccess).rejected).toBe(false)
     expect(game.state.seats[BROTHER_ROLE.FIRST].abilityUsed).toBe(true)
+    expect(game.state.progress.step).toBe(GAME_STEP.RESOLUTION)
+
+    // 결과 표시 3초 뒤에 다음 Phase로 간다 (룰북 §19)
+    game.tick()
     expect(game.state.progress.phase).toBe(GAME_PHASE.PHASE_2)
 
     // 이장이 Phase 1 마지막 이벤트라 결과 적용에 Phase 2 진입 환청 +20%가 이어진다 (룰북 §13.1).
@@ -270,6 +283,10 @@ describe('강제 성공 (룰북 §3.2)', () => {
     game.tick()
     game.tick()
     // 첫째 단계를 건너뛰고 결과로 간다 (본게임이므로 설명 표시 없음)
+    expect(game.state.progress.step).toBe(GAME_STEP.RESOLUTION)
+
+    // 결과 표시 3초 뒤에 다음 Phase로 간다 (룰북 §19)
+    game.tick()
     expect(game.state.progress.phase).toBe(GAME_PHASE.PHASE_2)
   })
 

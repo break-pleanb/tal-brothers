@@ -96,6 +96,24 @@ export type EndingView = {
   id: EndingId
   /** 1인 플레이 전용 내레이션 분기 (룰북 §14.5) */
   narrationKey: string | null
+  /**
+   * 배신자 승패 (룰북 §15).
+   * 배신자가 한 명도 없는 판은 승패를 판정하지 않으므로 `null`(해당 없음)이다.
+   * **판이 끝난 뒤이므로 공개한다** — 심리전에 영향이 없고 관전이 완성되는 지점이다 (룰북 §15, §21)
+   */
+  traitorWon: boolean | null
+  /** 배신자였던 좌석. 배신자가 없으면 빈 배열이다 (룰북 §15, §17) */
+  traitorSeats: BrotherRole[]
+}
+
+/**
+ * 좌석의 표시 이름 (룰북 §17, §21).
+ * 로비뿐 아니라 **게임 중에도** 좌석 줄·공개 알림에 쓴다. `userId`는 어떤 투영에도 넣지 않는다.
+ * 봇 좌석과 아무도 고르지 않은 좌석은 이름이 없어 `null`이다 (화면은 형제 이름으로 대신한다).
+ */
+export type SeatNameView = {
+  seat: BrotherRole
+  displayName: string | null
 }
 
 /** 로비 좌석 1칸. 잠식도·인벤토리는 아직 없고 점유 여부만 보인다 */
@@ -142,6 +160,15 @@ export type PublicView = {
   step: GameStep
   stepDeadlineAt: number | null
   clockDeadlineAt: number
+  /** 좌석 표시 이름 3칸 (룰북 §17, §21) */
+  seatNames: SeatNameView[]
+  /**
+   * 현재 Phase에서 **몇 번째 이벤트인지** (1부터). 진행 중인 이벤트가 없으면 null.
+   *
+   * **총 이벤트 개수는 어떤 투영에도 넣지 않는다** (룰북 §17, §21).
+   * 남은 개수를 알면 부적 사용 시점이 계산 문제가 되어, 압박 지표를 게임 시계 하나로 남긴다
+   */
+  eventNumber: number | null
   background: AssetKey | null
   mask: AssetKey | null
   eventTitle: string | null

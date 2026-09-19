@@ -35,6 +35,11 @@ export type CreateGameOptions = {
   hostUserId?: string | null
   /** 생략하면 좌석 3칸이 모두 비어 있는 로비로 시작한다 (M3-5의 방 생성 경로) */
   seats?: SeatSetup
+  /**
+   * 이 방의 게임 시계 길이(분). 생략하면 룰북 §19의 100분이다.
+   * **개발용 시계 단축** 전용이고, 받을지 말지는 전송 계층이 판단한다 (아키텍처 §8)
+   */
+  clockMinutes?: number
 }
 
 function createSeat(role: BrotherRole, entry: SeatSetupEntry): SeatState {
@@ -90,6 +95,7 @@ export function seatSetupForHumans(humanCount: number): SeatSetup {
 
 export function createGame(options: CreateGameOptions, context: EngineContext): DispatchSuccess {
   const setup = options.seats ?? emptySeatSetup()
+  const clockMinutes = options.clockMinutes ?? GAME_CONFIG.gameClockMinutes
   const seats = {} as Record<BrotherRole, SeatState>
   for (const role of SEAT_ORDER) {
     seats[role] = createSeat(role, setup[role])
@@ -107,8 +113,9 @@ export function createGame(options: CreateGameOptions, context: EngineContext): 
       displayConnected: false,
     },
     clock: {
+      durationMs: clockMinutes * 60_000,
       // 로비에서는 아직 시계가 흐르지 않는다. `lobby.start`가 이 값을 다시 잡는다 (룰북 §2.1)
-      deadlineAt: context.now + GAME_CONFIG.gameClockMinutes * 60_000,
+      deadlineAt: context.now + clockMinutes * 60_000,
       expiredAt: null,
       pausedRemainingMs: null,
     },

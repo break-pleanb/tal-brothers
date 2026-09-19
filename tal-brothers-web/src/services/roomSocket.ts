@@ -27,7 +27,8 @@ export type RoomSocketHandlers = {
   onStatus(status: SocketStatus): void
   onWelcome(message: WelcomeMessage): void
   onSnapshot(message: SnapshotMessage): void
-  onCue(cues: CueView[]): void
+  /** cue와 함께 실려 온 상태 버전. 밀린 cue의 폐기 판단에 쓴다 (M4 계획 4.3) */
+  onCue(cues: CueView[], stateVersion: number): void
   onRejected(message: RejectedMessage): void
   onError(code: string, message: string): void
 }
@@ -94,7 +95,7 @@ export function createRoomSocket(options: RoomSocketOptions): RoomSocket {
       }
 
       case SERVER_MESSAGE_TYPE.CUE:
-        handlers.onCue(message.cues)
+        handlers.onCue(message.cues, message.stateVersion)
         return
 
       case SERVER_MESSAGE_TYPE.REJECTED:
