@@ -1,4 +1,13 @@
-import type { BrotherRole, Command, CueKind, GameStep, RejectionReason } from 'tal-brothers-shared'
+import { DEVICE_ROLE } from 'tal-brothers-shared'
+import type {
+  BrotherRole,
+  Command,
+  CueKind,
+  DeviceRole,
+  GameStep,
+  RejectionReason,
+  SeatConnection,
+} from 'tal-brothers-shared'
 
 import type { Rng } from './random'
 import type { GameState } from './state/gameState'
@@ -6,7 +15,7 @@ import type { GameState } from './state/gameState'
 /**
  * 엔진 인터페이스 (아키텍처 §5.1).
  *
- * - 액션은 두 종류뿐이다: 플레이어 명령, 타이머 만료. 연결 변화(presence)는 M3-2에서 더한다
+ * - 액션은 세 종류뿐이다: 플레이어 명령, 타이머 만료, 연결 변화(presence)
  * - 봇 입력은 별도 액션을 만들지 않고, 봇이 행동해야 하는 단계에서 엔진이 처리한다
  * - 현재 시각과 난수는 컨텍스트로 주입받는다. 엔진은 `Date.now`·`Math.random`을 쓰지 않는다
  */
@@ -14,14 +23,45 @@ import type { GameState } from './state/gameState'
 export const ACTION_KIND = {
   COMMAND: 'command',
   TIMER_EXPIRY: 'timerExpiry',
+  /** 연결 변화 — 런타임이 소켓 open/close를 이 액션으로 옮겨 넣는다 (M3 계획 5.1) */
+  PRESENCE: 'presence',
 } as const
 
 export type ActionKind = (typeof ACTION_KIND)[keyof typeof ACTION_KIND]
 
-/** 플레이어 명령 — 좌석과 명령 내용 */
+/**
+ * 액션을 보낸 주체 (아키텍처 §1, §7.1).
+ *
+ * ws 세션이 아는 것을 그대로 옮긴 모양이다. 좌석 바인딩은 전송 계층의 일이고(M3 계획 3.3 2겹),
+ * 엔진은 여기 실린 좌석을 믿되 **단계·좌석 규칙은 직접 판정한다**(3겹).
+ */
+export type ActionActor = {
+  device: DeviceRole
+  /** 로그인 계정. 좌석을 고르지 않은 Controller도 이 값으로 구분한다. 시뮬·단위 테스트는 null */
+  userId: string | null
+  /** 이 소켓에 붙은 좌석. Display와 좌석 미선택 Controller는 null */
+  seat: BrotherRole | null
+}
+
+/** 좌석에 앉아 있는 Controller. 시뮬·테스트가 쓰는 기본 형태다 */
+export function seatActor(seat: BrotherRole, userId: string | null = null): ActionActor {
+  return { device: DEVICE_ROLE.CONTROLLER, userId, seat }
+}
+
+/** 호스트 PC의 Display */
+export function displayActor(userId: string | null = null): ActionActor {
+  return { device: DEVICE_ROLE.DISPLAY, userId, seat: null }
+}
+
+/** 아직 좌석을 고르지 않은 Controller */
+export function lobbyActor(userId: string): ActionActor {
+  return { device: DEVICE_ROLE.CONTROLLER, userId, seat: null }
+}
+
+/** 플레이어 명령 — 보낸 주체와 명령 내용 */
 export type CommandAction = {
   kind: typeof ACTION_KIND.COMMAND
-  seat: BrotherRole
+  actor: ActionActor
   command: Command
 }
 
@@ -32,7 +72,14 @@ export type TimerExpiryAction = {
   stateVersion: number
 }
 
-export type EngineAction = CommandAction | TimerExpiryAction
+/** 연결 변화 — 대상(좌석 또는 Display)과 연결 상태 (M3 계획 5.1) */
+export type PresenceAction = {
+  kind: typeof ACTION_KIND.PRESENCE
+  target: ActionActor
+  status: SeatConnection
+}
+
+export type EngineAction = CommandAction | TimerExpiryAction | PresenceAction
 
 export type EngineContext = {
   /** epoch ms */
@@ -108,6 +155,19 @@ export const LOG_CODE = {
   CLOCK_TIMEOUT: 'clockTimeout',
   /** 엔딩 확정 (룰북 §15) */
   ENDING_DECIDED: 'endingDecided',
+
+  /** 로비 좌석 변경 (M3 계획 10절 9번) */
+  LOBBY_SEAT_CHANGED: 'lobbySeatChanged',
+  /** 로비 시작 — 빈 좌석은 봇이 된다 (룰북 §1) */
+  LOBBY_STARTED: 'lobbyStarted',
+  /** 연결 변화 (아키텍처 §8) */
+  PRESENCE_CHANGED: 'presenceChanged',
+  /** 봇 대행 시작 (아키텍처 §8) */
+  BOT_TAKEOVER_STARTED: 'botTakeoverStarted',
+  /** 일시정지 (아키텍처 §8) */
+  GAME_PAUSED: 'gamePaused',
+  /** 재개 (아키텍처 §8) */
+  GAME_RESUMED: 'gameResumed',
 } as const
 
 export type LogCode = (typeof LOG_CODE)[keyof typeof LOG_CODE]

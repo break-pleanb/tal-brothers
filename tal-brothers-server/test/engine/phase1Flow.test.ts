@@ -9,10 +9,14 @@ import {
 import type { GameStep } from 'tal-brothers-shared'
 
 import { dispatch } from '../../src/engine/dispatch'
-import { ACTION_KIND } from '../../src/engine/engineTypes'
+import { ACTION_KIND, seatActor } from '../../src/engine/engineTypes'
 import type { DispatchSuccess, LogEntry } from '../../src/engine/engineTypes'
 import { createSeededRng } from '../../src/engine/random'
-import { createGame, seatSetupForHumans } from '../../src/engine/state/createGame'
+import {
+  createGame,
+  seatSetupForHumans,
+  startWithoutLobby,
+} from '../../src/engine/state/createGame'
 import { SEAT_ORDER } from '../../src/engine/state/gameState'
 import { parseArgs, runPhase1 } from '../../src/sim/playPhase1'
 
@@ -210,11 +214,13 @@ describe('시뮬레이션 기록 (로드맵 M1-5)', () => {
 })
 
 describe('액션 검증 (아키 §5.1)', () => {
+  // 로비를 건너뛰고 첫 이벤트에서 시작한다. 여기서 보는 것은 액션 검증이지 로비가 아니다
   function newGame(): DispatchSuccess {
-    return createGame(
+    const created = createGame(
       { roomCode: 'TEST', seats: seatSetupForHumans(3) },
       { now: START, rng: createSeededRng(1) },
     )
+    return startWithoutLobby(created.state, { now: START, rng: createSeededRng(1) })
   }
 
   it('늦은 타이머는 무시된다', () => {
@@ -249,12 +255,13 @@ describe('액션 검증 (아키 §5.1)', () => {
   it('거절된 명령은 상태 버전을 올리지 않고 상태를 바꾸지 않는다', () => {
     const game = newGame()
     const before = JSON.stringify(game.state)
+    const versionBefore = game.state.meta.stateVersion
 
     const result = dispatch(
       game.state,
       {
         kind: ACTION_KIND.COMMAND,
-        seat: BROTHER_ROLE.FIRST,
+        actor: seatActor(BROTHER_ROLE.FIRST),
         command: { type: COMMAND_TYPE.VOTE_SUBMIT, choiceId: 't1-a' },
       },
       { now: START, rng: createSeededRng(1) },
@@ -262,7 +269,7 @@ describe('액션 검증 (아키 §5.1)', () => {
 
     expect(result.rejected).toBe(true)
     expect(JSON.stringify(game.state)).toBe(before)
-    expect(game.state.meta.stateVersion).toBe(1)
+    expect(game.state.meta.stateVersion).toBe(versionBefore)
   })
 
   it('처리기가 없는 단계에서는 모든 액션을 거절한다', () => {
@@ -273,7 +280,7 @@ describe('액션 검증 (아키 §5.1)', () => {
       finished,
       {
         kind: ACTION_KIND.COMMAND,
-        seat: BROTHER_ROLE.FIRST,
+        actor: seatActor(BROTHER_ROLE.FIRST),
         command: { type: COMMAND_TYPE.ROLL_REQUEST },
       },
       { now: START, rng: createSeededRng(1) },

@@ -12,7 +12,7 @@ import type { EndingId } from 'tal-brothers-shared'
 
 import { ENDINGS } from '../../../src/scenario/endings'
 import { dispatch, enterStep, finishDispatch } from '../../../src/engine/dispatch'
-import { ACTION_KIND, createStepOutput } from '../../../src/engine/engineTypes'
+import { ACTION_KIND, createStepOutput, seatActor } from '../../../src/engine/engineTypes'
 import { requestEnding } from '../../../src/engine/steps/endingStep'
 import { createGame, seatSetupForHumans } from '../../../src/engine/state/createGame'
 import type { GameState } from '../../../src/engine/state/gameState'
@@ -107,7 +107,7 @@ describe('엔딩 확정 (룰북 §15)', () => {
       finished.state,
       {
         kind: ACTION_KIND.COMMAND,
-        seat: BROTHER_ROLE.FIRST,
+        actor: seatActor(BROTHER_ROLE.FIRST),
         command: { type: COMMAND_TYPE.ROLL_REQUEST },
       },
       { now: START, rng: LOW },
@@ -174,7 +174,7 @@ describe('타임오버 (룰북 §2.1, §14.2)', () => {
       last.state,
       {
         kind: ACTION_KIND.COMMAND,
-        seat: BROTHER_ROLE.FIRST,
+        actor: seatActor(BROTHER_ROLE.FIRST),
         command: vote('p3-a2'),
       },
       { now, rng: LOW },

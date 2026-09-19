@@ -1,10 +1,13 @@
-import { JUDGMENT_KIND, SEAT_CONNECTION } from 'tal-brothers-shared'
+import { GAME_STEP, JUDGMENT_KIND } from 'tal-brothers-shared'
 import type {
   AssetKey,
   ChoiceView,
   DisplaySnapshot,
   JudgmentView,
+  LobbySeatView,
+  LobbyView,
   NoticeView,
+  PauseView,
   Phase3View,
   PublicView,
   SeatConnectionView,
@@ -15,6 +18,8 @@ import { GAME_CONFIG } from '../../scenario/gameConfig'
 import { BRANCH_SHRINE_BACKGROUND, BRANCH_SHRINE_CHOICE_ID } from '../../scenario/phase2Events'
 import { hasAttribute, hasJudgment } from '../../scenario/scenarioTypes'
 import type { Choice, ScenarioEvent } from '../../scenario/scenarioTypes'
+import { canStartGame } from '../steps/lobbyStep'
+import { isHumanSeat, isSeatOccupied } from '../rules/seatControl'
 import { SEAT_ORDER } from '../state/gameState'
 import type { GameState, JudgmentState } from '../state/gameState'
 import { findScenarioEvent, judgmentFinalValue } from '../steps/rollStep'
@@ -173,10 +178,35 @@ export function projectPublic(state: GameState): PublicView {
       state.ending === null
         ? null
         : { id: state.ending.id, narrationKey: state.ending.narrationKey },
-    // 로비·일시정지 상태는 M3-2에서 상태에 생긴다. 그전까지는 해당 단계가 없어 항상 null이다
-    lobby: null,
-    pause: null,
+    lobby: projectLobby(state),
+    pause: projectPause(state),
   }
+}
+
+/**
+ * 로비 현황 (M3 계획 8.4). `userId`는 어떤 투영에도 넣지 않는다 (룰북 §17).
+ * 잠식도·인벤토리는 아직 없고 좌석 점유 여부만 보인다.
+ */
+function projectLobby(state: GameState): LobbyView | null {
+  if (state.progress.step !== GAME_STEP.LOBBY) return null
+
+  const seats: LobbySeatView[] = SEAT_ORDER.map((role) => {
+    const seat = state.seats[role]
+    return {
+      seat: role,
+      isBot: seat.isBot,
+      occupied: isHumanSeat(seat) && isSeatOccupied(seat),
+      displayName: seat.displayName,
+    }
+  })
+  return { seats, canStart: canStartGame(state) }
+}
+
+/** 일시정지 표시 (아키텍처 §8). 자동 정지 누적 시간은 운영 수치라 보내지 않는다 */
+function projectPause(state: GameState): PauseView | null {
+  const active = state.pause.active
+  if (active === null) return null
+  return { reason: active.reason, pausedAt: active.pausedAt, resumeStep: active.resumeStep }
 }
 
 /**
@@ -184,10 +214,9 @@ export function projectPublic(state: GameState): PublicView {
  * 봇 대행 여부는 싣지 않는다. 표기가 갈리면 "봇 대행"이 드러난다.
  */
 function projectSeatConnections(state: GameState): SeatConnectionView[] {
-  // M3-2에서 좌석 상태에 connection이 생기면 그 값을 읽는다
   return SEAT_ORDER.map((role) => ({
-    seat: state.seats[role].role,
-    connection: SEAT_CONNECTION.CONNECTED,
+    seat: role,
+    connection: state.seats[role].connection.status,
   }))
 }
 

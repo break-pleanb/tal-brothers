@@ -13,6 +13,7 @@ import { LOG_CODE, reject } from '../engineTypes'
 import type { EngineContext, Rejection, StepOutput } from '../engineTypes'
 import { pickOne } from '../random'
 import { applySeatErosion } from '../rules/erosion'
+import { connectedHumanSeats, humanSeats } from '../rules/seatControl'
 import { SEAT_ORDER } from '../state/gameState'
 import type { CurrentEventState, GameState } from '../state/gameState'
 import { adoptChoice, currentScenarioEvent, nextStepAfterAdopt } from './rollStep'
@@ -31,14 +32,10 @@ function requireCurrentEvent(state: GameState): CurrentEventState {
   return state.currentEvent
 }
 
-function humanSeats(state: GameState): BrotherRole[] {
-  return SEAT_ORDER.filter((role) => !state.seats[role].isBot)
-}
-
-/** 연결된 인간 전원이 투표했는지 (아키텍처 §8). M2는 전원 연결 상태로 본다 */
+/** 연결된 인간 전원이 투표했는지 (아키텍처 §8). 봇 대행 좌석은 기권이라 세지 않는다 */
 function allHumansVoted(state: GameState): boolean {
   const current = requireCurrentEvent(state)
-  const humans = humanSeats(state)
+  const humans = connectedHumanSeats(state)
   // 인간이 없는 구성(봇 자동 대전)은 조기 마감하지 않고 투표 시간을 그대로 흘린다 (M2 계획 10절 12번)
   if (humans.length === 0) return false
   return humans.every((role) => current.votes[role] !== undefined)

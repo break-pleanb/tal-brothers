@@ -1,18 +1,30 @@
-import { ENDING_ID, GAME_STEP, REJECTION_REASON } from 'tal-brothers-shared'
+import {
+  COMMAND_TYPE,
+  ENDING_ID,
+  GAME_STEP,
+  PAUSE_REASON,
+  REJECTION_REASON,
+} from 'tal-brothers-shared'
 import type { BrotherRole, Command, GameStep } from 'tal-brothers-shared'
 
 import { GAME_CONFIG } from '../scenario/gameConfig'
 import { ACTION_KIND, LOG_CODE, createStepOutput, reject } from './engineTypes'
 import { isClockExpired, markClockExpired, timeoutEndsGame } from './rules/clock'
 import type {
+  ActionActor,
+  CommandAction,
   DispatchResult,
   DispatchSuccess,
   EngineAction,
   EngineContext,
+  PresenceAction,
   Rejection,
   StepOutput,
   TimerDeadline,
 } from './engineTypes'
+import { canHostPause, isPaused, pauseGame, resumeGame } from './rules/pause'
+import { applyDueBotTakeovers, applyPresence, nextBotTakeoverAt } from './rules/presence'
+import { isBotControlled } from './rules/seatControl'
 import { ENDING_HANDLER, requestEnding } from './steps/endingStep'
 import { EVENT_INTRO_HANDLER } from './steps/eventIntroStep'
 import { P3_TARGETING_HANDLER, P3_VOTING_HANDLER } from './steps/phase3Step'
@@ -24,6 +36,8 @@ import {
   INTERVENTION_TALISMAN_HANDLER,
   PRACTICE_INTERVENTION_HANDLER,
 } from './steps/interventionStep'
+import { LOBBY_HANDLER, isHostDisplay } from './steps/lobbyStep'
+import { PAUSED_HANDLER } from './steps/pausedStep'
 import { RESOLUTION_HANDLER } from './steps/resolutionStep'
 import { ROLL_REVEAL_HANDLER, ROLL_WAIT_HANDLER } from './steps/rollStep'
 import { VOTING_HANDLER } from './steps/votingStep'
@@ -39,12 +53,23 @@ import type { GameState } from './state/gameState'
 export type StepHandler = {
   /** 단계에 진입할 때. 마감 시각 설정과 봇 즉시 행동을 여기서 처리한다 */
   enter?(draft: GameState, context: EngineContext, out: StepOutput): void
-  /** 좌석 명령. 거절하려면 `Rejection`을 돌려준다 */
+  /** 좌석 명령. 좌석이 없는 주체(Display, 좌석 미선택 Controller)는 dispatch가 먼저 거절한다 */
   command?(
     draft: GameState,
     context: EngineContext,
     out: StepOutput,
     seat: BrotherRole,
+    command: Command,
+  ): Rejection | undefined
+  /**
+   * 주체 정보가 필요한 단계(로비)용. 있으면 `command` 대신 이 함수가 받는다.
+   * 좌석을 고르기 전의 Controller와 Display도 명령을 보낼 수 있기 때문이다
+   */
+  actorCommand?(
+    draft: GameState,
+    context: EngineContext,
+    out: StepOutput,
+    actor: ActionActor,
     command: Command,
   ): Rejection | undefined
   /** 타이머 만료 */
@@ -53,10 +78,12 @@ export type StepHandler = {
 
 /**
  * 단계별 처리기.
- * 여기에 없는 단계(`LOBBY`, `PAUSED` 등)로 들어온 액션은 `unhandledStep`으로 거절한다.
+ * 여기에 없는 단계로 들어온 액션은 `unhandledStep`으로 거절한다.
  * `ENDING`은 종료 단계라 처리기 조회 전에 `gameFinished`로 거절한다.
  */
 const STEP_HANDLERS: Partial<Record<GameStep, StepHandler>> = {
+  [GAME_STEP.LOBBY]: LOBBY_HANDLER,
+  [GAME_STEP.PAUSED]: PAUSED_HANDLER,
   [GAME_STEP.PHASE2_ENTRY]: PHASE2_ENTRY_HANDLER,
   [GAME_STEP.EVENT_INTRO]: EVENT_INTRO_HANDLER,
   [GAME_STEP.VOTING]: VOTING_HANDLER,
@@ -111,23 +138,41 @@ export function enterStep(
 /** 상태 버전을 올리고 다음 타이머를 계산한다 */
 export function finishDispatch(draft: GameState, out: StepOutput): DispatchSuccess {
   draft.meta.stateVersion += 1
+  draft.progress.stepTimerAt = stepTimerAt(draft, out)
 
   return {
     rejected: false,
     state: draft,
     cues: out.cues,
     logs: out.logs,
-    nextDeadline: nextTimer(draft, out),
+    nextDeadline: nextTimer(draft),
   }
 }
 
-function nextTimer(draft: GameState, out: StepOutput): TimerDeadline | null {
-  // 입력 유예 0.3초는 타이머를 마감 시각 + 0.3초에 발화시키는 것으로 처리한다 (아키텍처 §5.3)
-  const at =
+/**
+ * 이 단계가 다음에 깨어날 시각.
+ * 입력 유예 0.3초는 타이머를 마감 시각 + 0.3초에 발화시키는 것으로 처리한다 (아키텍처 §5.3).
+ */
+function stepTimerAt(draft: GameState, out: StepOutput): number | null {
+  if (draft.progress.step === GAME_STEP.PAUSED) return null
+  return (
     out.timerAt ??
     (draft.progress.stepDeadlineAt === null
       ? null
       : draft.progress.stepDeadlineAt + GAME_CONFIG.inputGraceMs)
+  )
+}
+
+/**
+ * 방마다 타이머는 하나뿐이므로 **단계 마감과 봇 대행 전환 중 이른 쪽**을 예약한다 (M3 계획 5.2).
+ * 어느 쪽이 발화했는지는 시각으로 가린다. 봇 대행이 먼저면 단계 처리기를 부르지 않는다.
+ */
+function nextTimer(draft: GameState): TimerDeadline | null {
+  const stepAt = draft.progress.stepTimerAt
+  const takeoverAt = draft.progress.step === GAME_STEP.PAUSED ? null : nextBotTakeoverAt(draft)
+
+  const at =
+    stepAt === null ? takeoverAt : takeoverAt === null ? stepAt : Math.min(stepAt, takeoverAt)
 
   if (at === null) return null
   return { at, step: draft.progress.step, stateVersion: draft.meta.stateVersion }
@@ -151,6 +196,60 @@ function endByTimeout(state: GameState, context: EngineContext): DispatchSuccess
   return finishDispatch(draft, out)
 }
 
+/**
+ * 연결 변화 (M3 계획 5.1).
+ * 단계 처리기를 거치지 않는다. 어느 단계에서든 같은 방식으로 상태에 기록하고,
+ * 봇 대행·자동 일시정지 판단은 규칙 모듈이 한다.
+ */
+function dispatchPresence(
+  state: GameState,
+  action: PresenceAction,
+  context: EngineContext,
+): DispatchResult {
+  const draft = cloneState(state)
+  const out = createStepOutput()
+  applyPresence(draft, action.target, action.status, context, out)
+  return finishDispatch(draft, out)
+}
+
+/**
+ * 호스트의 정지·재개 (아키텍처 §8).
+ * 단계와 상관없이 받아야 하므로 단계 처리기보다 앞에서 처리한다.
+ */
+function dispatchHostCommand(
+  state: GameState,
+  action: CommandAction,
+  context: EngineContext,
+  pause: boolean,
+): DispatchResult {
+  if (!isHostDisplay(state, action.actor)) {
+    return reject(REJECTION_REASON.WRONG_SEAT, '호스트 Display만 보낼 수 있다')
+  }
+
+  const draft = cloneState(state)
+  const out = createStepOutput()
+
+  if (pause) {
+    if (isPaused(state)) return reject(REJECTION_REASON.NOT_ALLOWED, '이미 정지 중이다')
+    // 이벤트 사이에만 받는다 (아키텍처 §8)
+    if (!canHostPause(state)) {
+      return reject(REJECTION_REASON.WRONG_STEP, '호스트 정지는 이벤트 사이에만 받는다')
+    }
+    pauseGame(draft, PAUSE_REASON.HOST, context, out)
+    return finishDispatch(draft, out)
+  }
+
+  const active = state.pause.active
+  if (active === null) return reject(REJECTION_REASON.NOT_ALLOWED, '정지 중이 아니다')
+  // 자동 정지는 연결이 돌아오면 저절로 풀린다 (아키텍처 §8)
+  if (active.reason !== PAUSE_REASON.HOST) {
+    return reject(REJECTION_REASON.NOT_ALLOWED, '자동 정지는 연결이 돌아와야 풀린다')
+  }
+
+  resumeGame(draft, context, out)
+  return finishDispatch(draft, out)
+}
+
 export function dispatch(
   state: GameState,
   action: EngineAction,
@@ -158,6 +257,23 @@ export function dispatch(
 ): DispatchResult {
   if (state.progress.step === GAME_STEP.ENDING) {
     return reject(REJECTION_REASON.GAME_FINISHED, '엔딩에 도달한 상태다')
+  }
+
+  if (action.kind === ACTION_KIND.PRESENCE) {
+    return dispatchPresence(state, action, context)
+  }
+
+  if (
+    action.kind === ACTION_KIND.COMMAND &&
+    (action.command.type === COMMAND_TYPE.HOST_PAUSE ||
+      action.command.type === COMMAND_TYPE.HOST_RESUME)
+  ) {
+    return dispatchHostCommand(
+      state,
+      action,
+      context,
+      action.command.type === COMMAND_TYPE.HOST_PAUSE,
+    )
   }
 
   const handler = STEP_HANDLERS[state.progress.step]
@@ -178,12 +294,25 @@ export function dispatch(
         `${action.step}/${action.stateVersion} ≠ ${state.progress.step}/${state.meta.stateVersion}`,
       )
     }
+
+    const draft = cloneState(state)
+    const out = createStepOutput()
+
+    // 봇 대행 전환이 단계 마감보다 먼저 예약될 수 있다 (M3 계획 5.2)
+    const turned = applyDueBotTakeovers(draft, context, out)
+    const stepDue =
+      draft.progress.stepTimerAt !== null && context.now >= draft.progress.stepTimerAt
+
+    if (!stepDue) {
+      if (turned.length === 0) {
+        return reject(REJECTION_REASON.STALE_TIMER, '예약된 타이머가 없다')
+      }
+      return finishDispatch(draft, out)
+    }
     if (handler.timeout === undefined) {
       return reject(REJECTION_REASON.WRONG_STEP, `${state.progress.step}은 타이머를 받지 않는다`)
     }
 
-    const draft = cloneState(state)
-    const out = createStepOutput()
     handler.timeout(draft, context, out)
     if (out.next !== undefined) {
       enterStep(draft, out.next, context, out)
@@ -191,13 +320,29 @@ export function dispatch(
     return finishDispatch(draft, out)
   }
 
-  const seat = state.seats[action.seat]
-  if (seat === undefined) {
-    return reject(REJECTION_REASON.WRONG_SEAT, action.seat)
+  // 주체를 봐야 하는 단계(로비)는 좌석 해석 없이 그대로 넘긴다
+  if (handler.actorCommand !== undefined) {
+    const draft = cloneState(state)
+    const out = createStepOutput()
+    const rejection = handler.actorCommand(draft, context, out, action.actor, action.command)
+    if (rejection !== undefined) return rejection
+
+    if (out.next !== undefined) {
+      enterStep(draft, out.next, context, out)
+    }
+    return finishDispatch(draft, out)
   }
-  // 봇은 명령을 보내지 않는다. 봇 행동은 단계 진입 시 엔진 내부에서 처리한다 (아키텍처 §5.1, 룰북 §11)
-  if (seat.isBot) {
-    return reject(REJECTION_REASON.WRONG_SEAT, '봇 좌석은 명령을 보내지 않는다')
+
+  if (action.actor.seat === null) {
+    return reject(REJECTION_REASON.WRONG_SEAT, '좌석이 없는 주체의 좌석 명령이다')
+  }
+  const seat = state.seats[action.actor.seat]
+  if (seat === undefined) {
+    return reject(REJECTION_REASON.WRONG_SEAT, action.actor.seat)
+  }
+  // 봇과 봇 대행 좌석은 명령을 보내지 않는다. 그 행동은 엔진이 대신한다 (아키텍처 §5.1, §8, 룰북 §11)
+  if (isBotControlled(seat)) {
+    return reject(REJECTION_REASON.WRONG_SEAT, '서버가 대신 조작하는 좌석이다')
   }
   if (handler.command === undefined) {
     return reject(REJECTION_REASON.WRONG_STEP, `${state.progress.step}은 명령을 받지 않는다`)
@@ -205,7 +350,7 @@ export function dispatch(
 
   const draft = cloneState(state)
   const out = createStepOutput()
-  const rejection = handler.command(draft, context, out, action.seat, action.command)
+  const rejection = handler.command(draft, context, out, action.actor.seat, action.command)
   if (rejection !== undefined) return rejection
 
   if (out.next !== undefined) {

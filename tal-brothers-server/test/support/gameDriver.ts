@@ -1,9 +1,18 @@
-import { COMMAND_TYPE } from 'tal-brothers-shared'
-import type { BrotherRole, Command, GameStep } from 'tal-brothers-shared'
+import { COMMAND_TYPE, SEAT_CONNECTION } from 'tal-brothers-shared'
+import type { BrotherRole, Command, GameStep, SeatConnection } from 'tal-brothers-shared'
 
 import { dispatch, enterStep, finishDispatch } from '../../src/engine/dispatch'
-import { ACTION_KIND, createStepOutput } from '../../src/engine/engineTypes'
-import type { DispatchResult, DispatchSuccess } from '../../src/engine/engineTypes'
+import {
+  ACTION_KIND,
+  createStepOutput,
+  displayActor,
+  seatActor,
+} from '../../src/engine/engineTypes'
+import type {
+  ActionActor,
+  DispatchResult,
+  DispatchSuccess,
+} from '../../src/engine/engineTypes'
 import type { Rng } from '../../src/engine/random'
 import { createGame, seatSetupForHumans } from '../../src/engine/state/createGame'
 import type { SeatSetup } from '../../src/engine/state/createGame'
@@ -70,6 +79,23 @@ export const forceSuccess: Command = { type: COMMAND_TYPE.INTERVENTION_FORCE_SUC
 export const trueSight: Command = { type: COMMAND_TYPE.ABILITY_TRUE_SIGHT }
 export const heal: Command = { type: COMMAND_TYPE.TALISMAN_HEAL }
 export const submitTalisman: Command = { type: COMMAND_TYPE.TALISMAN_SUBMIT }
+export const lobbyStart: Command = { type: COMMAND_TYPE.LOBBY_START }
+export const hostPause: Command = { type: COMMAND_TYPE.HOST_PAUSE }
+export const hostResume: Command = { type: COMMAND_TYPE.HOST_RESUME }
+export const pickSeat = (seat: BrotherRole): Command => ({
+  type: COMMAND_TYPE.LOBBY_PICK_SEAT,
+  seat,
+})
+export const toggleBot = (seat: BrotherRole, isBot: boolean): Command => ({
+  type: COMMAND_TYPE.LOBBY_TOGGLE_BOT,
+  seat,
+  isBot,
+})
+
+/** 테스트가 쓰는 호스트 계정. `startGame`이 만드는 방의 주인이다 */
+export const HOST_USER_ID = 'host-user'
+
+export const host: ActionActor = displayActor(HOST_USER_ID)
 
 // ── 드라이버 ─────────────────────────────────────────────────────────
 
@@ -82,6 +108,15 @@ export type Game = {
   /** 다음 마감 시각으로 시계를 옮기고 타이머 만료 액션을 넣는다 */
   tick(): void
   send(seat: BrotherRole, command: Command): DispatchResult
+  /** 좌석이 아닌 주체(호스트 Display, 좌석 미선택 Controller)로 명령을 보낸다 */
+  sendAs(actor: ActionActor, command: Command): DispatchResult
+  /** 연결 변화를 넣는다 (M3 계획 5.1) */
+  presence(target: ActionActor, status: SeatConnection): DispatchResult
+  /** 좌석을 끊고 `ms`만큼 시계를 민다. 봇 대행 전환 타이머는 따로 `tick`으로 발화시킨다 */
+  disconnectSeat(seat: BrotherRole): DispatchResult
+  connectSeat(seat: BrotherRole): DispatchResult
+  /** 시계만 옮긴다. 타이머를 발화시키지 않는다 */
+  advance(ms: number): void
   /** 단계를 직접 다시 밟는다 (테스트가 특정 이벤트부터 시작할 때) */
   enter(step: GameStep): void
   tickUntil(step: GameStep, limit?: number): void
@@ -125,13 +160,40 @@ function driver(first: DispatchSuccess, startedAt: number, rng: Rng): Game {
       last = result
     },
     send(seat: BrotherRole, command: Command): DispatchResult {
+      return this.sendAs(seatActor(seat, last.state.seats[seat].userId), command)
+    },
+    sendAs(actor: ActionActor, command: Command): DispatchResult {
       const result = dispatch(
         last.state,
-        { kind: ACTION_KIND.COMMAND, seat, command },
+        { kind: ACTION_KIND.COMMAND, actor, command },
         { now, rng: current },
       )
       if (!result.rejected) last = result
       return result
+    },
+    presence(target: ActionActor, status: SeatConnection): DispatchResult {
+      const result = dispatch(
+        last.state,
+        { kind: ACTION_KIND.PRESENCE, target, status },
+        { now, rng: current },
+      )
+      if (!result.rejected) last = result
+      return result
+    },
+    disconnectSeat(seat: BrotherRole): DispatchResult {
+      return this.presence(
+        seatActor(seat, last.state.seats[seat].userId),
+        SEAT_CONNECTION.DISCONNECTED,
+      )
+    },
+    connectSeat(seat: BrotherRole): DispatchResult {
+      return this.presence(
+        seatActor(seat, last.state.seats[seat].userId),
+        SEAT_CONNECTION.CONNECTED,
+      )
+    },
+    advance(ms: number): void {
+      now += ms
     },
     enter(step: GameStep): void {
       const out = createStepOutput()
@@ -160,10 +222,47 @@ function driver(first: DispatchSuccess, startedAt: number, rng: Rng): Game {
   }
 }
 
-/** 새 게임을 만들어 Phase 1 첫 이벤트(T1 상황 제시)부터 돌린다 */
+/**
+ * 새 게임을 만들어 Phase 1 첫 이벤트(T1 상황 제시)부터 돌린다.
+ * `createGame`이 로비에서 멈추므로(M3 계획 8.3) 호스트 Display로 `lobby.start`를 한 번 보낸다.
+ */
 export function startGame(seats: number | SeatSetup, rng: Rng = LOW): Game {
-  const setup = typeof seats === 'number' ? seatSetupForHumans(seats) : seats
-  const created = createGame({ roomCode: 'TEST', seats: setup }, { now: START, rng })
+  const setup = withTestUsers(typeof seats === 'number' ? seatSetupForHumans(seats) : seats)
+  const created = createGame(
+    { roomCode: 'TEST', hostUserId: HOST_USER_ID, seats: setup },
+    { now: START, rng },
+  )
+  const game = driver(created, START, rng)
+  // Display가 연결된 상태에서 시작한다. 그래야 자동 일시정지 조건에 걸리지 않는다 (아키텍처 §8)
+  game.presence(host, SEAT_CONNECTION.CONNECTED)
+  const started = game.sendAs(host, lobbyStart)
+  if (started.rejected) throw new Error(`시작 거절: ${started.reason} ${started.detail ?? ''}`)
+  return game
+}
+
+/**
+ * 계정이 없는 인간 좌석에 테스트용 계정을 붙인다.
+ * 단계 테스트는 `{ isBot: false }`만 적어 좌석을 구성하는데, 그대로 두면
+ * 아무도 앉지 않은 좌석이라 `lobby.start`가 봇으로 돌려 버린다 (룰북 §1)
+ */
+function withTestUsers(setup: SeatSetup): SeatSetup {
+  const filled = {} as SeatSetup
+  for (const role of SEAT_ORDER) {
+    const entry = setup[role]
+    filled[role] =
+      entry.isBot || entry.userId != null ? entry : { ...entry, userId: `local-${role}` }
+  }
+  return filled
+}
+
+/** 로비에서 멈춘 상태로 새 게임을 만든다 (로비 테스트용) */
+export function startLobby(seats?: number | SeatSetup, rng: Rng = LOW): Game {
+  const setup =
+    seats === undefined ? undefined : typeof seats === 'number' ? seatSetupForHumans(seats) : seats
+  const created = createGame(
+    { roomCode: 'TEST', hostUserId: HOST_USER_ID, seats: setup },
+    { now: START, rng },
+  )
   return driver(created, START, rng)
 }
 
@@ -187,13 +286,18 @@ export type StartAtOptions = {
  */
 export function startAt(options: StartAtOptions): Game {
   const rng = options.rng ?? LOW
-  const setup =
+  const setup = withTestUsers(
     typeof options.seats === 'number' || options.seats === undefined
       ? seatSetupForHumans(options.seats ?? 3)
-      : options.seats
-  const created = createGame({ roomCode: 'TEST', seats: setup }, { now: START, rng: LOW })
+      : options.seats,
+  )
+  const created = createGame(
+    { roomCode: 'TEST', hostUserId: HOST_USER_ID, seats: setup },
+    { now: START, rng: LOW },
+  )
 
   const state = created.state
+  state.room.displayConnected = true
   state.currentEvent = null
   state.currentJudgment = null
   options.before?.(state)

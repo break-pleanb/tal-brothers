@@ -4,7 +4,8 @@ import type { BrotherRole, ErosionTier } from 'tal-brothers-shared'
 import { applyBotSabotage } from '../bots/botPolicy'
 import type { EngineContext, StepOutput } from '../engineTypes'
 import type { GameState } from '../state/gameState'
-import { TRAITOR_EROSION_PERCENT, isSoloHumanGame, turnTraitor } from './traitor'
+import { isSoloHumanGame } from './seatControl'
+import { TRAITOR_EROSION_PERCENT, turnTraitor } from './traitor'
 
 /**
  * 잠식도 (룰북 §4).

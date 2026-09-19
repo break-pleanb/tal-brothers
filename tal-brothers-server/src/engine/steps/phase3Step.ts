@@ -16,7 +16,8 @@ import { CUE_AUDIENCE, LOG_CODE, reject } from '../engineTypes'
 import type { EngineContext, Rejection, StepOutput } from '../engineTypes'
 import { pickOne } from '../random'
 import { markClockExpired, truncateClockForPhase3 } from '../rules/clock'
-import { allHumansTurned, humanSeats, isSoloHumanGame } from '../rules/traitor'
+import { humanSeats, isSoloHumanGame } from '../rules/seatControl'
+import { allHumansTurned } from '../rules/traitor'
 import {
   jadeHairpinHolder,
   moveJadeHairpinAwayFromTarget,

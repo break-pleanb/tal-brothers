@@ -5,11 +5,15 @@ import { LOG_CODE } from '../engineTypes'
 import type { EngineContext, StepOutput } from '../engineTypes'
 import { pickOne, rollD6 } from '../random'
 import { addTeamModifier } from '../rules/modifiers'
+import { isBotControlled } from '../rules/seatControl'
 import { INTERVENTION_KIND, SEAT_ORDER } from '../state/gameState'
 import type { GameState, JudgmentState } from '../state/gameState'
 
 /**
  * 봇 정책 (룰북 §11).
+ *
+ * **굴림·개입은 `isBotControlled` 기준이다.** 연결이 끊겨 봇 대행 중인 인간 좌석도 서버가 대신 굴린다 (아키텍처 §8).
+ * 반면 **100% 방해는 좌석 구성(`isBot`) 기준**이라 대행 좌석에는 적용하지 않는다 (M3 계획 10절 5번).
  *
  * - 투표하지 않는다. 판정 굴림만 담당한다
  * - 둘째 봇: 판정 실패 시 개입 창 1단계에서 자동 재굴림. 협동 판정은 본인 주사위가 현재 최고값일 때만
@@ -29,7 +33,7 @@ export function botRollOwnDice(draft: GameState, context: EngineContext, out: St
 
   for (const die of judgment.dice) {
     if (die.value !== null) continue
-    if (!draft.seats[die.seat].isBot) continue
+    if (!isBotControlled(draft.seats[die.seat])) continue
 
     die.value = rollD6(context.rng)
     out.logs.push({
@@ -50,7 +54,7 @@ export function shouldBotReroll(
   topDiceValue: number,
 ): boolean {
   const second = draft.seats[BROTHER_ROLE.SECOND]
-  if (!second.isBot) return false
+  if (!isBotControlled(second)) return false
   if (second.abilityUsed) return false
   if (judgment.succeeded !== false) return false
   if (judgment.interventions.some((record) => record.kind === INTERVENTION_KIND.REROLL)) {
@@ -83,7 +87,7 @@ export function botTalismanUser(
 
   for (const role of SEAT_ORDER) {
     const seat = draft.seats[role]
-    if (!seat.isBot) continue
+    if (!isBotControlled(seat)) continue
     if (seat.talismanCount + seat.tutorialTalismanCount < 1) continue
     return role
   }

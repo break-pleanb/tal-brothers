@@ -309,10 +309,11 @@ tal-brothers-server/
 
 ### M3-2. 엔진: 로비 단계, 연결 상태, 봇 대행, 일시정지
 
-- [ ] `ACTION_KIND.PRESENCE`, 상태 확장(`userId`, `connection`, `botTakeover`, `pause`, `room`)
-- [ ] `createGame`이 `LOBBY`에서 멈추고 `lobby.start`가 Phase 1로 진입
-- [ ] `rules/seatControl.ts`, `rules/pause.ts`, `steps/lobbyStep.ts`, `steps/pausedStep.ts`
-- [ ] 엔진 테스트 (계획 9.1 M3-2 12건), 기존 테스트 유지
+- [x] `ACTION_KIND.PRESENCE`와 `ActionActor`, 상태 확장(`userId`, `displayName`, `connection`, `botTakeover`, `pause`, `room`, `stepTimerAt`)
+- [x] `createGame`이 `LOBBY`에서 멈추고 `lobby.start`가 게임 시계를 걸며 Phase 1로 진입
+- [x] `rules/seatControl.ts`, `rules/pause.ts`, `rules/presence.ts`, `steps/lobbyStep.ts`, `steps/pausedStep.ts`
+- [x] 봇 굴림·개입을 `isBotControlled` 기준으로, 투표 조기 마감을 `connectedHumanSeats` 기준으로 교체
+- [x] 엔진 테스트 32건 추가 (계획 9.1 M3-2 12건 + 은닉 2건), 기존 343건 유지 → 375건
 
 ### M3-3. room 런타임
 

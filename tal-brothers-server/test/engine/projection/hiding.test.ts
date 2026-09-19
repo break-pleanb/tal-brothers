@@ -5,6 +5,7 @@ import {
   GAME_PHASE,
   GAME_STEP,
   JUDGMENT_KIND,
+  SEAT_CONNECTION,
   VARIANT_KIND,
 } from 'tal-brothers-shared'
 import { WHISPER_KIND } from 'tal-brothers-shared'
@@ -330,5 +331,36 @@ describe('붉은 메시지 (룰북 §10.1, 아키 §7.2)', () => {
     expect(real.kind).toBe(CUE_KIND.RED_MESSAGE)
     expect(real).toEqual(fake)
     expect(real.data).toEqual({ durationSeconds: GAME_CONFIG.redMessageSeconds })
+  })
+})
+
+describe('좌석 주인과 연결 상태 (룰북 §17, M3 계획 8.4)', () => {
+  it('Display·좌석 투영 어디에도 userId가 없다', () => {
+    const state = newState(3)
+    state.seats[BROTHER_ROLE.FIRST].userId = 'MARKER-USER-ID'
+    state.seats[BROTHER_ROLE.FIRST].displayName = '첫째 플레이어'
+
+    const display = JSON.stringify(projectDisplay(state))
+    expect(display).not.toContain('MARKER-USER-ID')
+    expect(allKeys(projectDisplay(state))).not.toContain('userId')
+
+    for (const role of SEAT_ORDER) {
+      const snapshot = projectSeat(state, role)
+      expect(JSON.stringify(snapshot)).not.toContain('MARKER-USER-ID')
+      expect(allKeys(snapshot)).not.toContain('userId')
+    }
+  })
+
+  it('좌석 투영에 다른 좌석의 연결 상태가 없다', () => {
+    const state = newState(3)
+    state.seats[BROTHER_ROLE.THIRD].connection = {
+      status: SEAT_CONNECTION.DISCONNECTED,
+      disconnectedAt: START,
+    }
+
+    const snapshot = projectSeat(state, BROTHER_ROLE.FIRST)
+    // 본인 것만 실린다. 값이 하나뿐이라 다른 좌석의 상태를 읽을 수 없다
+    expect(snapshot.connection).toBe(SEAT_CONNECTION.CONNECTED)
+    expect(allKeys(snapshot)).not.toContain('seatConnections')
   })
 })

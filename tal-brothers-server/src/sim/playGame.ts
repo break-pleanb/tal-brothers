@@ -22,10 +22,10 @@ import type {
 import { GAME_CONFIG } from '../scenario/gameConfig'
 import { hasAttribute, hasJudgment } from '../scenario/scenarioTypes'
 import { dispatch } from '../engine/dispatch'
-import { ACTION_KIND, LOG_CODE } from '../engine/engineTypes'
+import { ACTION_KIND, LOG_CODE, seatActor } from '../engine/engineTypes'
 import type { DispatchSuccess, LogEntry } from '../engine/engineTypes'
 import { createSeededRng } from '../engine/random'
-import { createGame, seatSetupForHumans } from '../engine/state/createGame'
+import { createGame, seatSetupForHumans, startWithoutLobby } from '../engine/state/createGame'
 import { BOT_SABOTAGE_KIND } from '../engine/bots/botPolicy'
 import { INTERVENTION_KIND, SEAT_ORDER } from '../engine/state/gameState'
 import type { GameState, InterventionRecord } from '../engine/state/gameState'
@@ -528,6 +528,9 @@ function planKey(state: GameState): string {
   ].join('|')
 }
 
+/** 시뮬레이터가 만드는 방의 호스트 계정 */
+const SIM_HOST_USER_ID = 'sim-host'
+
 export function runGame(options: GameRunOptions): GameRunResult {
   const policy: HumanPolicyConfig = { ...DEFAULT_HUMAN_POLICY, ...options.policy }
   const engineRng = createSeededRng(options.seed)
@@ -536,10 +539,12 @@ export function runGame(options: GameRunOptions): GameRunResult {
 
   const startedAt = options.startedAt ?? Date.UTC(2026, 0, 1, 20, 0, 0)
   let now = startedAt
-  let last: DispatchSuccess = createGame(
-    { roomCode: 'SIM', seats: seatSetupForHumans(options.humans) },
+  const created: DispatchSuccess = createGame(
+    { roomCode: 'SIM', hostUserId: SIM_HOST_USER_ID, seats: seatSetupForHumans(options.humans) },
     { now, rng: engineRng },
   )
+  // 시뮬레이터에는 소켓도 로비도 없다. 좌석 구성은 인자로 받았으므로 첫 이벤트로 바로 들어간다 (M3 계획 8.3)
+  let last: DispatchSuccess = startWithoutLobby(created.state, { now, rng: engineRng })
   options.onStep?.(last)
 
   const events: SimEventRecord[] = []
@@ -595,7 +600,7 @@ export function runGame(options: GameRunOptions): GameRunResult {
       now = Math.max(input.at, now)
       const result = dispatch(
         last.state,
-        { kind: ACTION_KIND.COMMAND, seat: input.seat, command: input.command },
+        { kind: ACTION_KIND.COMMAND, actor: seatActor(input.seat), command: input.command },
         { now, rng: engineRng },
       )
       // 거절된 명령은 조용히 버린다 (조기 마감 뒤에 도착한 표 등)

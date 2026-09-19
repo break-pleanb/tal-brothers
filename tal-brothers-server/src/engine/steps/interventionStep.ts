@@ -17,6 +17,7 @@ import { CUE_AUDIENCE, LOG_CODE, reject } from '../engineTypes'
 import type { EngineContext, Rejection, StepOutput } from '../engineTypes'
 import { rollD6 } from '../random'
 import { applySeatErosion } from '../rules/erosion'
+import { isBotControlled } from '../rules/seatControl'
 import { INTERVENTION_KIND } from '../state/gameState'
 import type { GameState, InterventionKind, InterventionRecord, JudgmentState } from '../state/gameState'
 import {
@@ -404,7 +405,7 @@ export const INTERVENTION_FORCE_HANDLER: StepHandler = {
     draft.progress.stepDeadlineAt = context.now + GAME_CONFIG.interventionForceSeconds * 1000
 
     // 첫째 봇은 보스 이벤트 실패 시에만 쓴다 → Phase 1에서는 사용하지 않는다 (룰북 §11)
-    if (draft.seats[BROTHER_ROLE.FIRST].isBot && shouldBotForceSuccess(event.isBoss)) {
+    if (isBotControlled(draft.seats[BROTHER_ROLE.FIRST]) && shouldBotForceSuccess(event.isBoss)) {
       applyForceSuccess(draft, context, out, event.isTutorial)
       out.next = GAME_STEP.RESOLUTION
     }

@@ -1,4 +1,4 @@
-import { BROTHER_ROLE } from 'tal-brothers-shared'
+import { BROTHER_ROLE, SEAT_CONNECTION } from 'tal-brothers-shared'
 import type {
   BrotherRole,
   EndingId,
@@ -6,8 +6,10 @@ import type {
   GamePhase,
   GameStep,
   JudgmentKind,
+  PauseReason,
   Phase3Route,
   PublicNoticeKind,
+  SeatConnection,
   VariantKind,
   WhisperKind,
 } from 'tal-brothers-shared'
@@ -70,9 +72,30 @@ export type PublicNotice = {
   text: string
 }
 
+/** 좌석의 연결 상태 (아키텍처 §8). 끊긴 시각이 봇 대행 전환 시각의 기준이 된다 */
+export type SeatConnectionState = {
+  status: SeatConnection
+  /** 끊긴 시각. 연결 중이면 null */
+  disconnectedAt: number | null
+}
+
 export type SeatState = {
   role: BrotherRole
   isBot: boolean
+  /**
+   * 좌석 주인의 계정 (아키텍처 §10).
+   * 아무도 고르지 않은 좌석과 봇 좌석은 null이다. 어떤 투영에도 내보내지 않는다 (룰북 §17)
+   */
+  userId: string | null
+  /** 좌석 주인의 표시 이름. 로비 화면에만 쓴다 */
+  displayName: string | null
+  connection: SeatConnectionState
+  /**
+   * 봇 대행 (아키텍처 §8).
+   * 끊긴 뒤 30초가 지나면 켜지고 재접속하면 즉시 꺼진다.
+   * **좌석 구성은 여전히 인간이다.** 조작만 대신하므로 배신자 전환 경로는 그대로다 (룰북 §10.1, §11)
+   */
+  botTakeover: boolean
   /** 0~100, 5% 단위 (룰북 §4.1) */
   erosionPercent: number
   /** 낡은 부적 보유 수. 상한 2 (룰북 §9.1) */
@@ -94,7 +117,6 @@ export type SeatState = {
   botSabotageUsed: boolean
   whispers: ReceivedWhisper[]
 }
-// M3 확장 지점: userId, connected, disconnectedAt, botProxy
 
 export type CurrentEventState = {
   eventId: string
@@ -184,6 +206,24 @@ export type Phase3State = {
   soloPlayTargetIsSelf: boolean
 }
 
+/** 지금 걸려 있는 일시정지 (아키텍처 §8) */
+export type ActivePause = {
+  reason: PauseReason
+  pausedAt: number
+  /** 재개하면 돌아갈 단계 */
+  resumeStep: GameStep
+}
+
+export type PauseState = {
+  /** 정지 중이 아니면 null */
+  active: ActivePause | null
+  /**
+   * 자동 일시정지 누적 시간 (아키텍처 §8).
+   * 한도(게임당 5분)를 넘기면 그 뒤로는 자동 정지를 하지 않는다. 호스트 수동 정지는 여기에 세지 않는다
+   */
+  autoAccumulatedMs: number
+}
+
 export type EndingState = {
   id: EndingId
   /**
@@ -203,11 +243,19 @@ export type GameState = {
     /** 액션이 적용될 때마다 1 오른다 (아키텍처 §5.1) */
     stateVersion: number
   }
+  /** 방 운영 정보 (아키텍처 §1, §8) */
+  room: {
+    /** 방을 만든 계정. Display 명령의 발신자 검증에 쓴다 */
+    hostUserId: string | null
+    displayConnected: boolean
+  }
   clock: {
     /** 게임 시계 마감 시각 (룰북 §2.1) */
     deadlineAt: number
     /** 시계가 0을 지난 시각. Phase 3는 0을 지나도 진행하므로 지난 사실만 남긴다 (룰북 §14.2) */
     expiredAt: number | null
+    /** 일시정지 중 남은 시간. 정지 중이 아니면 null (아키텍처 §5.2) */
+    pausedRemainingMs: number | null
   }
   progress: {
     phase: GamePhase
@@ -216,6 +264,13 @@ export type GameState = {
     eventIndex: number
     step: GameStep
     stepDeadlineAt: number | null
+    /** 일시정지 중 남은 단계 시간. 정지 중이 아니거나 마감이 없으면 null (아키텍처 §5.2) */
+    pausedStepRemainingMs: number | null
+    /**
+     * 이 단계가 다음에 깨어날 시각 (마감 시각 + 입력 유예, 또는 중간 타이머).
+     * 봇 대행 전환 타이머와 **어느 쪽이 먼저인지 고르기 위해** 상태에 남긴다 (M3 계획 5.2)
+     */
+    stepTimerAt: number | null
   }
   seats: Record<BrotherRole, SeatState>
   currentEvent: CurrentEventState | null
@@ -227,8 +282,13 @@ export type GameState = {
   notices: PublicNotice[]
   phase3: Phase3State | null
   ending: EndingState | null
+  pause: PauseState
 }
-// M3 확장 지점: pause
+
+/** 연결된 좌석의 기본 연결 상태. 봇·빈 좌석은 끊길 사람이 없어 항상 이 값이다 */
+export function connectedState(): SeatConnectionState {
+  return { status: SEAT_CONNECTION.CONNECTED, disconnectedAt: null }
+}
 
 /** 좌석 순서 — 첫째 → 둘째 → 셋째. 순회 순서를 상태의 키 순서에 의존하지 않게 고정한다 */
 export const SEAT_ORDER: readonly BrotherRole[] = [

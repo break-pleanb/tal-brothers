@@ -1,4 +1,4 @@
-import { BROTHER_ROLE, SEAT_CONNECTION } from 'tal-brothers-shared'
+import { BROTHER_ROLE } from 'tal-brothers-shared'
 import type { BrotherRole, SeatSnapshot, VariantKind, WhisperView } from 'tal-brothers-shared'
 
 import type { GameState, SeatState } from '../state/gameState'
@@ -57,8 +57,8 @@ export function projectSeat(state: GameState, role: BrotherRole): SeatSnapshot {
     whispers: projectWhispers(seat),
     myVote: state.currentEvent?.votes[role] ?? null,
     variantLabels: variantLabelsFor(state, role),
-    // 본인 좌석의 것만 담는다. M3-2에서 좌석 상태에 생기면 그 값을 읽는다
-    connection: SEAT_CONNECTION.CONNECTED,
-    botTakeover: false,
+    // 본인 좌석의 것만 담는다. 다른 좌석의 연결 상태는 Display에만 나간다 (룰북 §17)
+    connection: seat.connection.status,
+    botTakeover: seat.botTakeover,
   }
 }

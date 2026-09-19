@@ -8,11 +8,10 @@ import type { EngineContext, StepOutput } from '../../../src/engine/engineTypes'
 import { createSeededRng } from '../../../src/engine/random'
 import type { Rng } from '../../../src/engine/random'
 import { applySeatErosion } from '../../../src/engine/rules/erosion'
+import { humanSeats, isSoloHumanGame } from '../../../src/engine/rules/seatControl'
 import {
   RED_MESSAGE_TEXT,
   allHumansTurned,
-  humanSeats,
-  isSoloHumanGame,
   redMessageCue,
   traitorWonFor,
 } from '../../../src/engine/rules/traitor'

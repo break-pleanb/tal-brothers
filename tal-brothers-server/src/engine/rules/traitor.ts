@@ -7,6 +7,7 @@ import { LOG_CODE } from '../engineTypes'
 import type { Cue, EngineContext, StepOutput } from '../engineTypes'
 import { SEAT_ORDER } from '../state/gameState'
 import type { GameState } from '../state/gameState'
+import { humanSeats } from './seatControl'
 
 /**
  * 이면의 형제 (룰북 §10).
@@ -33,15 +34,6 @@ export function redMessageCue(seat: BrotherRole): Cue {
     text: RED_MESSAGE_TEXT,
     data: { durationSeconds: GAME_CONFIG.redMessageSeconds },
   }
-}
-
-export function humanSeats(state: GameState): BrotherRole[] {
-  return SEAT_ORDER.filter((role) => !state.seats[role].isBot)
-}
-
-/** 1인 플레이 — 배신자 모드가 없다 (룰북 §10.1) */
-export function isSoloHumanGame(state: GameState): boolean {
-  return humanSeats(state).length === 1
 }
 
 export function traitorSeats(state: GameState): BrotherRole[] {
