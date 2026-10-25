@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "dev:web": "npm run dev -w tal-brothers-web",
-    "dev:server": "npm run dev -w tal-brothers-server"
+    "dev:server": "npm run dev -w tal-brothers-server",
+    "test:e2e": "npm run test:e2e -w tal-brothers-web --"
   }
 }

@@ -10,7 +10,8 @@
     "test:watch": "vitest",
     "sim:phase1": "tsx src/sim/playPhase1.ts",
     "sim:game": "tsx src/sim/playGame.ts",
-    "sim:bots": "tsx src/sim/botMatch.ts"
+    "sim:bots": "tsx src/sim/botMatch.ts",
+    "e2e:serve": "tsx e2e/e2eServer.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",

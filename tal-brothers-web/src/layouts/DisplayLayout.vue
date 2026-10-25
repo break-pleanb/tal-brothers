@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
+import { usePlayStore } from '@/stores/play'
+
 /**
  * Display 레이아웃 — 16:9 레터박스 스테이지 (M4 계획 2절, 아키텍처 §9.4).
  *
@@ -13,6 +15,7 @@ import { useRoute } from 'vue-router'
  */
 
 const route = useRoute()
+const play = usePlayStore()
 
 /** 개발 중에만 `?safe=1`로 세이프존 경계선을 띄운다. 기본은 꺼짐 (M4 계획 2.4) */
 const showGuides = computed(() => route.query.safe === '1')
@@ -27,7 +30,13 @@ const hideCursor = computed(() => route.query.obs === '1')
 </script>
 
 <template>
-  <div class="display-viewport" :class="{ 'display-viewport--obs': hideCursor }">
+  <!-- data-step·data-event는 통합 테스트가 진행 위치를 읽는 자리다 (m4-plan 11.4). 화면에는 영향이 없다 -->
+  <div
+    class="display-viewport"
+    :class="{ 'display-viewport--obs': hideCursor }"
+    :data-step="play.step ?? ''"
+    :data-event="play.snapshot?.eventNumber ?? ''"
+  >
     <div class="display-stage" :class="{ 'display-stage--guides': showGuides }">
       <RouterView />
     </div>

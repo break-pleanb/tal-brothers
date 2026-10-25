@@ -64,6 +64,7 @@ tal-brothers/                 # 루트 (npm workspaces)
 | 서버 개발 실행 | `npm run dev:server` |
 | 서버 테스트 | `npm run test -w tal-brothers-server` |
 | 서버 타입 체크 | `npm run typecheck -w tal-brothers-server` |
+| 통합 테스트 (Playwright) | `npm run test:e2e` (특정 스펙: `npm run test:e2e -- smoke`) |
 | shadcn 컴포넌트 추가 | `tal-brothers-web` 폴더에서 `npx shadcn-vue@latest add <이름>` |
 
 ## 아키텍처 원칙 (상세는 `docs/architecture.md`)

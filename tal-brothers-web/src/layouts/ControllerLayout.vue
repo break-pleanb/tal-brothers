@@ -17,10 +17,19 @@
  * - 주소창이 접혔다 펴지는 높이 변화는 `100dvh`로 받는다
  * - 자리 클래스의 정의는 이 파일에만 둔다 (DisplayLayout과 같은 방식)
  */
+import { usePlayStore } from '@/stores/play'
+
+const play = usePlayStore()
 </script>
 
 <template>
-  <div class="controller-frame">
+  <!-- data-*는 통합 테스트가 진행 위치를 읽는 자리다 (m4-plan 11.4). 화면에는 영향이 없다 -->
+  <div
+    class="controller-frame"
+    :data-step="play.step ?? ''"
+    :data-event="play.snapshot?.eventNumber ?? ''"
+    :data-seat="play.mySeat ?? ''"
+  >
     <RouterView />
   </div>
 </template>

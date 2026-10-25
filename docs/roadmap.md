@@ -391,7 +391,11 @@ tal-brothers-server/
         전송 구멍 4가지를 막았다: ws 하트비트, 침묵 감시·재연결, 스냅샷 순서 보장, 연결 상태 표시.
         T2-2 귓속말은 판정자(셋째)에게만 가는 정상 동작이라 고치지 않았다
 - [x] **무인 진행 계획 승인 (2026-10-25)** — 계획 11절. 통합 테스트 장치를 먼저 만들고 M4-5 이후를 사람의 중간 확인 없이 진행한다
-- [ ] M4-A 통합 테스트 기반 — 테스트 전용 진입점, 가짜 인증, 가속 시계, Playwright
+- [x] **M4-A 통합 테스트 기반** — 테스트 전용 진입점, 가짜 인증, 가속 시계, Playwright
+  - [x] 서버 `e2e/` — `e2eServer`(가짜 검증기·`repository: null`·가속 스케줄러·시드 난수), `npm run e2e:serve`
+  - [x] web — `e2e/fakes/supabase.ts`, `vite.e2e.config.ts`(풀린 경로로 진짜 모듈을 바꿔 끼움), `.env.e2e`, `playwright.config.ts`
+  - [x] `harness`·`lobbyFlow`(화면 조작만으로 로비 진행), `smoke.spec` 통과. 레이아웃 루트에 `data-step`·`data-event`·`data-seat`
+  - [x] 운영 빌드 산출물에 가짜 모듈 없음, 서버 테스트 435건 유지
 - [ ] M4-B 플레이 드라이버·기록기·은닉 검사기
 - [ ] M4-C 다크 토큰 적용과 기존 화면 회귀
 - [ ] M4-5a 개인 정보 — 인벤토리, 절대 시야, 부적 회복·제출·양도·버림, Phase 2 진입, 14A

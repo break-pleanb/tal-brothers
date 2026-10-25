@@ -125,6 +125,8 @@ T2-2 A(항아리)는 **지식/도술** 판정이라 판정자는 **셋째**이�
 
 | 날짜 | 항목 | 계획 | 실제 | 이유 |
 |---|---|---|---|---|
+| 2026-10-25 | M4-A 가짜 Supabase 교체 방식 | `@/services/supabase` 별칭을 덧씌운다 | **풀린 파일 경로**를 보고 바꾸는 Vite 플러그인(`resolveId`)으로 했다 | `apiClient.ts`·`roomSocket.ts`는 같은 폴더에서 `./supabase`로 import한다. 별칭만 덧씌우면 이 두 곳이 진짜 모듈을 그대로 써서 토큰이 비게 된다 |
+| 2026-10-25 | M4-A 시드 지정 | 서버 시작 시 `E2E_SEED` 하나 | 테스트 서버에만 `POST /__e2e/seed`(다음 방의 시드)를 더했다 | Playwright는 서버를 한 번 띄우고 여러 판을 돌린다. 커버리지 스펙이 판마다 시드를 바꾸려면 실행 중에 지정할 수 있어야 한다. `e2e/e2eServer.ts`의 바깥 앱에만 있고 `createHttpApp`·운영 진입점은 그대로다 |
 | 2026-09-19 | M4-1 표기 사전 | 사전 6개 (`brotherLabel`·`attributeLabel`·`judgmentLabel`·`variantLabel`·`endingLabel`·`rejectionLabel`) | `phaseLabel`·`stepLabel` 2개를 더 만들었다 | M4-1의 끝나는 조건이 "자리표시자에 **단계**·남은 시간이 뜬다"인데 단계·Phase의 한국어 표기가 목록에 없었다. M4-2의 `ClockHud`도 Phase 표기를 요구한다. 다른 사전과 같은 규칙(shared 상수 → 한국어)을 따른다 |
 | 2026-09-19 | M4-1 cue 큐 | `useCueQueue.ts` 하나 | `constants/cueChannel.ts`를 더 만들었다 | cue를 **어느 자리에 연출할지**(덮개·토스트·장면·모달)는 스토어(쌓고 버리기)와 컴포저블(꺼내 쓰기)이 함께 봐야 하는 값이다. 두 곳에 문자열을 흩뿌리지 않고 `CueKind → CueChannel` 표 하나로 고정했다. 상수 하나에 파일 하나라는 규칙을 지킨다 |
 | 2026-09-19 | M4-1 소켓 수명 | 방 진입·이탈에서만 `connect`·`disconnect`를 부른다 | 진입은 `useRoomSocket`이, **이탈은 라우터 가드**(`roomSocketGuard`)가 한 곳에서 한다 | 이탈을 화면의 `onBeforeUnmount`에 두면 로비 → Display 이동에서 "이전 화면 정리"와 "다음 화면 연결"의 순서에 결과가 달라진다. 목적지의 방 코드를 보고 판단하면 순서에 기대지 않는다 (계획 4.1) |
