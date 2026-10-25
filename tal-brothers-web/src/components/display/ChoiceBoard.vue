@@ -43,6 +43,7 @@ function tagsOf(choice: ChoiceView): string[] {
         v-for="choice in choices"
         :key="choice.id"
         class="choice-board__card"
+        data-testid="choice-card"
         :class="{ 'choice-board__card--adopted': choice.id === adoptedChoiceId }"
       >
         <p class="choice-board__text">{{ choice.text }}</p>

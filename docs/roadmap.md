@@ -396,7 +396,11 @@ tal-brothers-server/
   - [x] web — `e2e/fakes/supabase.ts`, `vite.e2e.config.ts`(풀린 경로로 진짜 모듈을 바꿔 끼움), `.env.e2e`, `playwright.config.ts`
   - [x] `harness`·`lobbyFlow`(화면 조작만으로 로비 진행), `smoke.spec` 통과. 레이아웃 루트에 `data-step`·`data-event`·`data-seat`
   - [x] 운영 빌드 산출물에 가짜 모듈 없음, 서버 테스트 435건 유지
-- [ ] M4-B 플레이 드라이버·기록기·은닉 검사기
+- [x] **M4-B 플레이 드라이버·기록기·은닉 검사기**
+  - [x] `playerPolicy`(화면 버튼만 눌러 진행, 정책 4종)·`gameRunner`(단계마다 스크린샷·은닉 검사)·`hidingChecks`·`coverage`
+  - [x] `fullGame.spec` — 인간 1·2·3명 각 1판이 엔딩 단계까지, 은닉 위반 0건, 판당 약 2분(가속 4배)
+  - [x] `staticRules.spec` — display 컴포넌트의 좌석 타입 import 금지, 운영 빌드에 서버 전용 문자열·테스트 대역 없음
+  - [x] Controller 조작 요소와 비공개 요소에 `data-testid`
 - [ ] M4-C 다크 토큰 적용과 기존 화면 회귀
 - [ ] M4-5a 개인 정보 — 인벤토리, 절대 시야, 부적 회복·제출·양도·버림, Phase 2 진입, 14A
 - [ ] M4-5b 심리전 — 귓속말 목록, 붉은 메시지, 공개 알림 피드

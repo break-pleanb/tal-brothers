@@ -57,7 +57,13 @@ const hint = computed(() => {
 <template>
   <div class="controller-bottom roll-button">
     <p class="roll-button__hint">{{ hint }}</p>
-    <Button v-if="canRoll" class="roll-button__button" size="lg" @click="emit('roll')">
+    <Button
+      v-if="canRoll"
+      class="roll-button__button"
+      data-testid="roll-button"
+      size="lg"
+      @click="emit('roll')"
+    >
       주사위 굴리기
     </Button>
   </div>

@@ -31,6 +31,8 @@ const emit = defineEmits<{ select: [choiceId: string] }>()
       <button
         type="button"
         class="vote-panel__choice"
+        data-testid="vote-choice"
+        :data-choice="choice.id"
         :class="{ 'vote-panel__choice--mine': choice.id === myVote }"
         :disabled="disabled"
         @click="emit('select', choice.id)"
@@ -41,7 +43,7 @@ const emit = defineEmits<{ select: [choiceId: string] }>()
           <span v-if="choice.judgmentKind !== null">{{ JUDGMENT_LABEL[choice.judgmentKind] }}</span>
           <span v-if="choice.attribute !== null">{{ ATTRIBUTE_LABEL[choice.attribute] }}</span>
           <span v-if="choice.hiddenCostPercent !== null">대가 +{{ choice.hiddenCostPercent }}%</span>
-          <span v-if="variantLabels?.[choice.id]" class="vote-panel__variant">
+          <span v-if="variantLabels?.[choice.id]" class="vote-panel__variant" data-testid="variant-label">
             {{ VARIANT_LABEL[variantLabels[choice.id] as VariantKind] }}
           </span>
         </span>

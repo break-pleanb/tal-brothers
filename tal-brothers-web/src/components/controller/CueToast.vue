@@ -19,7 +19,7 @@ const { current, dismiss } = useCueQueue('toast', TOAST_HOLD_MS)
 </script>
 
 <template>
-  <div v-if="current !== null" class="cue-toast" @click="dismiss">
+  <div v-if="current !== null" class="cue-toast" data-testid="cue-toast" @click="dismiss">
     <p class="cue-toast__text">{{ current.cue.text }}</p>
   </div>
 </template>

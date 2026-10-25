@@ -22,11 +22,35 @@ export const ARTIFACT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta
 
 export type E2eUser = { id: string; name: string }
 
+/** 이 기기가 ws로 받은 서버 메시지 하나 */
+export type FrameRecord = {
+  /** 받은 순간(실제 시각, ms) */
+  at: number
+  message: { t: string } & Record<string, unknown>
+}
+
 export type Device = {
   label: string
   user: E2eUser
   context: BrowserContext
   page: Page
+  /** 받은 서버 메시지 전부. 은닉 검사가 화면 밖에서 새는 값을 본다 (m4-plan 11.4) */
+  frames: FrameRecord[]
+}
+
+/** 페이지가 여는 ws의 수신 프레임을 모은다. 페이지를 새로 열면 다시 불러야 한다 */
+export function captureFrames(page: Page, frames: FrameRecord[]): void {
+  page.on('websocket', (socket) => {
+    socket.on('framereceived', ({ payload }) => {
+      if (typeof payload !== 'string') return
+      try {
+        const message = JSON.parse(payload) as FrameRecord['message']
+        if (typeof message.t === 'string') frames.push({ at: Date.now(), message })
+      } catch {
+        // 서버는 JSON만 보낸다. 못 읽는 프레임은 검사 대상이 아니다
+      }
+    })
+  })
 }
 
 /** 호스트는 Display와 폰에 **같은 계정**으로 동시에 접속한다 (아키텍처 §1) */
@@ -53,7 +77,9 @@ async function newDevice(
     [E2E_USER_KEY, JSON.stringify(user)] as const,
   )
   const page = await context.newPage()
-  return { label, user, context, page }
+  const frames: FrameRecord[] = []
+  captureFrames(page, frames)
+  return { label, user, context, page, frames }
 }
 
 export async function openDisplay(browser: Browser, viewport = DISPLAY_VIEWPORT): Promise<Device> {
@@ -81,7 +107,12 @@ export async function closeAll(devices: Device[]): Promise<void> {
 export function artifactDir(name: string): string {
   const safe = name.replace(/[^\p{L}\p{N}_-]+/gu, '_')
   const dir = path.join(ARTIFACT_ROOT, safe)
-  fs.rmSync(dir, { recursive: true, force: true })
+  try {
+    fs.rmSync(dir, { recursive: true, force: true })
+  } catch {
+    // Windows는 다른 프로세스가 연 폴더를 지우지 못한다(EPERM). 그때는 안의 파일만 비운다
+    for (const entry of fs.readdirSync(dir)) fs.rmSync(path.join(dir, entry), { recursive: true, force: true })
+  }
   fs.mkdirSync(dir, { recursive: true })
   return dir
 }

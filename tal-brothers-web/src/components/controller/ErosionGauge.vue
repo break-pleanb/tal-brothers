@@ -18,7 +18,7 @@ const TICKS = [30, 60]
 </script>
 
 <template>
-  <div class="erosion">
+  <div class="erosion" data-testid="erosion-gauge">
     <div class="erosion__head">
       <span class="erosion__label">잠식도</span>
       <span class="erosion__value">{{ clamped }}%</span>

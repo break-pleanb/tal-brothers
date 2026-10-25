@@ -54,7 +54,8 @@ const canForce = computed(
   () => props.mySeat === BROTHER_ROLE.FIRST && props.privateView?.abilityUsed === false,
 )
 
-type Action = { label: string; command: Command; enabled: boolean }
+/** `testId`는 통합 테스트가 버튼을 찾는 이름이다 (m4-plan 11.4) */
+type Action = { label: string; command: Command; enabled: boolean; testId: string }
 
 /** 이 단계에서 내가 누를 수 있는 것. 연습 창에서는 셋 다 보여준다 */
 const actions = computed<Action[]>(() => {
@@ -62,16 +63,19 @@ const actions = computed<Action[]>(() => {
     label: '주사위 다시 굴리기',
     command: { type: COMMAND_TYPE.INTERVENTION_REROLL },
     enabled: canReroll.value,
+    testId: 'intervention-reroll',
   }
   const talisman: Action = {
     label: `낡은 부적 쓰기 (최종값 +1)`,
     command: { type: COMMAND_TYPE.INTERVENTION_TALISMAN },
     enabled: canTalisman.value,
+    testId: 'intervention-talisman',
   }
   const force: Action = {
     label: '강제 성공 (내 잠식 +15%)',
     command: { type: COMMAND_TYPE.INTERVENTION_FORCE_SUCCESS },
     enabled: canForce.value,
+    testId: 'intervention-force',
   }
 
   if (isPractice.value) return [reroll, talisman, force]
@@ -109,6 +113,7 @@ function use(action: Action): void {
         v-for="action in actions"
         :key="action.command.type"
         class="intervention__button"
+        :data-testid="action.testId"
         size="lg"
         :disabled="!action.enabled || pressed"
         @click="use(action)"
