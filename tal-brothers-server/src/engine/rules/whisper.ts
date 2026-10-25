@@ -1,5 +1,4 @@
 import {
-  BROTHER_ROLE,
   EROSION_TIER,
   PUBLIC_NOTICE_KIND,
   VARIANT_KIND,
@@ -13,6 +12,7 @@ import { SEAT_ORDER } from '../state/gameState'
 import type { GameState, PendingWhisper, ReceivedWhisper } from '../state/gameState'
 import { pickOne, rollChance, type Rng } from '../random'
 import { tierOf } from './erosion'
+import { SEAT_LABEL } from './seatLabel'
 import { pickFalseVariant } from './variant'
 
 /**
@@ -53,11 +53,6 @@ const ALL_TIERS: readonly ErosionTier[] = [
   EROSION_TIER.TRAITOR,
 ]
 
-const SEAT_LABEL: Record<BrotherRole, string> = {
-  [BROTHER_ROLE.FIRST]: '첫째',
-  [BROTHER_ROLE.SECOND]: '둘째',
-  [BROTHER_ROLE.THIRD]: '셋째',
-}
 
 // ── T2 귓속말 (룰북 §12) ─────────────────────────────────────────────
 

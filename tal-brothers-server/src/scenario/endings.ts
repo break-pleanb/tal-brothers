@@ -30,6 +30,18 @@ export const ENDING_NARRATIONS: Record<EndingNarrationKey, string> = {
     '형제들에게 제압당한 채 끌려 나와 함께 경계를 넘는다.',
 }
 
+/**
+ * 엔딩 내레이션 고르기 (룰북 §14.5, §15).
+ * 분기 키가 있으면 그 문장, 없으면 엔딩의 기본 문장이다. 엔딩 cue와 투영이 같은 문장을 쓰도록 한 곳에 둔다
+ */
+export function endingNarration(id: EndingId, narrationKey: string | null): string {
+  if (narrationKey !== null) {
+    const custom = ENDING_NARRATIONS[narrationKey as EndingNarrationKey]
+    if (custom !== undefined) return custom
+  }
+  return ENDINGS[id].narration
+}
+
 export const ENDINGS: Record<EndingId, EndingDefinition> = {
   [ENDING_ID.PURIFY]: {
     id: ENDING_ID.PURIFY,

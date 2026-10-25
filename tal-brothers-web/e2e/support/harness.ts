@@ -117,6 +117,26 @@ export function artifactDir(name: string): string {
   return dir
 }
 
+/**
+ * 실제 시간으로 잠깐 쉰다. 페이지가 닫혀 있어도 동작해야 해서 `page.waitForTimeout`을 쓰지 않는다 —
+ * 비상 시나리오는 페이지를 닫았다 다시 연다
+ */
+export function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
+ * 기기의 페이지를 새로 연다 (닫혔다 다시 접속하는 상황). 같은 컨텍스트라 저장소(로그인·기기 역할)는 남는다.
+ * `device.page`를 바꿔 끼우므로 플레이어·기록기 루프가 다음 틱부터 새 페이지를 본다
+ */
+export async function reopenPage(device: Device, url: string): Promise<void> {
+  if (!device.page.isClosed()) await device.page.close()
+  const page = await device.context.newPage()
+  captureFrames(page, device.frames)
+  device.page = page
+  await page.goto(url)
+}
+
 /** 다음에 만들 방의 시드를 고정한다 (테스트 서버 전용 경로) */
 export async function pinNextSeed(seed: number): Promise<void> {
   const response = await fetch(`${SERVER_URL}/__e2e/seed`, {

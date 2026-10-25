@@ -14,6 +14,7 @@ import type { EngineContext, Rejection, StepOutput } from '../engineTypes'
 import { pickOne } from '../random'
 import { applySeatErosion } from '../rules/erosion'
 import { connectedHumanSeats, humanSeats } from '../rules/seatControl'
+import { SEAT_LABEL } from '../rules/seatLabel'
 import { SEAT_ORDER } from '../state/gameState'
 import type { CurrentEventState, GameState } from '../state/gameState'
 import { adoptChoice, currentScenarioEvent, nextStepAfterAdopt } from './rollStep'
@@ -199,7 +200,7 @@ export const VOTING_HANDLER: StepHandler = {
         applySeatErosion(draft, seat, -GAME_CONFIG.talismanHealPercent, context, out)
         draft.notices.push({
           kind: PUBLIC_NOTICE_KIND.TALISMAN_USED,
-          text: `${seat}가 낡은 부적으로 잠식을 씻었다`,
+          text: `${SEAT_LABEL[seat]}가 낡은 부적으로 잠식을 씻었다`,
         })
         out.logs.push({
           at: context.now,

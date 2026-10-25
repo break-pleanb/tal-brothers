@@ -10,9 +10,10 @@ import {
 } from 'tal-brothers-shared'
 import type { EndingId } from 'tal-brothers-shared'
 
-import { ENDINGS } from '../../../src/scenario/endings'
+import { ENDING_NARRATION_KEY, ENDING_NARRATIONS, ENDINGS } from '../../../src/scenario/endings'
 import { dispatch, enterStep, finishDispatch } from '../../../src/engine/dispatch'
 import { ACTION_KIND, createStepOutput, seatActor } from '../../../src/engine/engineTypes'
+import { projectDisplay } from '../../../src/engine/projection/projectDisplay'
 import { requestEnding } from '../../../src/engine/steps/endingStep'
 import { createGame, seatSetupForHumans } from '../../../src/engine/state/createGame'
 import type { GameState } from '../../../src/engine/state/gameState'
@@ -94,6 +95,27 @@ describe('엔딩 확정 (룰북 §15)', () => {
     enterStep(state, GAME_STEP.ENDING, { now: START, rng: LOW }, out)
 
     expect(out.cues.some((cue) => cue.kind === CUE_KIND.NOISE_LOCK)).toBe(true)
+  })
+
+  it('엔딩 투영은 내레이션과 연출 에셋을 스냅샷에 싣는다 (m4-plan 11.1 2번)', () => {
+    for (const id of Object.values(ENDING_ID)) {
+      const state = newGame()
+      requestEnding(state, id as EndingId)
+      enterStep(state, GAME_STEP.ENDING, { now: START, rng: LOW }, createStepOutput())
+
+      const ending = projectDisplay(state).ending
+      expect(ending?.narration, id).toBe(ENDINGS[id as EndingId].narration)
+      expect(ending?.assets, id).toEqual(ENDINGS[id as EndingId].assets)
+    }
+
+    // 1인 플레이 본인 타겟의 A-2 성공은 분기 내레이션이다 (룰북 §14.5)
+    const solo = newGame(1)
+    requestEnding(solo, ENDING_ID.ESCAPE_PARTING, { narrationKey: ENDING_NARRATION_KEY.SOLO_SELF_TARGET })
+    const out = createStepOutput()
+    enterStep(solo, GAME_STEP.ENDING, { now: START, rng: LOW }, out)
+    const narration = projectDisplay(solo).ending?.narration ?? ''
+    expect(narration).toBe(ENDING_NARRATIONS[ENDING_NARRATION_KEY.SOLO_SELF_TARGET])
+    expect(out.cues.find((cue) => cue.kind === CUE_KIND.ENDING)?.text).toContain(narration)
   })
 
   it('엔딩 단계에서는 모든 액션을 거절한다', () => {

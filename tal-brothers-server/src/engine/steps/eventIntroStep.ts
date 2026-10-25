@@ -23,6 +23,7 @@ import {
   shouldReceiveTierWhisper,
   whisperLogData,
 } from '../rules/whisper'
+import { SEAT_LABEL } from '../rules/seatLabel'
 import { SEAT_ORDER } from '../state/gameState'
 import type { CurrentEventState, GameState } from '../state/gameState'
 import { adoptChoice, nextStepAfterAdopt, scenarioEventAt } from './rollStep'
@@ -152,7 +153,7 @@ function pickGrabbedSeat(
 
   draft.notices.push({
     kind: PUBLIC_NOTICE_KIND.SEAT_GRABBED,
-    text: `${target}의 발목을 썩은 손들이 붙잡았다`,
+    text: `${SEAT_LABEL[target]}의 발목을 썩은 손들이 붙잡았다`,
   })
   out.logs.push({
     at: context.now,

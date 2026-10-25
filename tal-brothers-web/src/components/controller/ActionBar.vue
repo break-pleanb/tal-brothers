@@ -16,6 +16,8 @@ defineProps<{
   disabled?: boolean
   /** 버튼 위 한 줄 안내. 지금 무엇을 기다리는지 알려 준다 */
   hint?: string | null
+  /** 통합 테스트가 버튼을 찾는 이름 (m4-plan 11.4) */
+  testId?: string
 }>()
 
 const emit = defineEmits<{ press: [] }>()
@@ -29,6 +31,7 @@ const emit = defineEmits<{ press: [] }>()
       class="action-bar__button"
       size="lg"
       :disabled="disabled === true"
+      :data-testid="testId"
       @click="emit('press')"
     >
       {{ label }}

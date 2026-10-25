@@ -44,7 +44,9 @@ export default defineConfig({
       },
     },
     {
-      command: 'npx vite --config vite.e2e.config.ts --mode e2e',
+      // 빌드본을 띄운다 — 판이 도는 동안 소스를 고쳐도 화면이 흔들리지 않는다 (vite.e2e.config.ts)
+      command:
+        'npx vite build --config vite.e2e.config.ts --mode e2e && npx vite preview --config vite.e2e.config.ts --mode e2e',
       url: `http://localhost:${WEB_PORT}`,
       reuseExistingServer: false,
       timeout: 60_000,

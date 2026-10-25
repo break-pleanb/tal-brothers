@@ -1,5 +1,6 @@
 import { GAME_STEP } from 'tal-brothers-shared'
 
+import { sleep } from './harness'
 import type { Device } from './harness'
 import { createTestRng } from './random'
 import type { TestRng } from './random'
@@ -15,9 +16,10 @@ import type { TestRng } from './random'
  * - `seeded` — 시드 무작위 선택지. 개입은 반반
  * - `risky`  — 비공개 판정·아이템 사용 선택지를 먼저 고른다. 개입은 쓸 수 있으면 쓴다 (잠식도를 빨리 올려 심리전 장면을 만든다)
  * - `useAll` — 시드 무작위 선택지. 능력·부적·개입을 기회마다 쓴다
+ * - `hoard`  — 아이템 사용 선택지를 먼저 고르고, 부적을 회복·개입에 쓰지 않고 모아 둔다 (14A 제출 장면용)
  */
 
-export type PolicyName = 'first' | 'seeded' | 'risky' | 'useAll'
+export type PolicyName = 'first' | 'seeded' | 'risky' | 'useAll' | 'hoard'
 
 export type PlayerOptions = {
   policy: PolicyName
@@ -42,6 +44,8 @@ type ScreenState = {
   canRoll: boolean
   /** 누를 수 있는 testid 목록 */
   enabled: string[]
+  /** 인벤토리에 적힌 낡은 부적 개수 (튜토리얼 부적 제외) */
+  talismans: number
 }
 
 /** 한 번의 `evaluate`로 지금 화면에서 필요한 것을 모두 읽는다 */
@@ -62,7 +66,10 @@ async function readScreen(device: Device): Promise<ScreenState | null> {
       const enabled = [...document.querySelectorAll<HTMLButtonElement>('button[data-testid]')]
         .filter((button) => !button.disabled)
         .map((button) => button.dataset.testid ?? '')
+      const inventory = document.querySelector('[data-testid="inventory"]')?.textContent ?? ''
+      const talismans = Number(/낡은 부적 ×(\d+)/.exec(inventory)?.[1] ?? '0')
       return {
+        talismans,
         step: root.getAttribute('data-step') ?? '',
         event: root.getAttribute('data-event') ?? '',
         choices,
@@ -84,6 +91,11 @@ function pickChoice(policy: PolicyName, rng: TestRng, choices: ChoiceInfo[]): Ch
       const pool = risky.length > 0 ? risky : open
       return pool[rng.int(pool.length)] ?? null
     }
+    case 'hoard': {
+      const item = open.filter((choice) => /아이템/.test(choice.tags))
+      const pool = item.length > 0 ? item : open
+      return pool[rng.int(pool.length)] ?? null
+    }
     case 'seeded':
     case 'useAll':
       return open[rng.int(open.length)] ?? null
@@ -98,6 +110,7 @@ function wantsIntervention(policy: PolicyName, rng: TestRng): boolean {
       return rng.chance(0.5)
     case 'risky':
     case 'useAll':
+    case 'hoard':
       return true
   }
 }
@@ -133,7 +146,11 @@ export function startPlayer(device: Device, options: PlayerOptions): Player {
 
   const loop = (async () => {
     while (running) {
-      if (device.page.isClosed()) break
+      // 비상 시나리오가 페이지를 닫았다 다시 연다. 닫혀 있는 동안은 기다린다
+      if (device.page.isClosed()) {
+        await sleep(200)
+        continue
+      }
       const screen = await readScreen(device)
       if (screen !== null) {
         const key = `${screen.event}:${screen.step}`
@@ -143,6 +160,41 @@ export function startPlayer(device: Device, options: PlayerOptions): Player {
         }
 
         if (screen.step === GAME_STEP.ENDING) break
+
+        // 절대 시야 결과는 화면 전체를 덮는 모달이다. 읽었으면 닫아야 다른 버튼을 누를 수 있다
+        if (screen.enabled.includes('true-sight-close')) {
+          if (await click(device, 'true-sight-close')) actions.push(`${key} 절대 시야 닫기`)
+          continue
+        }
+
+        if (screen.step === GAME_STEP.VOTING && options.policy === 'useAll') {
+          if (screen.enabled.includes('ability-true-sight') && !done.has(`${key}:sight`)) {
+            done.add(`${key}:sight`)
+            if (await click(device, 'ability-true-sight')) actions.push(`${key} 절대 시야`)
+          }
+          // 회복은 부적이 상한(2개)일 때만 쓴다 — 다 써 버리면 14A 제출 장면이 나오지 않는다
+          if (screen.enabled.includes('talisman-heal') && screen.talismans >= 2 && !done.has(`${key}:heal`)) {
+            done.add(`${key}:heal`)
+            if (await click(device, 'talisman-heal')) actions.push(`${key} 부적 회복`)
+          }
+          if (screen.enabled.includes('talisman-transfer') && !done.has(`${key}:transfer`)) {
+            done.add(`${key}:transfer`)
+            if (await click(device, 'talisman-transfer')) actions.push(`${key} 보류함 양도`)
+          } else if (screen.enabled.includes('talisman-discard') && !done.has(`${key}:discard`)) {
+            done.add(`${key}:discard`)
+            if (await click(device, 'talisman-discard')) actions.push(`${key} 보류함 버림`)
+          }
+        }
+
+        if (
+          screen.step === GAME_STEP.TALISMAN_WINDOW &&
+          options.policy !== 'first' &&
+          screen.enabled.includes('talisman-submit') &&
+          !done.has(`${key}:submit`)
+        ) {
+          done.add(`${key}:submit`)
+          if (await click(device, 'talisman-submit')) actions.push(`${key} 14A 제출`)
+        }
 
         if (
           (screen.step === GAME_STEP.VOTING || screen.step === GAME_STEP.P3_VOTING) &&
@@ -166,7 +218,9 @@ export function startPlayer(device: Device, options: PlayerOptions): Player {
         }
 
         if (INTERVENTION_STEPS.includes(screen.step) && !done.has(`${key}:intervene`)) {
-          const available = screen.enabled.filter((id) => id.startsWith('intervention-'))
+          const available = screen.enabled.filter(
+            (id) => id.startsWith('intervention-') && !(options.policy === 'hoard' && id === 'intervention-talisman'),
+          )
           if (available.length > 0) {
             done.add(`${key}:intervene`)
             if (wantsIntervention(options.policy, rng)) {
@@ -177,7 +231,7 @@ export function startPlayer(device: Device, options: PlayerOptions): Player {
           }
         }
       }
-      await device.page.waitForTimeout(tickMs).catch(() => undefined)
+      await sleep(tickMs)
     }
   })()
 

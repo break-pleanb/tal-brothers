@@ -113,6 +113,14 @@ const hideCursor = computed(() => route.query.obs === '1')
 .stage-layer--overlay {
   z-index: 5;
 }
+/** 방 운영 바. 게임 화면이 아니라 덮개 위에 둔다 (m4-plan 2.5) */
+.stage-layer--host {
+  z-index: 6;
+  pointer-events: none;
+}
+.stage-layer--host > * {
+  pointer-events: auto;
+}
 
 /** HUD와 본문은 세이프존 안에만 놓는다. 배경과 덮개는 세이프존을 무시하고 끝까지 채운다 */
 .stage-safe {

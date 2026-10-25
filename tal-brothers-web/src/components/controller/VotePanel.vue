@@ -42,7 +42,7 @@ const emit = defineEmits<{ select: [choiceId: string] }>()
         <span class="vote-panel__tags">
           <span v-if="choice.judgmentKind !== null">{{ JUDGMENT_LABEL[choice.judgmentKind] }}</span>
           <span v-if="choice.attribute !== null">{{ ATTRIBUTE_LABEL[choice.attribute] }}</span>
-          <span v-if="choice.hiddenCostPercent !== null">대가 +{{ choice.hiddenCostPercent }}%</span>
+          <span v-if="choice.hiddenCostPercent !== null">대가: 잠식도 {{ choice.hiddenCostPercent }}% 상승</span>
           <span v-if="variantLabels?.[choice.id]" class="vote-panel__variant" data-testid="variant-label">
             {{ VARIANT_LABEL[variantLabels[choice.id] as VariantKind] }}
           </span>

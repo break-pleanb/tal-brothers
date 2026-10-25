@@ -97,11 +97,13 @@ export function whisperTextsOf(device: Device): string[] {
   return [...texts]
 }
 
-type DomReading = { text: string; testIds: string[] }
+/** `step`은 DOM을 읽은 **그 순간**의 단계다. 체크포인트를 잡은 뒤 단계가 넘어갔을 수 있다 */
+type DomReading = { text: string; testIds: string[]; step: string }
 
 async function readDom(device: Device): Promise<DomReading | null> {
   return device.page
     .evaluate(() => ({
+      step: document.querySelector('[data-step]')?.getAttribute('data-step') ?? '',
       text: document.body.innerText,
       testIds: [...document.querySelectorAll('[data-testid]')].map(
         (element) => element.getAttribute('data-testid') ?? '',
@@ -137,7 +139,7 @@ export async function checkDisplayDom(
   }
   if (reading.text.includes('봇 대행')) add('"봇 대행" 표기가 있다 (룰북 §17)')
   if (reading.text.includes(RED_MESSAGE_FRAGMENT)) add('붉은 메시지 문구가 Display에 있다')
-  if (context.step !== 'ending' && reading.text.includes('배신자')) {
+  if (reading.step !== 'ending' && reading.text.includes('배신자')) {
     add('엔딩 전에 배신자 표기가 있다 (룰북 §17)')
   }
   return violations

@@ -7,7 +7,7 @@ import type { BrotherRole } from 'tal-brothers-shared'
 
 import { appendCoverage, collectCoverage } from './coverage'
 import type { GameCoverage } from './coverage'
-import { artifactDir, pinNextSeed } from './harness'
+import { artifactDir, pinNextSeed, sleep } from './harness'
 import type { Device } from './harness'
 import {
   checkControllerDom,
@@ -194,11 +194,11 @@ export async function runGame(browser: Browser, options: RunOptions): Promise<Ru
         }
       }
     }
-    await game.display.page.waitForTimeout(100).catch(() => undefined)
+    await sleep(100)
   }
 
   // 마지막 스냅샷·cue가 도착할 시간을 준다
-  await game.display.page.waitForTimeout(1_500).catch(() => undefined)
+  await sleep(1_500)
   for (const player of players.values()) await player.stop()
 
   violations.push(...checkDisplayFrames(game.display))
@@ -207,10 +207,14 @@ export async function runGame(browser: Browser, options: RunOptions): Promise<Ru
 
   const coverage = collectCoverage(options.label, game.display, game.devices)
 
-  // 배신자 화면에만 있는 요소가 없어야 한다 (룰북 §17). 좌석마다 다른 개입 버튼은 비교에서 뺀다.
-  // 변이 라벨은 배신자가 늘 보지만(룰북 §10.2) 일반 좌석도 가짜 라벨(§4.3)·절대 시야(§3.4)로 같은 요소를 본다.
-  // 한 판에서 일반 좌석에 우연히 안 나왔을 뿐 배신자 전용 요소가 아니므로 뺀다
-  const SHARED_BY_RULE = new Set(['variant-label'])
+  // 배신자 화면에만 있는 요소가 없어야 한다 (룰북 §17).
+  // 다음은 배신자 여부가 아니라 **좌석·소지품·확률**로 갈리는 요소라 비교에서 뺀다. 한 판에서 일반 좌석에
+  // 우연히 안 나왔을 뿐 배신자 전용이 아니다.
+  // - 개입 버튼(좌석마다 다름), 절대 시야(셋째 전용, §3.4), 부적 패널(보유자 전용, §9.1)
+  // - 변이 라벨: 배신자는 늘 보고(§10.2) 일반 좌석은 가짜 라벨(§4.3)·절대 시야로 본다
+  // - 붉은 메시지: 배신자는 진짜를, 60% 이상 좌석은 가짜를 받는다 (§10.1)
+  const SHARED_BY_RULE = new Set(['variant-label', 'red-message', 'true-sight', 'true-sight-close'])
+  const SHARED_PREFIXES = ['intervention-', 'ability-', 'talisman-']
   const traitorSeats = new Set(coverage.traitorSeats)
   const ordinaryIds = new Set<string>()
   for (const [seat, ids] of controllerTestIds) {
@@ -219,7 +223,8 @@ export async function runGame(browser: Browser, options: RunOptions): Promise<Ru
   if (ordinaryIds.size > 0) {
     for (const seat of traitorSeats) {
       for (const id of controllerTestIds.get(seat as BrotherRole) ?? []) {
-        if (id.startsWith('intervention-') || SHARED_BY_RULE.has(id) || ordinaryIds.has(id)) continue
+        if (SHARED_PREFIXES.some((prefix) => id.startsWith(prefix))) continue
+        if (SHARED_BY_RULE.has(id) || ordinaryIds.has(id)) continue
         violations.push({ device: seat, where: 'traitor', detail: `배신자 화면에만 있는 요소 ${id}` })
       }
     }

@@ -18,6 +18,7 @@ import type { EngineContext, Rejection, StepOutput } from '../engineTypes'
 import { rollD6 } from '../random'
 import { applySeatErosion } from '../rules/erosion'
 import { isBotControlled } from '../rules/seatControl'
+import { SEAT_LABEL } from '../rules/seatLabel'
 import { INTERVENTION_KIND } from '../state/gameState'
 import type { GameState, InterventionKind, InterventionRecord, JudgmentState } from '../state/gameState'
 import {
@@ -280,12 +281,12 @@ function applyTalisman(
 
   draft.notices.push({
     kind: PUBLIC_NOTICE_KIND.TALISMAN_USED,
-    text: `${seat}가 낡은 부적을 사용했다`,
+    text: `${SEAT_LABEL[seat]}가 낡은 부적을 사용했다`,
   })
   out.cues.push({
     kind: CUE_KIND.INTERVENTION_USED,
     audience: CUE_AUDIENCE.DISPLAY,
-    text: `${seat} 부적 +1`,
+    text: `${SEAT_LABEL[seat]} 부적 +1`,
   })
   out.logs.push({
     at: context.now,

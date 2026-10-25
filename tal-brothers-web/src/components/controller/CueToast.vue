@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useCueQueue } from '@/composables/useCueQueue'
+import { MOTION_TIMING } from '@/constants/motionTiming'
 
 /**
  * 토스트 자리 — 겹치지 않게 **순차로 하나씩** (M4 계획 4.3).
@@ -13,9 +14,7 @@ import { useCueQueue } from '@/composables/useCueQueue'
  */
 
 /** 화면 전용 시간이다. 룰북에 없어 실기 확인에서 조정한다 (M4 계획 9절 9번) */
-const TOAST_HOLD_MS = 4000
-
-const { current, dismiss } = useCueQueue('toast', TOAST_HOLD_MS)
+const { current, dismiss } = useCueQueue('toast', MOTION_TIMING.toastMs)
 </script>
 
 <template>

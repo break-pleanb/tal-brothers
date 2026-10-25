@@ -43,5 +43,15 @@ export default mergeConfig(
       port: E2E_WEB_PORT,
       strictPort: true,
     },
+    // 통합 테스트는 dev 서버가 아니라 빌드본을 `vite preview`로 띄운다 (playwright.config.ts).
+    // 판이 도는 동안 소스를 고쳐도 화면이 새로 고쳐지지 않고, 운영과 같은 번들 경로를 탄다
+    build: {
+      outDir: 'e2e-dist',
+      emptyOutDir: true,
+    },
+    preview: {
+      port: E2E_WEB_PORT,
+      strictPort: true,
+    },
   }),
 )

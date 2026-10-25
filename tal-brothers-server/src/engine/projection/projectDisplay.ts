@@ -16,6 +16,7 @@ import type {
   VoteView,
 } from 'tal-brothers-shared'
 
+import { ENDINGS, endingNarration } from '../../scenario/endings'
 import { GAME_CONFIG } from '../../scenario/gameConfig'
 import { BRANCH_SHRINE_BACKGROUND, BRANCH_SHRINE_CHOICE_ID } from '../../scenario/phase2Events'
 import { hasAttribute, hasJudgment } from '../../scenario/scenarioTypes'
@@ -189,6 +190,8 @@ function projectEnding(state: GameState): EndingView | null {
   return {
     id: ending.id,
     narrationKey: ending.narrationKey,
+    narration: endingNarration(ending.id, ending.narrationKey),
+    assets: [...ENDINGS[ending.id].assets],
     traitorWon: revealed ? ending.traitorWon : null,
     traitorSeats: revealed ? traitorSeats(state) : [],
   }

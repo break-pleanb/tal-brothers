@@ -11,6 +11,7 @@ import { GAME_CONFIG } from '../../scenario/gameConfig'
 import type { StepHandler } from '../dispatch'
 import { CUE_AUDIENCE, LOG_CODE, reject } from '../engineTypes'
 import type { Rejection } from '../engineTypes'
+import { SEAT_LABEL } from '../rules/seatLabel'
 import type { GameState, JudgmentState } from '../state/gameState'
 
 /**
@@ -86,7 +87,7 @@ export const TALISMAN_WINDOW_HANDLER: StepHandler = {
     // 부적 사용 사실은 이름과 함께 공개한다 (룰북 §7.4, §17)
     draft.notices.push({
       kind: PUBLIC_NOTICE_KIND.TALISMAN_USED,
-      text: `${seat}가 부적을 태워 탈 조각을 봉인했다`,
+      text: `${SEAT_LABEL[seat]}가 부적을 태워 탈 조각을 봉인했다`,
     })
     out.logs.push({
       at: context.now,

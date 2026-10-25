@@ -402,10 +402,14 @@ tal-brothers-server/
   - [x] `staticRules.spec` — display 컴포넌트의 좌석 타입 import 금지, 운영 빌드에 서버 전용 문자열·테스트 대역 없음
   - [x] Controller 조작 요소와 비공개 요소에 `data-testid`
 - [x] **M4-C 다크 토큰 적용과 기존 화면 회귀** — `<html class="dark">`. 적용 전 `regression.spec`이 메뉴의 "코드로 참가"(대비 1.09)를 잡았고, 적용 후 전 화면 버튼 대비 4.5 이상
-- [ ] M4-5a 개인 정보 — 인벤토리, 절대 시야, 부적 회복·제출·양도·버림, Phase 2 진입, 14A
-- [ ] M4-5b 심리전 — 귓속말 목록, 붉은 메시지, 공개 알림 피드
-- [ ] M4-6a Phase 3·엔딩·노이즈
-- [ ] M4-6b 비상 상황 — 호스트 바, 일시정지, 연결 끊김
+- [x] **M4-5a 개인 정보** — `InventoryPanel`·`AbilityButton`·`TrueSightSheet`·`TalismanPanel`, 14A 제출 액션바, Phase 진입 내레이션(`phaseEntered` cue)
+  - [x] `personalInfo.spec` — 절대 시야·부적 회복·14A 제출이 화면 조작으로 일어나 공개 알림에 뜬다 (12판 중 9번째에서 14A 제출), 은닉 위반 0건
+- [x] **M4-5b 심리전** — `WhisperList`·`RedMessageOverlay`(cue만 입력)·`PublicNoticeFeed`(왼쪽 아래, 캠 자리 밖), 비공개 판정 대가를 룰북 §5.4 표기로
+  - [x] `redMessage.spec` — 진짜 2건·가짜 2건의 DOM·계산 스타일·픽셀·표시 시간이 같다
+  - [x] 서버: 화면 문장 8곳의 좌석 값(`first` 등)을 형제 이름으로 (`SEAT_LABEL`, 회귀 테스트 1건)
+- [x] **M4-6a Phase 3·엔딩·노이즈** — `EndingView.narration`·`assets`(테스트 1건), `TargetReveal`·`EndingSequence`·`NoiseOverlay`·`EndingSummary`
+- [x] **M4-6b 비상 상황** — `HostBar`(상황 제시에서만 정지)·`PauseCurtain`·잠금 사유·`ReconnectNotice`
+  - [x] `emergency.spec` 5개 — 조작 기기 끊김(네트워크 차단)·Display 끊김·전원 끊김 자동 정지·호스트 정지/재개·타임오버 노이즈
 - [ ] M4-7 마감 — 계획 8절 자동 확인, 커버리지, 레이아웃 검사 (밸런스 재판단은 사람 몫, 계획 11.1 h)
 - [ ] M3에서 넘어온 항목: 연결 끊김 봇 대행·일시정지 확인(자동은 M4-6b, 실제 기기는 사람), ~~로비 봇 지정 버튼 대비 수정~~ (2026-09-20 완료)
 

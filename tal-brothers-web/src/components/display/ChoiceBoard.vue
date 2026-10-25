@@ -31,7 +31,7 @@ function tagsOf(choice: ChoiceView): string[] {
   const tags: string[] = []
   if (choice.judgmentKind !== null) tags.push(JUDGMENT_LABEL[choice.judgmentKind])
   if (choice.attribute !== null) tags.push(ATTRIBUTE_LABEL[choice.attribute])
-  if (choice.hiddenCostPercent !== null) tags.push(`대가 +${choice.hiddenCostPercent}%`)
+  if (choice.hiddenCostPercent !== null) tags.push(`대가: 잠식도 ${choice.hiddenCostPercent}% 상승`)
   return tags
 }
 </script>

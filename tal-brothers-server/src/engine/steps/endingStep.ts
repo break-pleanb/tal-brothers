@@ -1,7 +1,7 @@
 import { CUE_KIND, ENDING_ID, PUBLIC_NOTICE_KIND } from 'tal-brothers-shared'
 import type { EndingId } from 'tal-brothers-shared'
 
-import { ENDING_NARRATIONS, ENDINGS } from '../../scenario/endings'
+import { ENDINGS, endingNarration } from '../../scenario/endings'
 import type { EndingNarrationKey } from '../../scenario/endings'
 import type { StepHandler } from '../dispatch'
 import { CUE_AUDIENCE, LOG_CODE } from '../engineTypes'
@@ -45,11 +45,7 @@ export function traitorOutcomeLabel(traitorWon: boolean | null): string {
 function narrationOf(state: GameState): string {
   const ending = state.ending
   if (ending === null) throw new Error('엔딩이 확정되지 않았다')
-  if (ending.narrationKey !== null) {
-    const custom = ENDING_NARRATIONS[ending.narrationKey as EndingNarrationKey]
-    if (custom !== undefined) return custom
-  }
-  return ENDINGS[ending.id].narration
+  return endingNarration(ending.id, ending.narrationKey)
 }
 
 export const ENDING_HANDLER: StepHandler = {

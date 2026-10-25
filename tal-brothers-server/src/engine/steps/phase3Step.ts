@@ -23,6 +23,7 @@ import {
   moveJadeHairpinAwayFromTarget,
   selectPhase3Target,
 } from '../rules/target'
+import { SEAT_LABEL } from '../rules/seatLabel'
 import { SEAT_ORDER } from '../state/gameState'
 import type { CurrentEventState, GameState } from '../state/gameState'
 import { requestEnding } from './endingStep'
@@ -90,12 +91,12 @@ function selectTarget(draft: GameState, context: EngineContext, out: StepOutput)
   // 타겟은 Display에 공개한다 (룰북 §17)
   draft.notices.push({
     kind: PUBLIC_NOTICE_KIND.PHASE3_TARGET,
-    text: `${targetSeat}의 눈에서 피눈물이 흐른다`,
+    text: `${SEAT_LABEL[targetSeat]}의 눈에서 피눈물이 흐른다`,
   })
   out.cues.push({
     kind: CUE_KIND.TARGET_REVEALED,
     audience: CUE_AUDIENCE.DISPLAY,
-    text: `${targetSeat}의 눈에서 피눈물이 흐른다`,
+    text: `${SEAT_LABEL[targetSeat]}의 눈에서 피눈물이 흐른다`,
     data: { targetSeat },
   })
   out.logs.push({

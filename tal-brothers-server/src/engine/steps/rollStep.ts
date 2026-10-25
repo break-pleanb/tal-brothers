@@ -24,6 +24,7 @@ import { rollD6 } from '../random'
 import { roleBonusFor, rollerSeatFor } from '../rules/modifiers'
 import { jadeHairpinHolder } from '../rules/target'
 import { applyVariantToChoice, variantOf } from '../rules/variant'
+import { SEAT_LABEL } from '../rules/seatLabel'
 import { SEAT_ORDER } from '../state/gameState'
 import type { DiceRoll, GameState, JudgmentState } from '../state/gameState'
 
@@ -348,7 +349,7 @@ export const ROLL_REVEAL_HANDLER: StepHandler = {
         kind: CUE_KIND.DICE_ROLLED,
         audience: CUE_AUDIENCE.DISPLAY,
         text: judgment.dice
-          .map((die) => `${die.seat} ${die.value ?? '-'}`)
+          .map((die) => `${SEAT_LABEL[die.seat]} ${die.value ?? '-'}`)
           .join(' · '),
       })
       out.cues.push({
