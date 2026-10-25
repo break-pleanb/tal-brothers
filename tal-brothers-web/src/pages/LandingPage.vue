@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import introMask from '@/assets/images/masks/introMask.png'
+import introMask from '@/assets/images/masks/introMask.webp'
 import { Button } from '@/components/ui/button'
 import { ROUTE_NAME } from '@/constants/routeName'
 import { NEXT_QUERY_KEY, safeNextPath } from '@/lib/nextPath'
@@ -10,7 +10,7 @@ import { useAuthStore } from '@/stores/auth'
 
 /**
  * 랜딩 (M3 계획 6.3).
- * 브랜드 이미지는 `introMask.png`만 쓴다. 인게임 에셋 11종은 M4까지 노출하지 않는다.
+ * 브랜드 이미지는 `introMask`만 쓴다. 7.7MB 원본 대신 192px 표시에 맞춰 줄인 webp(16KB)다 (m5-plan M5-1).
  */
 
 const auth = useAuthStore()

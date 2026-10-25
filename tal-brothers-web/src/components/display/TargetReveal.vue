@@ -2,6 +2,7 @@
 import type { BrotherRole, Phase3View, SeatNameView } from 'tal-brothers-shared'
 
 import { BROTHER_LABEL } from '@/constants/brotherLabel'
+import { MOTION_TIMING } from '@/constants/motionTiming'
 
 /**
  * Phase 3 타겟 공개 (룰북 §14.1, §17).
@@ -18,6 +19,8 @@ const props = defineProps<{
   seatNames: SeatNameView[]
 }>()
 
+const motion = { '--reveal': `${MOTION_TIMING.revealMs}ms` }
+
 function nameOf(seat: BrotherRole): string {
   const found = props.seatNames.find((entry) => entry.seat === seat)
   return found?.displayName === null || found === undefined
@@ -27,7 +30,7 @@ function nameOf(seat: BrotherRole): string {
 </script>
 
 <template>
-  <div class="target" data-testid="target-reveal">
+  <div class="target" data-testid="target-reveal" :style="motion">
     <p v-if="phase3.targetSeat !== null" class="target__seat">
       {{ nameOf(phase3.targetSeat) }}의 눈에서 피눈물이 흐른다
     </p>
@@ -49,10 +52,44 @@ function nameOf(seat: BrotherRole): string {
   font-size: var(--stage-choice);
   font-weight: 600;
   color: #e7b4b4;
+  animation: target-in var(--reveal) ease-out both;
 }
 
+/* 옥비녀 문장은 타겟 공개 다음에 튕겨 나가듯 들어온다 (룰북 §14.1의 순서) */
 .target__hairpin {
   font-size: var(--stage-tag);
   color: rgba(245, 245, 245, 0.75);
+  animation: hairpin-in var(--reveal) ease-out var(--reveal) both;
+}
+
+@keyframes target-in {
+  from {
+    opacity: 0;
+    letter-spacing: 0.4em;
+    filter: blur(0.4cqw);
+  }
+  to {
+    opacity: 1;
+    letter-spacing: normal;
+    filter: blur(0);
+  }
+}
+
+@keyframes hairpin-in {
+  from {
+    opacity: 0;
+    transform: translateX(-4cqw);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .target__seat,
+  .target__hairpin {
+    animation: none;
+  }
 }
 </style>

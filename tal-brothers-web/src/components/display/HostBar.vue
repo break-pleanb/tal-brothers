@@ -117,6 +117,12 @@ const hint = computed(() => {
   cursor: default;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .host-bar {
+    transition: none;
+  }
+}
+
 .host-bar__hint {
   font-size: 1cqw;
   color: rgba(245, 245, 245, 0.65);

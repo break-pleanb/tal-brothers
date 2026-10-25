@@ -66,6 +66,12 @@ const TICKS = [30, 60]
   transition: width 240ms ease-out;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .erosion__fill {
+    transition: none;
+  }
+}
+
 .erosion__tick {
   position: absolute;
   top: 0;

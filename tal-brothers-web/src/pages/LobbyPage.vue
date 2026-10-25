@@ -9,6 +9,7 @@ import JoinQrPanel from '@/components/lobby/JoinQrPanel.vue'
 import SeatBoard from '@/components/lobby/SeatBoard.vue'
 import { Button } from '@/components/ui/button'
 import { ROUTE_NAME } from '@/constants/routeName'
+import { CONTROLLER_ASSETS, DISPLAY_ASSETS, useAssetPreload } from '@/composables/useAssetPreload'
 import { useRoomSocket } from '@/composables/useRoomSocket'
 import { resolveDeviceRole } from '@/lib/deviceRole'
 import { usePlayStore } from '@/stores/play'
@@ -27,6 +28,9 @@ const play = usePlayStore()
 const roomCode = String(route.params.roomCode ?? '').toUpperCase()
 const deviceRole = resolveDeviceRole(roomCode)
 const socket = useRoomSocket(roomCode, deviceRole)
+
+/** 게임 중에 처음 받는 이미지가 없도록 로비에서 미리 받는다. 시작은 막지 않는다 (m5-plan M5-2) */
+const preload = useAssetPreload(deviceRole === DEVICE_ROLE.DISPLAY ? DISPLAY_ASSETS : CONTROLLER_ASSETS)
 
 const seats = computed(() => play.lobby?.seats ?? [])
 const canStart = computed(() => play.lobby?.canStart === true)
@@ -93,6 +97,10 @@ watch(
           :selectable="false"
         />
         <BotToggle :seats="seats" @toggle="toggleBot" />
+        <p class="text-xs text-neutral-400" data-testid="asset-preload">
+          그림 준비 {{ preload.loaded.value }}/{{ preload.total }}
+          <span v-if="preload.failed.value > 0"> · 받지 못한 그림 {{ preload.failed.value }}개 (진행에는 지장 없음)</span>
+        </p>
         <Button size="lg" :disabled="!canStart" @click="start">
           {{ canStart ? '게임 시작' : '참가자를 기다리는 중' }}
         </Button>

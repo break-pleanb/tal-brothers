@@ -38,6 +38,12 @@ defineProps<{
   color: rgba(245, 245, 245, 0.82);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .narration {
+    animation: none;
+  }
+}
+
 @keyframes narration-in {
   from {
     opacity: 0;

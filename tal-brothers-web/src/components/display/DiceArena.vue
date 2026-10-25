@@ -3,8 +3,10 @@ import { computed } from 'vue'
 import { GAME_STEP, JUDGMENT_KIND } from 'tal-brothers-shared'
 import type { BrotherRole, GameStep, JudgmentView, SeatNameView } from 'tal-brothers-shared'
 
+import DieFace from '@/components/display/DieFace.vue'
 import { BROTHER_LABEL } from '@/constants/brotherLabel'
 import { JUDGMENT_LABEL } from '@/constants/judgmentLabel'
+import { MOTION_TIMING } from '@/constants/motionTiming'
 
 /**
  * 주사위와 판정 결과 (룰북 §5.1, §5.4, §17).
@@ -36,10 +38,16 @@ const resultLabel = computed(() => {
   if (judgment.forcedSuccess) return '강제 성공'
   return judgment.succeeded ? '성공' : '실패'
 })
+
+/** 성패 글자는 주사위 카운트업이 끝난 뒤 떠오른다. 둘을 합쳐도 판정 연출 3초(룰북 §19) 안이다 */
+const motion = {
+  '--result-delay': `${MOTION_TIMING.diceRollMs}ms`,
+  '--result-pop': `${MOTION_TIMING.resultPopMs}ms`,
+}
 </script>
 
 <template>
-  <div v-if="judgment !== null" class="dice-arena">
+  <div v-if="judgment !== null" class="dice-arena" :style="motion">
     <p class="dice-arena__kind">
       {{ JUDGMENT_LABEL[judgment.kind] }} 판정
       <span v-if="rollerSeat !== null">· 판정자 {{ nameOf(rollerSeat) }}</span>
@@ -55,7 +63,7 @@ const resultLabel = computed(() => {
       <ul class="dice-arena__dice">
         <li v-for="die in judgment.dice ?? []" :key="die.seat" class="dice-arena__die">
           <span class="dice-arena__seat">{{ nameOf(die.seat) }}</span>
-          <span class="dice-arena__value">{{ die.value ?? '–' }}</span>
+          <DieFace :value="die.value" />
         </li>
       </ul>
 
@@ -65,7 +73,14 @@ const resultLabel = computed(() => {
         <span v-else-if="judgment.threshold !== null"> · 기준 {{ judgment.threshold }}</span>
       </p>
 
-      <p v-if="resultLabel !== null" class="dice-arena__result">{{ resultLabel }}</p>
+      <p
+        v-if="resultLabel !== null"
+        :key="resultLabel"
+        class="dice-arena__result"
+        :class="judgment.succeeded ? 'dice-arena__result--success' : 'dice-arena__result--fail'"
+      >
+        {{ resultLabel }}
+      </p>
       <p v-else-if="waiting" class="dice-arena__waiting">주사위를 기다리는 중</p>
     </template>
   </div>
@@ -116,12 +131,6 @@ const resultLabel = computed(() => {
   color: rgba(245, 245, 245, 0.6);
 }
 
-.dice-arena__value {
-  font-size: var(--stage-title);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
 .dice-arena__final {
   font-size: var(--stage-choice);
   font-variant-numeric: tabular-nums;
@@ -130,5 +139,31 @@ const resultLabel = computed(() => {
 .dice-arena__result {
   font-size: var(--stage-title);
   font-weight: 700;
+  animation: result-pop var(--result-pop) ease-out var(--result-delay) both;
+}
+
+.dice-arena__result--success {
+  color: #e8d7a6;
+}
+
+.dice-arena__result--fail {
+  color: #d98a8a;
+}
+
+@keyframes result-pop {
+  from {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dice-arena__result {
+    animation: none;
+  }
 }
 </style>

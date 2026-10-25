@@ -19,6 +19,7 @@ import PublicNoticeFeed from '@/components/display/PublicNoticeFeed.vue'
 import SeatStrip from '@/components/display/SeatStrip.vue'
 import StageBackground from '@/components/display/StageBackground.vue'
 import TargetReveal from '@/components/display/TargetReveal.vue'
+import { DISPLAY_ASSETS, useAssetPreload } from '@/composables/useAssetPreload'
 import { useCountdown } from '@/composables/useCountdown'
 import { useCueQueue } from '@/composables/useCueQueue'
 import { useRoomSocket } from '@/composables/useRoomSocket'
@@ -39,6 +40,9 @@ const route = useRoute()
 const play = usePlayStore()
 
 const roomCode = String(route.params.roomCode ?? '').toUpperCase()
+
+/** 로비를 거치지 않고 들어온 경우(새로고침)도 미리 받는다. 이미 받았으면 캐시에서 끝난다 */
+useAssetPreload(DISPLAY_ASSETS)
 const socket = useRoomSocket(roomCode, resolveDeviceRole(roomCode))
 
 const { label: gameClockLabel } = useCountdown(toRef(play, 'clockDeadlineAt'))

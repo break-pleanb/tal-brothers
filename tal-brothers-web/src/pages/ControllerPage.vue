@@ -21,6 +21,7 @@ import TrueSightSheet from '@/components/controller/TrueSightSheet.vue'
 import VotePanel from '@/components/controller/VotePanel.vue'
 import WhisperList from '@/components/controller/WhisperList.vue'
 import NoiseOverlay from '@/components/display/NoiseOverlay.vue'
+import { CONTROLLER_ASSETS, useAssetPreload } from '@/composables/useAssetPreload'
 import { useCountdown } from '@/composables/useCountdown'
 import { useRoomSocket } from '@/composables/useRoomSocket'
 import { useWakeLock } from '@/composables/useWakeLock'
@@ -42,6 +43,9 @@ const route = useRoute()
 const play = usePlayStore()
 
 const roomCode = String(route.params.roomCode ?? '').toUpperCase()
+
+/** 로비를 거치지 않고 들어온 경우(새로고침)도 미리 받는다. 이미 받았으면 캐시에서 끝난다 */
+useAssetPreload(CONTROLLER_ASSETS)
 const socket = useRoomSocket(roomCode, resolveDeviceRole(roomCode))
 
 const { notice: wakeLockNotice } = useWakeLock()

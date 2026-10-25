@@ -71,6 +71,18 @@ const emit = defineEmits<{ select: [choiceId: string] }>()
   text-align: left;
 }
 
+.vote-panel__choice {
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vote-panel__choice {
+    transition: none;
+  }
+}
+
 .vote-panel__choice--mine {
   border-color: #9e4c4c;
   background: rgba(158, 76, 76, 0.18);

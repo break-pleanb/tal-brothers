@@ -3,15 +3,17 @@ import { computed } from 'vue'
 import { GAME_PHASE } from 'tal-brothers-shared'
 import type { AssetKey, GamePhase } from 'tal-brothers-shared'
 
-import { ASSET_PLACEHOLDER } from '@/constants/assetPlaceholder'
+import { ASSET_URL } from '@/constants/assetUrl'
+import { MOTION_TIMING } from '@/constants/motionTiming'
 
 /**
- * 배경과 비네트 (M4 계획 2.3, 7절).
+ * 배경과 비네트 (m4-plan 2.3, m5-plan M5-1).
  *
- * M4는 배경 키마다 다른 색·그라데이션만 깔고, 이미지는 M5에서 같은 자리에 갈아끼운다.
- *
- * **비네트 짙기를 잠식도에 연동하지 않는다.** 평균값이라도 관전자가 역산할 수 있어
- * 룰북 §17을 깬다. 짙기는 Phase로만 결정한다.
+ * - 배경 이미지는 3:2 원본이라 `cover`로 16:9 스테이지를 채운다 (위아래가 조금 잘린다)
+ * - 글자가 읽히도록 배경 위에 어둡게 한 겹을 깐다
+ * - 배경이 바뀌면 교차 전환한다 (m5-plan M5-3). 비네트는 Phase로만 천천히 짙어진다
+ * - **비네트 짙기를 잠식도에 연동하지 않는다.** 평균값이라도 관전자가 역산할 수 있어
+ *   룰북 §17을 깬다. 짙기는 Phase로만 결정한다
  */
 
 const props = defineProps<{
@@ -19,10 +21,9 @@ const props = defineProps<{
   phase: GamePhase | null
 }>()
 
-const colors = computed(() => {
-  const placeholder = props.background === null ? null : ASSET_PLACEHOLDER[props.background]
-  return placeholder ?? { label: '', base: '#121212', edge: '#050505' }
-})
+const imageUrl = computed(() => (props.background === null ? null : ASSET_URL[props.background]))
+
+const motion = { '--bg-fade': `${MOTION_TIMING.backgroundFadeMs}ms` }
 
 /** Phase가 깊어질수록 가장자리가 짙어진다. 좌석 잠식도와는 무관하다 */
 const vignetteAlpha = computed(() => {
@@ -40,16 +41,66 @@ const vignetteAlpha = computed(() => {
 </script>
 
 <template>
+  <div class="stage-layer stage-layer--background stage-background" :style="motion">
+    <Transition name="bg-fade">
+      <div
+        v-if="imageUrl !== null"
+        :key="imageUrl"
+        class="stage-background__image"
+        data-testid="stage-background"
+        :style="{ backgroundImage: `url(${imageUrl})` }"
+      />
+    </Transition>
+    <div class="stage-background__dim" />
+  </div>
   <div
-    class="stage-layer stage-layer--background"
+    class="stage-layer stage-layer--vignette stage-vignette"
     :style="{
-      background: `radial-gradient(120% 90% at 50% 35%, ${colors.base} 0%, ${colors.edge} 100%)`,
-    }"
-  />
-  <div
-    class="stage-layer stage-layer--vignette"
-    :style="{
+      ...motion,
       background: `radial-gradient(100% 75% at 50% 50%, rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, ${vignetteAlpha}) 100%)`,
     }"
   />
 </template>
+
+<style scoped>
+.stage-background {
+  background: #0a0a0a;
+}
+
+.stage-background__image {
+  position: absolute;
+  inset: 0;
+  background-position: center;
+  background-size: cover;
+}
+
+/* 새 배경이 위에서 나타나고 옛 배경은 아래에서 사라진다 */
+.bg-fade-enter-active,
+.bg-fade-leave-active {
+  transition: opacity var(--bg-fade) ease;
+}
+
+.bg-fade-enter-from,
+.bg-fade-leave-to {
+  opacity: 0;
+}
+
+.stage-vignette {
+  transition: background var(--bg-fade) ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-fade-enter-active,
+  .bg-fade-leave-active,
+  .stage-vignette {
+    transition: none;
+  }
+}
+
+/* 본문 글자가 배경 위에서 읽히도록 전체를 한 단계 어둡게 한다 */
+.stage-background__dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+</style>

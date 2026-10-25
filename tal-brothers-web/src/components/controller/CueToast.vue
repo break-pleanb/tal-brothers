@@ -44,6 +44,12 @@ const { current, dismiss } = useCueQueue('toast', MOTION_TIMING.toastMs)
   text-align: center;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .cue-toast {
+    animation: none;
+  }
+}
+
 @keyframes cue-toast-in {
   from {
     opacity: 0;

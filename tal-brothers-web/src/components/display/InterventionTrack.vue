@@ -106,11 +106,46 @@ function nameOf(seat: SeatNameView['seat']): string {
   color: #f5f5f5;
   border-color: #9e4c4c;
   background: rgba(158, 76, 76, 0.2);
+  /* 지금 열린 단계를 숨 쉬듯 강조한다. 단계 시간(4초)과 무관한 반복 표시다 */
+  animation: stage-pulse 1.2s ease-in-out infinite;
 }
 
 .track__used {
   font-size: var(--stage-tag);
   color: rgba(245, 245, 245, 0.75);
   text-align: center;
+}
+
+/* 누가 무엇을 썼는지가 새로 올라올 때 눈에 띄게 (룰북 §7.2 "단계별로 중계") */
+.track__used li {
+  animation: used-in 0.5s ease-out;
+}
+
+@keyframes stage-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(158, 76, 76, 0);
+  }
+  50% {
+    box-shadow: 0 0 1.2cqw 0.2cqw rgba(158, 76, 76, 0.55);
+  }
+}
+
+@keyframes used-in {
+  from {
+    opacity: 0;
+    transform: translateY(1cqh);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track__stage--now,
+  .track__used li {
+    animation: none;
+  }
 }
 </style>
