@@ -401,7 +401,7 @@ tal-brothers-server/
   - [x] `fullGame.spec` — 인간 1·2·3명 각 1판이 엔딩 단계까지, 은닉 위반 0건, 판당 약 2분(가속 4배)
   - [x] `staticRules.spec` — display 컴포넌트의 좌석 타입 import 금지, 운영 빌드에 서버 전용 문자열·테스트 대역 없음
   - [x] Controller 조작 요소와 비공개 요소에 `data-testid`
-- [ ] M4-C 다크 토큰 적용과 기존 화면 회귀
+- [x] **M4-C 다크 토큰 적용과 기존 화면 회귀** — `<html class="dark">`. 적용 전 `regression.spec`이 메뉴의 "코드로 참가"(대비 1.09)를 잡았고, 적용 후 전 화면 버튼 대비 4.5 이상
 - [ ] M4-5a 개인 정보 — 인벤토리, 절대 시야, 부적 회복·제출·양도·버림, Phase 2 진입, 14A
 - [ ] M4-5b 심리전 — 귓속말 목록, 붉은 메시지, 공개 알림 피드
 - [ ] M4-6a Phase 3·엔딩·노이즈
