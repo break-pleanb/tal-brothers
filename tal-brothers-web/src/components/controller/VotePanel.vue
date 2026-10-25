@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { ChoiceView, VariantKind } from 'tal-brothers-shared'
+import type { ChoiceView, VariantDetailView, VariantKind } from 'tal-brothers-shared'
 
 import { ATTRIBUTE_LABEL } from '@/constants/attributeLabel'
 import { JUDGMENT_LABEL } from '@/constants/judgmentLabel'
-import { VARIANT_LABEL } from '@/constants/variantLabel'
+import { variantDetailText } from '@/lib/variantDetailText'
 
 /**
  * 선택지 투표 (룰북 §6.4, §8).
@@ -11,6 +11,7 @@ import { VARIANT_LABEL } from '@/constants/variantLabel'
  * - 마감 전에는 몇 번이든 바꿀 수 있다. 내 선택만 강조한다 — 남이 무엇을 골랐는지는 오지 않는다
  * - **변이 라벨은 진짜와 가짜가 같은 모양이어야 한다** (룰북 §4.3, §17).
  *   여기서는 받은 값을 그대로 찍기만 하고 "확실함" 같은 꼬리표를 붙이지 않는다
+ * - 라벨에는 서버가 계산한 **최종 적용값**을 함께 적는다 (룰북 §6.4 `[흉] 성공 6 이상 · 실패 시 +35%`)
  */
 
 defineProps<{
@@ -19,6 +20,8 @@ defineProps<{
   myVote: string | null
   /** 선택지별 변이 라벨. 볼 수 없는 좌석은 null이다 */
   variantLabels: Record<string, VariantKind> | null
+  /** 라벨과 같은 선택지 id의 최종 적용값 (룰북 §6.4) */
+  variantDetails: Record<string, VariantDetailView> | null
   disabled: boolean
 }>()
 
@@ -44,7 +47,7 @@ const emit = defineEmits<{ select: [choiceId: string] }>()
           <span v-if="choice.attribute !== null">{{ ATTRIBUTE_LABEL[choice.attribute] }}</span>
           <span v-if="choice.hiddenCostPercent !== null">대가: 잠식도 {{ choice.hiddenCostPercent }}% 상승</span>
           <span v-if="variantLabels?.[choice.id]" class="vote-panel__variant" data-testid="variant-label">
-            {{ VARIANT_LABEL[variantLabels[choice.id] as VariantKind] }}
+            {{ variantDetailText(variantLabels[choice.id] as VariantKind, variantDetails?.[choice.id] ?? null) }}
           </span>
         </span>
       </button>

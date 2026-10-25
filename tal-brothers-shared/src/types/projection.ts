@@ -69,6 +69,26 @@ export type JudgmentView = {
 }
 
 /** 투표 중에는 참여 인원 수만, 마감 후에는 득표 수만 (룰북 §8, 아키텍처 §8) */
+/**
+ * 변이 열람 화면의 최종 적용값 (룰북 §6.2, §6.4).
+ * 예) 07A에 흉: `{ threshold: 6, failureErosionPercent: 35, ... }` → `[흉] 성공 6 이상 · 실패 시 +35%`
+ * 비공개 판정은 대가가 고정이라 성공 기준만 있다 (룰북 §5.4, §6.2).
+ */
+export type VariantDetailView = {
+  /** 성공 기준. 주사위 판정이 아니면 null */
+  threshold: number | null
+  /** 실패 시 잠식 페널티(%) */
+  failureErosionPercent: number | null
+  /** 실패 시 시간 페널티(분) */
+  failureTimeMinutes: number | null
+  /** 성공 보상 — 부적 개수 */
+  rewardTalismans: number | null
+  /** 성공 보상 — 잠식도 회복(%) */
+  rewardHealPercent: number | null
+  /** 판정 없는 선택지의 시간 비용(분) */
+  timeCostMinutes: number | null
+}
+
 export type VoteView =
   | { closed: false; participantCount: number; counts: null }
   | { closed: true; participantCount: number; counts: Record<string, number> }
@@ -227,6 +247,12 @@ export type SeatPrivateView = {
    * 배신자와 절대 시야를 쓴 셋째는 진짜, 60~99%는 확정 저장된 가짜, 그 외에는 null (룰북 §6.4)
    */
   variantLabels: Record<string, VariantKind> | null
+  /**
+   * 선택지별 **최종 적용값** — 라벨의 변이를 기본값에 적용한 수치 (룰북 §6.4 "라벨과 최종 적용값을 함께").
+   * `variantLabels`가 있을 때만 같은 선택지 id로 온다. 가짜 라벨이면 가짜 변이를 적용한 값이다.
+   * 진짜·가짜가 구조로 구분되지 않도록 **키는 언제나 `VARIANT_DETAIL_KEYS` 전부**이고, 해당 없는 값은 null이다
+   */
+  variantDetails: Record<string, VariantDetailView> | null
   /** **본인 좌석의** 연결 상태. 다른 좌석의 연결 상태는 Controller에 보내지 않는다 (룰북 §17) */
   connection: SeatConnection
   /** 지금 서버가 대신 조작하고 있는지 (아키텍처 §8). 본인에게만 알린다 */

@@ -4,6 +4,7 @@ export { BROTHER_ROLE, type BrotherRole } from './constants/brotherRole'
 export { ATTRIBUTE, type Attribute } from './constants/attribute'
 export { JUDGMENT_KIND, type JudgmentKind } from './constants/judgmentKind'
 export { VARIANT_KIND, type VariantKind } from './constants/variantKind'
+export { VARIANT_DETAIL_KEYS } from './constants/variantDetailKeys'
 export { EROSION_TIER, type ErosionTier } from './constants/erosionTier'
 export { GAME_PHASE, type GamePhase } from './constants/gamePhase'
 export { GAME_STEP, type GameStep } from './constants/gameStep'
@@ -60,6 +61,7 @@ export type {
   SeatConnectionView,
   SeatNameView,
   SeatPrivateView,
+  VariantDetailView,
   SeatSnapshot,
   VoteView,
   WhisperView,

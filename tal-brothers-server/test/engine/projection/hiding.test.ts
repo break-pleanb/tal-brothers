@@ -6,6 +6,7 @@ import {
   GAME_STEP,
   JUDGMENT_KIND,
   SEAT_CONNECTION,
+  VARIANT_DETAIL_KEYS,
   VARIANT_KIND,
 } from 'tal-brothers-shared'
 import { WHISPER_KIND } from 'tal-brothers-shared'
@@ -184,6 +185,43 @@ describe('변이 라벨 (룰북 §3.4, §6.4, §10.2)', () => {
   it('0~29% 좌석은 라벨을 받지 못한다', () => {
     const state = phase2State('p2-01')
     expect(projectSeat(state, BROTHER_ROLE.THIRD).variantLabels).toBeNull()
+  })
+
+  it('최종 적용값은 라벨이 있는 좌석에만 간다 — 일반 좌석과 Display에는 없다 (룰북 §6.4, §17)', () => {
+    const state = phase2State('p2-01', (draft) => {
+      draft.seats[BROTHER_ROLE.FIRST].isTraitor = true
+      draft.seats[BROTHER_ROLE.FIRST].erosionPercent = 100
+    })
+
+    expect(projectSeat(state, BROTHER_ROLE.SECOND).variantLabels).toBeNull()
+    expect(projectSeat(state, BROTHER_ROLE.SECOND).variantDetails).toBeNull()
+    expect(allKeys(projectDisplay(state)).has('variantDetails')).toBe(false)
+
+    const traitor = projectSeat(state, BROTHER_ROLE.FIRST)
+    expect(Object.keys(traitor.variantDetails ?? {}).sort()).toEqual(Object.keys(traitor.variantLabels ?? {}).sort())
+  })
+
+  it('진짜 라벨(배신자)과 가짜 라벨(60%)의 최종 적용값은 키 구조가 같다', () => {
+    const state = phase2State('p2-01', (draft) => {
+      draft.seats[BROTHER_ROLE.FIRST].isTraitor = true
+      draft.seats[BROTHER_ROLE.FIRST].erosionPercent = 100
+      draft.seats[BROTHER_ROLE.SECOND].erosionPercent = 60
+    })
+    const fake = state.currentEvent?.fakeLabels[BROTHER_ROLE.SECOND]
+    expect(fake).toBeDefined()
+
+    const real = projectSeat(state, BROTHER_ROLE.FIRST).variantDetails
+    const faked = projectSeat(state, BROTHER_ROLE.SECOND).variantDetails
+    expect(real).not.toBeNull()
+    expect(faked).not.toBeNull()
+    // 선택지 id와 선택지마다의 키가 같다. 값만 다르다
+    expect(Object.keys(faked ?? {}).sort()).toEqual(Object.keys(real ?? {}).sort())
+    for (const choiceId of Object.keys(real ?? {})) {
+      expect(Object.keys(faked?.[choiceId] ?? {}).sort()).toEqual([...VARIANT_DETAIL_KEYS].sort())
+      expect(Object.keys(real?.[choiceId] ?? {}).sort()).toEqual([...VARIANT_DETAIL_KEYS].sort())
+    }
+    // 가짜 최종값은 확정 저장된 가짜 라벨에서 나오므로 두 번 투영해도 같다 (아키 §2 원칙 4)
+    expect(projectSeat(state, BROTHER_ROLE.SECOND).variantDetails).toEqual(faked)
   })
 
   it('배신자는 항상 실제 변이를 본다', () => {

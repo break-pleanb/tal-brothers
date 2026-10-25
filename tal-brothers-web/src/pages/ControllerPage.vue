@@ -220,6 +220,7 @@ function submitTalisman(): void {
           :choices="view.choices"
           :my-vote="play.privateView?.myVote ?? null"
           :variant-labels="play.privateView?.variantLabels ?? null"
+          :variant-details="play.privateView?.variantDetails ?? null"
           :disabled="play.privateView === null"
           @select="vote"
         />
@@ -281,7 +282,10 @@ function submitTalisman(): void {
       :hint="isVoting ? '마감 전에는 몇 번이든 바꿀 수 있습니다' : actionHint"
     />
 
-    <TrueSightSheet :choices="view?.choices ?? []" />
+    <TrueSightSheet
+      :choices="view?.choices ?? []"
+      :variant-details="play.privateView?.variantDetails ?? null"
+    />
 
     <RedMessageOverlay />
 

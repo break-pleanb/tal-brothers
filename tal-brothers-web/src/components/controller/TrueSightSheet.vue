@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { VARIANT_KIND } from 'tal-brothers-shared'
-import type { ChoiceView, VariantKind } from 'tal-brothers-shared'
+import type { ChoiceView, VariantDetailView, VariantKind } from 'tal-brothers-shared'
 
 import { Button } from '@/components/ui/button'
 import { useCueQueue } from '@/composables/useCueQueue'
-import { VARIANT_LABEL } from '@/constants/variantLabel'
+import { variantDetailText } from '@/lib/variantDetailText'
 
 /**
  * 절대 시야 결과 (룰북 §3.4, §6.4).
@@ -13,11 +13,14 @@ import { VARIANT_LABEL } from '@/constants/variantLabel'
  * `trueSightResult` cue는 셋째 좌석에게만 온다. 본인이 닫을 때까지 띄워 둔다 (모달 채널).
  * 가짜 라벨이 적용되지 않은 **실제 변이**다 (룰북 §3.4).
  *
- * 룰북 §6.4는 열람 화면에 "라벨과 최종 적용값"을 함께 적으라고 하지만, 최종값(성공 기준·페널티)은
- * 어떤 투영에도 없다. 수치를 화면이 만들어 낼 수 없으므로 라벨만 보여준다 (m4-notes 확인 필요).
+ * 열람 화면에는 **라벨과 최종 적용값**을 함께 적는다 (룰북 §6.4). 최종값은 좌석 스냅샷의 `variantDetails`다 —
+ * 절대 시야를 쓴 셋째의 스냅샷에는 진짜 변이를 적용한 값이 실려 온다.
  */
 
-const props = defineProps<{ choices: ChoiceView[] }>()
+const props = defineProps<{
+  choices: ChoiceView[]
+  variantDetails: Record<string, VariantDetailView> | null
+}>()
 
 const { current, dismiss } = useCueQueue('modal')
 
@@ -29,7 +32,11 @@ const rows = computed(() => {
   return props.choices.map((choice) => {
     const raw = (variants as Record<string, unknown>)[choice.id]
     const variant = typeof raw === 'string' && KNOWN.has(raw) ? (raw as VariantKind) : null
-    return { id: choice.id, text: choice.text, label: variant === null ? '—' : VARIANT_LABEL[variant] }
+    return {
+      id: choice.id,
+      text: choice.text,
+      label: variant === null ? '—' : variantDetailText(variant, props.variantDetails?.[choice.id] ?? null),
+    }
   })
 })
 </script>
@@ -84,8 +91,8 @@ const rows = computed(() => {
 
 .true-sight__row {
   display: flex;
-  gap: 0.75rem;
-  align-items: baseline;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
 /* 진짜 라벨과 가짜 라벨의 표기는 같아야 한다 — 투표 패널과 같은 색을 쓴다 (룰북 §17) */

@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { BROTHER_ROLE, SERVER_MESSAGE_TYPE } from 'tal-brothers-shared'
 
 import { runGame } from './support/gameRunner'
-import { closeAll } from './support/harness'
+import { closeAll, sleep } from './support/harness'
 import type { Device } from './support/harness'
 import type { Violation } from './support/hidingChecks'
 
@@ -16,7 +16,11 @@ import type { Violation } from './support/hidingChecks'
  * - 투표 중 부적 회복 → Display에 사용 알림 (룰북 §9.1)
  * - 14A 부적 제출 → Display에 봉인 알림 (룰북 §13.5)
  * - 절대 시야 결과는 셋째 Controller에만 뜬다 (룰북 §3.4, §17)
+ * - 절대 시야 결과에는 라벨과 **최종 적용값**이 함께 적힌다 — `[흉] 성공 6 이상 · …` (룰북 §6.4)
  */
+
+/** 룰북 §6.4의 표기 형식. 판정 선택지면 성공 기준, 판정 없는 선택지면 시간이 붙는다 */
+const DETAIL_TEXT = /\[(흉|평|길)\] (성공 \d 이상|시간)/
 
 const TARGETS = {
   trueSight: /절대 시야를 사용했다/,
@@ -43,8 +47,10 @@ test('절대 시야·부적 회복·14A 제출이 화면 조작으로 일어나�
   test.setTimeout(45 * 60_000)
   const seen = new Set<Target>()
   const violations: Violation[] = []
+  let detailText = ''
 
-  for (let attempt = 0; attempt < MAX_GAMES && seen.size < Object.keys(TARGETS).length; attempt += 1) {
+  const allSeen = (): boolean => seen.size === Object.keys(TARGETS).length && detailText !== ''
+  for (let attempt = 0; attempt < MAX_GAMES && !allSeen(); attempt += 1) {
     const result = await runGame(browser, {
       label: `personalInfo-${attempt}`,
       humans: 3,
@@ -53,6 +59,22 @@ test('절대 시야·부적 회복·14A 제출이 화면 조작으로 일어나�
       policies: ['hoard', 'risky', 'useAll'],
       screenshots: attempt === 0 ? 'all' : 'none',
       onCheckpoint: async (checkpoint, game) => {
+        // 절대 시야 결과는 대역이 곧바로 닫는다. 판이 도는 동안 셋째 화면을 짧은 간격으로 지켜본다
+        if (checkpoint.index === 0 && detailText === '') {
+          const third = game.controllers.get(BROTHER_ROLE.THIRD)
+          if (third !== undefined) {
+            void (async () => {
+              while (detailText === '' && !third.page.isClosed()) {
+                const text = await third.page
+                  .locator('[data-testid="true-sight"]')
+                  .innerText({ timeout: 200 })
+                  .catch(() => '')
+                if (DETAIL_TEXT.test(text)) detailText = text
+                await sleep(80)
+              }
+            })()
+          }
+        }
         for (const [seat, device] of game.controllers) {
           if (seat === BROTHER_ROLE.THIRD) continue
           if ((await device.page.locator('[data-testid="true-sight"]').count()) > 0) {
@@ -75,4 +97,5 @@ test('절대 시야·부적 회복·14A 제출이 화면 조작으로 일어나�
 
   expect(violations, violations.map((v) => `${v.device} ${v.where} ${v.detail}`).join('\n')).toEqual([])
   expect([...seen].sort()).toEqual(Object.keys(TARGETS).sort())
+  expect(detailText, '절대 시야 결과에 최종 적용값이 없다').toMatch(DETAIL_TEXT)
 })

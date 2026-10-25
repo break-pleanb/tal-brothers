@@ -60,6 +60,7 @@ const SEAT_ONLY_KEYS = [
   'talismanCount',
   'talismanOverflow',
   'tutorialTalismanCount',
+  'variantDetails',
   'variantLabels',
   'whispers',
 ]

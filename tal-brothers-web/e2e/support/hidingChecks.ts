@@ -1,4 +1,4 @@
-import { CUE_KIND, JUDGMENT_KIND, SERVER_MESSAGE_TYPE } from 'tal-brothers-shared'
+import { CUE_KIND, JUDGMENT_KIND, SERVER_MESSAGE_TYPE, VARIANT_DETAIL_KEYS } from 'tal-brothers-shared'
 import type { BrotherRole } from 'tal-brothers-shared'
 
 import type { Device, FrameRecord } from './harness'
@@ -71,6 +71,7 @@ export const PRIVATE_SNAPSHOT_KEYS = [
   'hasJadeHairpin',
   'whispers',
   'variantLabels',
+  'variantDetails',
   'myVote',
   'botTakeover',
   'isTraitor',
@@ -242,6 +243,26 @@ export function checkControllerFrames(device: Device, seat: BrotherRole): Violat
     }
     if (snapshot['seatConnections'] !== undefined) {
       violations.push({ device: device.label, where: `스냅샷 #${index}`, detail: '좌석별 연결 상태가 Controller로 왔다' })
+    }
+
+    // 최종 적용값은 라벨이 있을 때만, 라벨과 같은 선택지로, 진짜·가짜 구분 없는 같은 키 구조로 온다 (룰북 §6.4, §17)
+    const labels = snapshot['variantLabels'] as Record<string, string> | null | undefined
+    const details = snapshot['variantDetails'] as Record<string, Record<string, unknown>> | null | undefined
+    if (labels === undefined) continue
+    if (labels === null) {
+      if (details !== null && details !== undefined) {
+        violations.push({ device: device.label, where: `스냅샷 #${index}`, detail: '라벨이 없는데 최종 적용값이 왔다' })
+      }
+      continue
+    }
+    const expectedKeys = [...VARIANT_DETAIL_KEYS].sort().join(',')
+    if (Object.keys(details ?? {}).sort().join(',') !== Object.keys(labels).sort().join(',')) {
+      violations.push({ device: device.label, where: `스냅샷 #${index}`, detail: '최종 적용값의 선택지가 라벨과 다르다' })
+    }
+    for (const [choiceId, detail] of Object.entries(details ?? {})) {
+      if (Object.keys(detail).sort().join(',') !== expectedKeys) {
+        violations.push({ device: device.label, where: `스냅샷 #${index}`, detail: `최종 적용값 구조가 다르다: ${choiceId}` })
+      }
     }
   }
   return violations

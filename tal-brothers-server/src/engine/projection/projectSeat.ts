@@ -1,7 +1,15 @@
 import { BROTHER_ROLE } from 'tal-brothers-shared'
-import type { BrotherRole, SeatSnapshot, VariantKind, WhisperView } from 'tal-brothers-shared'
+import type {
+  BrotherRole,
+  SeatSnapshot,
+  VariantDetailView,
+  VariantKind,
+  WhisperView,
+} from 'tal-brothers-shared'
 
+import { variantDetailsFor } from '../rules/variantDetail'
 import type { GameState, SeatState } from '../state/gameState'
+import { findScenarioEvent } from '../steps/rollStep'
 import { projectPublic } from './projectDisplay'
 
 /**
@@ -37,6 +45,20 @@ export function variantLabelsFor(
   return fake === undefined ? null : { ...fake }
 }
 
+/**
+ * 라벨과 함께 보는 최종 적용값 (룰북 §6.4). 라벨이 있는 좌석에만, 같은 라벨로 계산한다 —
+ * 가짜 라벨이면 가짜 변이를 적용한 값이다. 라벨이 없는 좌석(일반 좌석)은 null이다
+ */
+export function variantDetailsForSeat(
+  state: GameState,
+  labels: Record<string, VariantKind> | null,
+): Record<string, VariantDetailView> | null {
+  const current = state.currentEvent
+  if (current === null || labels === null) return null
+  const event = findScenarioEvent(state, current.eventId)
+  return event === undefined ? null : variantDetailsFor(event, labels)
+}
+
 function projectWhispers(seat: SeatState): WhisperView[] {
   // 진실 여부는 서버만 아는 정보라 내보내지 않는다 (룰북 §17)
   return seat.whispers.map((whisper) => ({ kind: whisper.kind, text: whisper.text }))
@@ -44,6 +66,7 @@ function projectWhispers(seat: SeatState): WhisperView[] {
 
 export function projectSeat(state: GameState, role: BrotherRole): SeatSnapshot {
   const seat = state.seats[role]
+  const labels = variantLabelsFor(state, role)
 
   return {
     ...projectPublic(state),
@@ -56,7 +79,8 @@ export function projectSeat(state: GameState, role: BrotherRole): SeatSnapshot {
     abilityUsed: seat.abilityUsed,
     whispers: projectWhispers(seat),
     myVote: state.currentEvent?.votes[role] ?? null,
-    variantLabels: variantLabelsFor(state, role),
+    variantLabels: labels,
+    variantDetails: variantDetailsForSeat(state, labels),
     // 본인 좌석의 것만 담는다. 다른 좌석의 연결 상태는 Display에만 나간다 (룰북 §17)
     connection: seat.connection.status,
     botTakeover: seat.botTakeover,
