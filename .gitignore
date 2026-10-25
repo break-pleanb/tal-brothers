@@ -4,5 +4,6 @@ dist
 .idea
 e2e-artifacts
 e2e-dist
+dist-e2e
 test-results
 playwright-report

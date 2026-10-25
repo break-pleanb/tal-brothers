@@ -11,7 +11,7 @@
 | M2 | Phase 2·3, 엔딩, 투영, 봇 자동 대전 | 완료 |
 | M3 | 런타임, 통신, 인증, 로비, 운영 규칙 | 완료 |
 | M4 | Display·Controller 화면 (임시 그래픽) | 자동 확인 완료 · 사람 실기 대기 |
-| M5 | 에셋·연출, 세이브/불러오기, 배포 | 대기 |
+| M5 | 에셋·연출, 세이브/불러오기, 배포 | 에셋·연출·배포 빌드 완료 · 세이브/배포 후속 |
 
 ---
 
@@ -425,12 +425,13 @@ tal-brothers-server/
 > 에셋·프리로드·연출·배포 빌드의 실행 계획은 `docs/m5-plan.md`, 진행 기록은 `docs/m5-notes.md`.
 > **세이브/불러오기, 호스팅·실제 배포, OAuth 프로덕션 게시는 후속 범위다** (m5-plan 4절).
 
-- [ ] M5-1 에셋 적용 — `ASSET_URL`, 배경·탈·아이템, `introMask` 최적화
-- [ ] M5-2 프리로드 — `useAssetPreload`, 로비 준비 표시
-- [ ] M5-3 Display 연출
-- [ ] M5-4 Controller 연출
-- [ ] M5-5 배포 빌드 — 서버 번들(shared 포함)
-- [ ] M5-6 마감
+- [x] **M5-1 에셋 적용** — `ASSET_URL`(`assetPlaceholder.ts` 대체), 배경 cover·탈 screen 합성·아이템 아이콘, `introMask` 7.7MB → webp 16KB(`npm run images:optimize`)
+- [x] **M5-2 프리로드** — `useAssetPreload`(Display 11종, Controller 3종, 한꺼번에·디코드까지), Display 로비에 준비 표시. `assets.spec` — 11종 디코드, **시작 뒤 처음 받는 이미지 0건**
+- [x] **M5-3 Display 연출** — 배경 교차 전환, 탈 등장·잔상, 주사위 카운트업(`DieFace`), 성패, 개입 단계 강조, 타겟·옥비녀, 엔딩 단계별 등장·에셋, SVG 노이즈. 시간값은 `MOTION_TIMING` 한 곳
+- [x] **M5-4 Controller 연출** — 붉은 메시지에 요괴화 탈(진짜·가짜 동일성 재통과), 전환, `prefers-reduced-motion`. `motion.spec` — 연출이 룰북 단계 시간 안에서 끝나고, 축소 모드에서 움직임 0
+- [x] **M5-5 배포 빌드** — `npm run build -w tal-brothers-server`(esbuild, shared 포함·npm 의존성 외부) → `npm run start`. 운영 번들 `/healthz` 확인, **번들된 e2e 서버로 회귀 통과**(`E2E_BUNDLED=1`)
+- [x] **M5-6 마감** — 전체 회귀, `docs/m5-notes.md`
+- **M5 상태: 에셋·연출·배포 빌드 완료 · 세이브/불러오기·실제 배포는 후속** (m5-plan 4절)
 
 **원래 범위**
 

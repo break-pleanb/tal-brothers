@@ -31,7 +31,12 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: 'npm run e2e:serve -w tal-brothers-server',
+      // `E2E_BUNDLED=1`이면 배포 빌드와 같은 방식으로 묶은 서버(`dist-e2e/`)를 띄운다 (m5-plan M5-5).
+      // 먼저 `npm run build -w tal-brothers-server`를 돌린다
+      command:
+        process.env.E2E_BUNDLED === '1'
+          ? 'node tal-brothers-server/dist-e2e/e2eServer.js'
+          : 'npm run e2e:serve -w tal-brothers-server',
       cwd: '..',
       url: `http://localhost:${SERVER_PORT}/healthz`,
       reuseExistingServer: false,
