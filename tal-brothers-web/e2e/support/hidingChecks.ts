@@ -28,6 +28,40 @@ export const PRIVATE_TEST_IDS = [
   'talisman-panel',
 ] as const
 
+/**
+ * Controller 화면에 나올 수 있는 요소 전부 (m4-plan 11.4).
+ *
+ * 배신자 화면이 일반 화면과 같아야 한다(룰북 §17)는 것을 **허용 목록**으로 본다. 배신자 Controller에 이 목록 밖의
+ * 요소가 나오면 배신자 전용 화면이 생긴 것이다. 단계마다 표본을 떠서 좌석끼리 비교하면 찍는 순간에 따라
+ * 흔들리므로(투표 단계가 짧으면 일반 좌석의 투표 화면이 안 찍힌다) 이렇게 고정한다.
+ * Controller에 새 요소를 더하면 이 목록에도 더한다 — 일반 좌석에도 나오는 요소인지 그때 판단한다
+ */
+export const CONTROLLER_TEST_IDS = [
+  'erosion-gauge',
+  'inventory',
+  'variant-label',
+  'vote-choice',
+  'roll-button',
+  'intervention-reroll',
+  'intervention-talisman',
+  'intervention-force',
+  'ability-true-sight',
+  'true-sight',
+  'true-sight-close',
+  'talisman-panel',
+  'talisman-heal',
+  'talisman-transfer',
+  'talisman-discard',
+  'talisman-submit',
+  'whisper',
+  'cue-toast',
+  'red-message',
+  'reconnect-notice',
+  'ending-summary',
+  'noise',
+  'asset-preload',
+] as const
+
 /** Display 스냅샷 어디에도 있으면 안 되는 키 (아키텍처 §7.3) */
 export const PRIVATE_SNAPSHOT_KEYS = [
   'erosionPercent',

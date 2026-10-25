@@ -59,11 +59,15 @@ export function watchRedMessages(seat: string, device: Device): Watcher {
       if (reading !== null && open === null) {
         const appearedAt = Date.now()
         await sleep(SETTLE_MS)
-        const pixels = await device.page
-          .locator('[data-testid="red-message"]')
-          .screenshot({ timeout: 1_000 })
-          .catch(() => Buffer.alloc(0))
-        open = { seat, appearedAt, durationMs: null, html: reading.html, styles: reading.styles, pixels }
+        // 등장 애니메이션이 끝난 뒤의 모습을 비교한다 — 도중에 읽으면 값이 찍는 순간에 따라 달라진다.
+        // 덮개는 화면 전체를 덮으므로 페이지 전체를 찍는다. 그 사이 사라졌으면 처음 읽은 값과 빈 픽셀을 남긴다
+        const settled = await readOverlay(device)
+        const pixels =
+          settled !== null
+            ? await device.page.screenshot({ timeout: 3_000 }).catch(() => Buffer.alloc(0))
+            : Buffer.alloc(0)
+        const final = settled ?? reading
+        open = { seat, appearedAt, durationMs: null, html: final.html, styles: final.styles, pixels }
         captures.push(open)
       } else if (reading === null && open !== null) {
         open.durationMs = Date.now() - open.appearedAt

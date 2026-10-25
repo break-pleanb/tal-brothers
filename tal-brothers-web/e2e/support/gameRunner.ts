@@ -10,6 +10,7 @@ import type { GameCoverage } from './coverage'
 import { artifactDir, pinNextSeed, sleep } from './harness'
 import type { Device } from './harness'
 import {
+  CONTROLLER_TEST_IDS,
   checkControllerDom,
   checkControllerFrames,
   checkDisplayDom,
@@ -134,7 +135,8 @@ function writeSummary(result: Omit<RunResult, 'players'>, options: RunOptions): 
   for (const device of result.game.devices) {
     fs.writeFileSync(
       path.join(result.dir, `frames_${device.label}.json`),
-      JSON.stringify(device.frames.map((frame) => frame.message)),
+      // 보낸 시각은 `_at`으로 붙인다 — 보고서가 부적 선착순 경합을 시각으로 찾는다
+      JSON.stringify(device.frames.map((frame) => ({ ...frame.message, _at: frame.at }))),
     )
   }
 }
@@ -207,26 +209,17 @@ export async function runGame(browser: Browser, options: RunOptions): Promise<Ru
 
   const coverage = collectCoverage(options.label, game.display, game.devices)
 
-  // 배신자 화면에만 있는 요소가 없어야 한다 (룰북 §17).
-  // 다음은 배신자 여부가 아니라 **좌석·소지품·확률**로 갈리는 요소라 비교에서 뺀다. 한 판에서 일반 좌석에
-  // 우연히 안 나왔을 뿐 배신자 전용이 아니다.
-  // - 개입 버튼(좌석마다 다름), 절대 시야(셋째 전용, §3.4), 부적 패널(보유자 전용, §9.1)
-  // - 변이 라벨: 배신자는 늘 보고(§10.2) 일반 좌석은 가짜 라벨(§4.3)·절대 시야로 본다
-  // - 붉은 메시지: 배신자는 진짜를, 60% 이상 좌석은 가짜를 받는다 (§10.1)
-  const SHARED_BY_RULE = new Set(['variant-label', 'red-message', 'true-sight', 'true-sight-close'])
-  const SHARED_PREFIXES = ['intervention-', 'ability-', 'talisman-']
-  const traitorSeats = new Set(coverage.traitorSeats)
-  const ordinaryIds = new Set<string>()
+  // 배신자 화면에만 있는 요소가 없어야 한다 (룰북 §17). Controller에 나올 수 있는 요소의 허용 목록과 대조한다
+  const allowed = new Set<string>(CONTROLLER_TEST_IDS)
   for (const [seat, ids] of controllerTestIds) {
-    if (!traitorSeats.has(seat)) for (const id of ids) ordinaryIds.add(id)
-  }
-  if (ordinaryIds.size > 0) {
-    for (const seat of traitorSeats) {
-      for (const id of controllerTestIds.get(seat as BrotherRole) ?? []) {
-        if (SHARED_PREFIXES.some((prefix) => id.startsWith(prefix))) continue
-        if (SHARED_BY_RULE.has(id) || ordinaryIds.has(id)) continue
-        violations.push({ device: seat, where: 'traitor', detail: `배신자 화면에만 있는 요소 ${id}` })
-      }
+    const traitor = coverage.traitorSeats.includes(seat)
+    for (const id of ids) {
+      if (allowed.has(id)) continue
+      violations.push({
+        device: seat,
+        where: traitor ? 'traitor' : 'controller',
+        detail: traitor ? `배신자 화면에 목록 밖의 요소 ${id}` : `허용 목록에 없는 Controller 요소 ${id} (목록 갱신 필요)`,
+      })
     }
   }
 

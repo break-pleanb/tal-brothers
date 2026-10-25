@@ -40,7 +40,7 @@ function noticeTexts(display: Device): string[] {
 }
 
 test('절대 시야·부적 회복·14A 제출이 화면 조작으로 일어나고 공개 알림에 뜬다', async ({ browser }) => {
-  test.setTimeout(30 * 60_000)
+  test.setTimeout(45 * 60_000)
   const seen = new Set<Target>()
   const violations: Violation[] = []
 

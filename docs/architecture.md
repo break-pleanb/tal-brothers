@@ -46,7 +46,8 @@
 | `tal-brothers-web` | 화면, 라우팅, 스냅샷 렌더링, 명령 전송 | 룰 계산 (예외: 마감 시각으로 남은 시간 표시) |
 
 - shared는 빌드 없이 `src/index.ts`를 직접 export한다. Vite(web)와 tsx(server)가 TS 소스를 처리한다
-- 배포용 서버 빌드에서 shared를 번들에 포함하는 설정은 M5에서 추가한다
+- 배포용 서버 빌드는 **esbuild로 shared 소스를 서버 번들에 함께 넣는다** (`tal-brothers-server/scripts/build.mjs` → `dist/index.js`).
+  npm 의존성(express·ws·supabase-js)은 번들 밖에 두고 배포 환경의 `node_modules`에서 읽는다. 실행은 `npm run start -w tal-brothers-server`
 
 ---
 
@@ -281,10 +282,14 @@ Phase 3:  P3_TARGETING → (B-1 즉시 판정 | P3_VOTING → 판정) → ENDING
 | 좌석 표시 이름과 봇 구성 | O | O | O | O |
 | 현재 진행 번호 (총 개수는 제외) | O | O | O | O |
 | 엔딩의 배신자 승패와 정체 | `ENDING`에서만 O | `ENDING`에서만 O | 동일 | 동일 |
+| 엔딩 내레이션과 연출 에셋 (`EndingView.narration`·`assets`) | O | O | 동일 | 동일 |
 
 - 연결 상태는 잠식도·인벤토리와 무관해 심리전 정보가 아니다. **Display에만 좌석별로 표시**하고 표기는 "연결 끊김"으로 통일한다. "봇 대행"이라는 표현은 쓰지 않는다 (룰북 §17)
 - **총 이벤트 개수는 어떤 투영에도 넣지 않는다.** 남은 개수를 알면 부적 사용 시점이 계산 문제가 된다 (룰북 §17)
 - **배신자 정체는 `ENDING` 단계의 투영에만 들어간다.** 그 전에는 어떤 경로로도 나가지 않는다 (룰북 §15)
+- **엔딩 내레이션은 cue와 스냅샷에 같은 문장으로 싣는다.** cue로만 보내면 새로고침·유실 때 엔딩 문장이 사라진다.
+  분기 내레이션(룰북 §14.5) 선택은 `scenario/endings.ts`의 `endingNarration` 한 곳에서 한다
+- **화면으로 나가는 문장(공개 알림·cue·귓속말)에 좌석 값(`first` 등)을 넣지 않는다.** 형제 이름(`SEAT_LABEL`)을 쓴다 (룰북 §3.5, §7.4)
 - **좌석의 봇 구성(`isBot`)은 공개하되 봇 대행(`botTakeover`)은 좌석 줄에 담지 않는다.** 봇 구성은 로비에서
   이미 공개된 정보이고, 대행은 "연결 끊김"으로만 표기해야 한다 (룰북 §17). 은닉 테스트로 고정한다
 - **판정자는 비공개 판정에서도 공개한다.** 채택된 선택지의 속성 태그로 이미 드러나 있고(룰북 §3.1, §6.4),
@@ -339,11 +344,12 @@ tal-brothers-web/src/
 ├─ components/
 │  ├─ ui/                        # shadcn-vue 생성물
 │  ├─ lobby/                     # SeatBoard, JoinQrPanel, BotToggle
-│  ├─ display/                   # StageBackground, ClockHud, NarrationPanel, ChoiceBoard, DiceArena,
-│  │                             # InterventionTrack, PublicNoticeFeed, MaskApparition, TargetReveal,
-│  │                             # EndingSequence, NoiseOverlay
-│  └─ controller/                # ErosionGauge, InventoryPanel, VotePanel, RollButton, InterventionPanel,
-│                                # AbilityButton, WhisperToast, RedMessageOverlay, LockOverlay
+│  ├─ display/                   # StageBackground, ClockHud, SeatStrip, LinkStatus, NarrationPanel, ChoiceBoard,
+│  │                             # DiceArena, InterventionTrack, PublicNoticeFeed, MaskApparition, TargetReveal,
+│  │                             # EndingSequence, NoiseOverlay(폰도 함께 씀), PauseCurtain, HostBar(방 운영)
+│  └─ controller/                # ErosionGauge, InventoryPanel, VotePanel, RollButton, InterventionPanel, ActionBar,
+│                                # AbilityButton, TrueSightSheet, TalismanPanel, CueToast(귓속말 포함 토스트 한 자리),
+│                                # WhisperList, RedMessageOverlay, LockOverlay, ReconnectNotice, EndingSummary, DesktopNotice
 ├─ stores/          auth.ts, play.ts        # play가 방 세션(소켓·스냅샷·cue)을 모두 갖는다
 ├─ composables/     useRoomSocket, useCountdown, useAssetPreload, useWakeLock
 ├─ services/        supabase.ts, apiClient.ts, roomSocket.ts
@@ -417,7 +423,8 @@ tal-brothers-web/src/
 | 언어 | TypeScript 6 (전 패키지) |
 | 프론트 | Vue 3, Vite 8, Tailwind CSS v4, shadcn-vue (Reka UI, Neutral), Pinia, Vue Router |
 | 서버 | Node 24, Express, ws, tsx (개발 실행) |
-| 테스트 | Vitest (서버) |
+| 테스트 | Vitest (서버), Playwright (통합 — 브라우저 여러 개로 로비부터 엔딩까지, 화면 기준 은닉 검사. `docs/m4-plan.md` 11.4) |
+| 통합 테스트의 인증·시간 | 테스트 전용 진입점(`tal-brothers-server/e2e/`, `vite.e2e.config.ts`)이 가짜 검증기·가속 스케줄러를 주입한다. **운영 진입점과 운영 Vite 설정에는 우회 경로가 없다** |
 | DB·인증 | Supabase, 전원 Google 로그인 |
 | 엔진 형태 | 순수 함수 + 시각·난수 주입 |
 | 통신 | 스냅샷 + cue, 명령만 수신 |

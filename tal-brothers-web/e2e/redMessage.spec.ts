@@ -25,7 +25,8 @@ test('진짜와 가짜 붉은 메시지가 구분되지 않는다', async ({ bro
   const real: RedCapture[] = []
   const fake: RedCapture[] = []
 
-  for (let attempt = 0; attempt < MAX_GAMES && (real.length === 0 || fake.length === 0); attempt += 1) {
+  const hasPixels = (list: RedCapture[]): boolean => list.some((capture) => capture.pixels.length > 0)
+  for (let attempt = 0; attempt < MAX_GAMES && (!hasPixels(real) || !hasPixels(fake)); attempt += 1) {
     const watchers = new Map<BrotherRole, ReturnType<typeof watchRedMessages>>()
     const result = await runGame(browser, {
       label: `redMessage-${attempt}`,
@@ -64,10 +65,17 @@ test('진짜와 가짜 붉은 메시지가 구분되지 않는다', async ({ bro
   expect(fake.length, '가짜 붉은 메시지를 잡지 못했다').toBeGreaterThan(0)
 
   const reference = real[0] as RedCapture
+  // 픽셀을 얻지 못한 포착(찍는 사이 덮개가 사라짐)은 DOM·스타일만 비교한다. 픽셀 비교는 둘 다 있을 때만
+  const withPixels = [...real, ...fake].filter((capture) => capture.pixels.length > 0)
+  const pixelReference = withPixels.find((capture) => real.includes(capture))
+  expect(pixelReference, '픽셀을 얻은 진짜 붉은 메시지가 없다').toBeDefined()
+  expect(withPixels.some((capture) => fake.includes(capture)), '픽셀을 얻은 가짜 붉은 메시지가 없다').toBe(true)
   for (const capture of [...real, ...fake]) {
     expect(capture.html).toBe(reference.html)
     expect(capture.styles).toBe(reference.styles)
-    expect(capture.pixels.equals(reference.pixels), `${capture.seat}의 픽셀이 다르다`).toBe(true)
+    if (capture.pixels.length > 0 && pixelReference !== undefined) {
+      expect(capture.pixels.equals(pixelReference.pixels), `${capture.seat}의 픽셀이 다르다`).toBe(true)
+    }
     if (capture.durationMs !== null && reference.durationMs !== null) {
       expect(Math.abs(capture.durationMs - reference.durationMs)).toBeLessThanOrEqual(DURATION_TOLERANCE_MS)
     }

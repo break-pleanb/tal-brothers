@@ -172,8 +172,8 @@ export function startPlayer(device: Device, options: PlayerOptions): Player {
             done.add(`${key}:sight`)
             if (await click(device, 'ability-true-sight')) actions.push(`${key} 절대 시야`)
           }
-          // 회복은 부적이 상한(2개)일 때만 쓴다 — 다 써 버리면 14A 제출 장면이 나오지 않는다
-          if (screen.enabled.includes('talisman-heal') && screen.talismans >= 2 && !done.has(`${key}:heal`)) {
+          // 회복은 부적이 있으면 쓴다. 14A 제출 장면은 부적을 모으는 `hoard` 좌석이 맡는다
+          if (screen.enabled.includes('talisman-heal') && screen.talismans >= 1 && !done.has(`${key}:heal`)) {
             done.add(`${key}:heal`)
             if (await click(device, 'talisman-heal')) actions.push(`${key} 부적 회복`)
           }

@@ -24,8 +24,10 @@ export type E2eUser = { id: string; name: string }
 
 /** 이 기기가 ws로 받은 서버 메시지 하나 */
 export type FrameRecord = {
-  /** 받은 순간(실제 시각, ms) */
+  /** 받은(보낸) 순간(실제 시각, ms) */
   at: number
+  /** 서버가 보낸 것인지, 이 기기가 보낸 것인지. 은닉 검사는 받은 것만 본다 */
+  direction: 'received' | 'sent'
   message: { t: string } & Record<string, unknown>
 }
 
@@ -41,15 +43,18 @@ export type Device = {
 /** 페이지가 여는 ws의 수신 프레임을 모은다. 페이지를 새로 열면 다시 불러야 한다 */
 export function captureFrames(page: Page, frames: FrameRecord[]): void {
   page.on('websocket', (socket) => {
-    socket.on('framereceived', ({ payload }) => {
+    const record = (direction: FrameRecord['direction']) => ({ payload }: { payload: string | Buffer }) => {
       if (typeof payload !== 'string') return
       try {
         const message = JSON.parse(payload) as FrameRecord['message']
-        if (typeof message.t === 'string') frames.push({ at: Date.now(), message })
+        if (typeof message.t === 'string') frames.push({ at: Date.now(), direction, message })
       } catch {
-        // 서버는 JSON만 보낸다. 못 읽는 프레임은 검사 대상이 아니다
+        // 서버와 web은 JSON만 주고받는다. 못 읽는 프레임은 검사 대상이 아니다
       }
-    })
+    }
+    socket.on('framereceived', record('received'))
+    // 보낸 명령도 남긴다 — 부적 선착순처럼 "누가 언제 눌렀는지"를 봐야 하는 확인이 있다
+    socket.on('framesent', record('sent'))
   })
 }
 

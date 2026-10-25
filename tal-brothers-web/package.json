@@ -9,7 +9,8 @@
     "typecheck": "vue-tsc --noEmit -p tsconfig.app.json",
     "preview": "vite preview",
     "test:e2e": "playwright test",
-    "typecheck:e2e": "tsc --noEmit -p tsconfig.e2e.json"
+    "typecheck:e2e": "tsc --noEmit -p tsconfig.e2e.json",
+    "e2e:coverage": "tsx e2e/coverageReport.ts"
   },
   "dependencies": {
     "@lucide/vue": "^1.47.0",
