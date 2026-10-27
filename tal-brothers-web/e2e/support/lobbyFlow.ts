@@ -29,6 +29,8 @@ export type GameOptions = {
   seats?: BrotherRole[]
   /** 개발용 시계 단축(분). 타임오버 시나리오 전용 */
   clockMinutes?: number
+  /** Controller를 연 직후, 방에 접속하기 전에 불린다. ws 가로채기처럼 접속 전에 걸어야 하는 준비 자리 */
+  prepareController?: (seat: BrotherRole, device: Device) => Promise<void>
 }
 
 export type StartedGame = {
@@ -57,6 +59,7 @@ export async function startGame(browser: Browser, options: GameOptions): Promise
     const user = users[index]
     if (user === undefined) throw new Error('사용자가 부족하다')
     const device = await openController(browser, seat, user)
+    if (options.prepareController !== undefined) await options.prepareController(seat, device)
     await device.page.goto(`/join/${roomCode}`)
     await device.page.getByRole('button', { name: '이 방에 참가하기' }).click()
     await device.page.waitForURL(new RegExp(`/lobby/${roomCode}$`))

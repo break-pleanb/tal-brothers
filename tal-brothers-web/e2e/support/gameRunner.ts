@@ -21,7 +21,7 @@ import {
 } from './hidingChecks'
 import type { Violation } from './hidingChecks'
 import { startGame } from './lobbyFlow'
-import type { StartedGame } from './lobbyFlow'
+import type { GameOptions, StartedGame } from './lobbyFlow'
 import { startPlayer } from './playerPolicy'
 import type { Player, PolicyName } from './playerPolicy'
 
@@ -47,6 +47,8 @@ export type RunOptions = {
   screenshots?: ScreenshotMode
   /** 엔딩까지 기다리는 실제 시간 */
   timeoutMs?: number
+  /** Controller를 연 직후, 방에 접속하기 전에 불린다 (`GameOptions.prepareController`) */
+  prepareController?: GameOptions['prepareController']
   /** 단계가 바뀔 때마다 불린다. 시나리오 스펙이 중간에 끼어드는 자리 */
   onCheckpoint?: (checkpoint: Checkpoint, game: StartedGame) => Promise<void>
 }
@@ -151,6 +153,7 @@ export async function runGame(browser: Browser, options: RunOptions): Promise<Ru
     humans: options.humans,
     ...(options.seats === undefined ? {} : { seats: options.seats }),
     ...(options.clockMinutes === undefined ? {} : { clockMinutes: options.clockMinutes }),
+    ...(options.prepareController === undefined ? {} : { prepareController: options.prepareController }),
   })
 
   const policies = options.policies ?? ['seeded']

@@ -17,10 +17,13 @@ import { usePlayStore } from '@/stores/play'
  *   같은 상태 전이에서 함께 추가하고, 알림은 모든 좌석 스냅샷에 실린다. 그래서 모든 Controller가 같은
  *   상태 버전에서 덮개를 띄운다. 수신자에게만 가는 `whisperReceived` cue는 쓰지 않는다 — cue로 띄우면
  *   수신자만 시점이 달라진다
- * - 새 발송 알림 k건, 내 `whispers` 증가분 m건이면 덮개 k장을 차례로 띄우고 앞의 m장에 내 문장을 싣는다
+ * - **한 스냅샷에서 발송된 귓속말은 몇 건이든 덮개 한 장으로 묶는다.** 받은 좌석은 그 한 장에 받은 문장을 모두 싣고
+ *   (한 줄에 한 문장), 받지 않은 좌석은 "알아들을 수 없다" 한 줄이다. 2장부터는 잠식 30% 이상인 모든 좌석에
+ *   이벤트마다 티어 환청이 가므로, 건마다 띄우면 모든 폰에 덮개가 연달아 떠 자극이 아니라 피로가 된다
  * - 처음 받은 스냅샷을 기준선으로 삼는다. 새로고침해도 지난 덮개를 다시 띄우지 않는다
- * - **문장 상자 크기는 고정이다.** 가장 긴 귓속말이 들어가는 줄 수만큼 높이를 잡아, 줄 수로 글자 덩어리
- *   모양이 달라지지 않게 한다. 글자가 나타나는 데 걸리는 시간도 문장 길이와 무관하게 같다
+ * - **문장 상자 크기는 고정이다.** 한 좌석이 한 묶음에서 받을 수 있는 최대치(2건 — 진입 경고 + 티어 환청,
+ *   또는 사당 실패 + 티어 환청)가 들어가는 높이로 잡아, 줄 수로 글자 덩어리 모양이 달라지지 않게 한다.
+ *   글자가 다 나타나는 시간도 문장 길이·건수와 무관하게 같다
  * - **조작을 막지 않는다.** 덮개 전체가 `pointer-events: none`이라 투표·굴림·개입·14A 제출 중이어도 아래 버튼이
  *   그대로 눌린다. 받은 좌석과 받지 않은 좌석이 똑같이 동작한다. 덮개를 눌러 닫는 동작은 두지 않는다 —
  *   닫는 좌석과 안 닫는 좌석의 표시 시간이 달라지기 때문이다
@@ -34,8 +37,8 @@ const MASK_URL = ASSET_URL[ASSET_KEY.MASK_CLOWN]
 
 const play = usePlayStore()
 
-/** 띄울 덮개 문장 대기열. 맨 앞이 지금 보이는 것이다 */
-const queue = ref<{ id: number; text: string }[]>([])
+/** 띄울 덮개 대기열. 덮개 한 장이 발송 한 묶음이다. 맨 앞이 지금 보이는 것이다 */
+const queue = ref<{ id: number; lines: string[] }[]>([])
 let nextId = 1
 let seenNotices: number | null = null
 let seenWhispers = 0
@@ -60,10 +63,9 @@ watch(
     seenNotices = notices.length
     seenWhispers = whispers.length
 
-    for (let index = 0; index < sent; index += 1) {
-      queue.value.push({ id: nextId, text: received[index] ?? UNHEARD_TEXT })
-      nextId += 1
-    }
+    if (sent === 0) return
+    queue.value.push({ id: nextId, lines: received.length > 0 ? received : [UNHEARD_TEXT] })
+    nextId += 1
   },
   { immediate: true },
 )
@@ -88,12 +90,22 @@ onBeforeUnmount(() => {
   if (timer !== null) clearTimeout(timer)
 })
 
-/** 한 글자씩 나타난다. 글자 간격은 `whisperRevealMs`를 글자 수로 나눈 값이라 다 나타나는 시점이 같다 */
-const chars = computed(() => {
-  const text = current.value?.text ?? ''
-  const list = Array.from(text)
-  const step = list.length === 0 ? 0 : MOTION_TIMING.whisperRevealMs / list.length
-  return list.map((char, index) => ({ char, delay: `${Math.round(index * step)}ms` }))
+/**
+ * 한 글자씩 나타난다. 글자 간격은 `whisperRevealMs`를 **모든 줄의 글자 수 합**으로 나눈 값이라
+ * 문장이 몇 건이든 다 나타나는 시점이 같다. 줄이 바뀌어도 순서대로 이어서 나타난다
+ */
+const lines = computed(() => {
+  const list = (current.value?.lines ?? []).map((line) => Array.from(line))
+  const total = list.reduce((sum, chars) => sum + chars.length, 0)
+  const step = total === 0 ? 0 : MOTION_TIMING.whisperRevealMs / total
+  let order = 0
+  return list.map((chars) =>
+    chars.map((char) => {
+      const delay = `${Math.round(order * step)}ms`
+      order += 1
+      return { char, delay }
+    }),
+  )
 })
 
 const motion = { '--whisper-veil': `${MOTION_TIMING.whisperVeilMs}ms` }
@@ -110,15 +122,17 @@ const motion = { '--whisper-veil': `${MOTION_TIMING.whisperVeilMs}ms` }
   >
     <img :src="MASK_URL" alt="" class="whisper-veil__mask" />
     <div class="whisper-veil__box">
-      <p class="whisper-veil__text">
-        <span
-          v-for="(entry, index) in chars"
-          :key="index"
-          class="whisper-veil__char"
-          :style="{ animationDelay: entry.delay }"
-          >{{ entry.char }}</span
-        >
-      </p>
+      <div class="whisper-veil__text">
+        <p v-for="(chars, lineIndex) in lines" :key="lineIndex" class="whisper-veil__line">
+          <span
+            v-for="(entry, index) in chars"
+            :key="index"
+            class="whisper-veil__char"
+            :style="{ animationDelay: entry.delay }"
+            >{{ entry.char }}</span
+          >
+        </p>
+      </div>
     </div>
   </div>
 </template>
@@ -150,8 +164,9 @@ const motion = { '--whisper-veil': `${MOTION_TIMING.whisperVeilMs}ms` }
 }
 
 /*
- * 문장 상자 — 크기를 고정한다. 높이는 가장 긴 귓속말(Phase 2 진입 경고, 약 46자)이 가장 좁은 폰(360px)에서
- * 차지하는 줄 수보다 넉넉한 5줄이다. 문장마다 줄 수가 달라도 상자 모양은 같다
+ * 문장 상자 — 크기를 고정한다. 높이는 한 묶음의 최대치(진입 경고 약 45자 + 티어 환청 약 26자)가
+ * 가장 좁은 폰(360px)에서 차지하는 줄 수(3 + 2줄)와 문장 사이 간격보다 넉넉한 7줄이다.
+ * 문장마다 줄 수가 달라도 상자 모양은 같다
  */
 .whisper-veil__box {
   display: flex;
@@ -159,7 +174,7 @@ const motion = { '--whisper-veil': `${MOTION_TIMING.whisperVeilMs}ms` }
   justify-content: center;
   box-sizing: border-box;
   width: min(86vw, 22rem);
-  height: calc(5 * 1.7 * 1.0625rem + 2rem);
+  height: calc(7 * 1.7 * 1.0625rem + 2rem);
   padding: 1rem 1.25rem;
   overflow: hidden;
   border: 1px solid rgba(170, 186, 204, 0.22);
@@ -168,20 +183,26 @@ const motion = { '--whisper-veil': `${MOTION_TIMING.whisperVeilMs}ms` }
 }
 
 /*
- * 문장 요소도 상자를 꽉 채운다. 요소 크기가 문장 줄 수를 따라가지 않게 하고, 글자는 그 안에서 가운데로 모은다.
- * 글자 하나하나가 줄바꿈 단위다
+ * 문장 묶음도 상자를 꽉 채운다. 요소 크기가 문장 줄 수를 따라가지 않게 하고, 문장들은 그 안에서 가운데로 모은다
  */
 .whisper-veil__text {
   display: flex;
-  flex-wrap: wrap;
-  align-content: center;
+  flex-direction: column;
   justify-content: center;
+  gap: 0.5em;
   width: 100%;
   height: 100%;
   font-size: 1.0625rem;
   line-height: 1.7;
   color: #c9d3de;
   text-align: center;
+}
+
+/* 한 문장 한 줄. 글자 하나하나가 줄바꿈 단위다 */
+.whisper-veil__line {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 /* 글자마다 떨리며 나타난다 */
