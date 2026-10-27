@@ -4,7 +4,8 @@ import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { GAME_STEP } from 'tal-brothers-shared'
 
-import { artifactDir, closeAll } from './support/harness'
+import { runGame } from './support/gameRunner'
+import { artifactDir, closeAll, sleep } from './support/harness'
 import { startGame } from './support/lobbyFlow'
 
 /**
@@ -15,7 +16,14 @@ import { startGame } from './support/lobbyFlow'
  * Controller: 폭이 달라도 가로 스크롤이 없고, 액션바는 화면 아래에 붙어 있다.
  *
  * 플레이어 대역을 돌리지 않고 투표 단계에 멈춰(투표 3분, 가속 4배로 45초) 창 크기를 바꿔 가며 잰다.
+ *
+ * 탈이 있는 이벤트의 구도(m5-notes 탈 구도)는 한 판을 끝까지 돌리며 따로 잰다 — T1에는 탈이 없다.
  */
+
+/** 탈이 다가오는 동안 글자를 그리지 않는 시간 (`MOTION_TIMING.maskApproachMs`) */
+const MASK_APPROACH_MS = 3_000
+/** 탈이 오른쪽 위로 옮겨 가는 시간 (`MOTION_TIMING.maskShiftMs`) */
+const MASK_SHIFT_MS = 1_200
 
 const DISPLAY_SIZES = [
   { width: 1280, height: 720 },
@@ -94,6 +102,48 @@ async function measureController(page: Page): Promise<string[]> {
   })
 }
 
+/** 본문 글자 개수. 탈이 다가오는 동안에는 0이어야 한다 */
+async function bodyTextLength(page: Page): Promise<number> {
+  return page.evaluate(() => (document.querySelector('.stage-layer--body')?.textContent ?? '').trim().length)
+}
+
+/**
+ * 탈 구도에서 겹치면 안 되는 것.
+ * - 본문 글자가 왼쪽 아래 HUD(공개 알림·좌석 줄)와 겹치지 않는다
+ * - 내려다보는 구도에서는 선택지 카드가 탈 틀의 왼쪽 끝 앞에서 끝난다
+ */
+async function measureMaskOverlap(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const problems: string[] = []
+    const intersects = (a: DOMRect, b: DOMRect): boolean =>
+      a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1
+    const hudBoxes = [...document.querySelectorAll('[data-testid="notice-feed"] li, .seat-strip')].map((element) =>
+      element.getBoundingClientRect(),
+    )
+    const bodyText = [...document.querySelectorAll('.stage-layer--body *')].filter(
+      (element) => element.children.length === 0 && (element.textContent ?? '').trim() !== '' && element.getClientRects().length > 0,
+    )
+    for (const element of bodyText) {
+      const box = element.getBoundingClientRect()
+      if (hudBoxes.some((hud) => intersects(box, hud))) {
+        problems.push(`왼쪽 아래 HUD와 겹친다: "${(element.textContent ?? '').trim().slice(0, 24)}"`)
+      }
+    }
+    // 탈이 옮겨 가는 도중에도 재도록 틀의 현재 위치가 아니라 최종 자리(왼쪽 끝 72cqw)와 비교한다
+    const stage = document.querySelector('.display-stage')?.getBoundingClientRect()
+    if (document.querySelector('[data-mask-pose="overlook"]') !== null && stage !== undefined) {
+      const faceLeft = stage.left + stage.width * 0.72
+      const cards = document.querySelectorAll('[data-testid="choice-card"]')
+      if (cards.length === 0) problems.push('선택지 카드가 없다')
+      for (const card of cards) {
+        const box = card.getBoundingClientRect()
+        if (box.right > faceLeft + 1) problems.push(`선택지 카드가 탈 얼굴과 겹친다 (${Math.round(box.right)} > ${Math.round(faceLeft)})`)
+      }
+    }
+    return problems
+  })
+}
+
 test('Display는 16:9·세이프존·캠 자리를 지키고, Controller는 가로 스크롤이 없다', async ({ browser }) => {
   test.setTimeout(5 * 60_000)
   const dir = artifactDir('layout')
@@ -127,4 +177,55 @@ test('Display는 16:9·세이프존·캠 자리를 지키고, Controller는 가�
   }
 
   expect(problems).toEqual([])
+})
+
+test('탈이 있는 이벤트: 글자 없이 다가온 뒤 위 제목·아래 자막, 투표부터 탈은 오른쪽 위·선택지는 왼쪽', async ({ browser }) => {
+  test.setTimeout(10 * 60_000)
+  const dir = artifactDir('layout-mask')
+  const problems: string[] = []
+  let sawIntro = false
+  let sawOverlook = false
+
+  const result = await runGame(browser, {
+    label: 'layout-mask',
+    humans: 1,
+    seed: 1401,
+    screenshots: 'none',
+    onCheckpoint: async (checkpoint, game) => {
+      const page = game.display.page
+      const layout = await page.locator('.display-body').getAttribute('data-mask-layout').catch(() => '')
+      if (checkpoint.step === GAME_STEP.EVENT_INTRO && layout === 'intro' && !sawIntro) {
+        sawIntro = true
+        const early = await bodyTextLength(page)
+        if (early > 0) problems.push(`${checkpoint.event}: 탈이 다가오는 동안 글자가 있다 (${early}자)`)
+        await page.screenshot({ path: path.join(dir, `intro_${checkpoint.event}_approach.png`) })
+        await sleep(MASK_APPROACH_MS + 300)
+        if ((await page.locator('.narration--split').count()) === 0) problems.push(`${checkpoint.event}: 제목·자막 띠 배치가 아니다`)
+        const { problems: found } = await measureDisplay(page)
+        problems.push(...found.map((problem) => `${checkpoint.event} 상황 제시: ${problem}`))
+        problems.push(...(await measureMaskOverlap(page)).map((problem) => `${checkpoint.event} 상황 제시: ${problem}`))
+        await page.screenshot({ path: path.join(dir, `intro_${checkpoint.event}_text.png`) })
+      }
+      if (checkpoint.step === GAME_STEP.VOTING && layout === 'overlook' && !sawOverlook) {
+        sawOverlook = true
+        // 가속 판에서는 투표가 금방 끝난다. 선택지가 떠 있는 동안 바로 잰다
+        problems.push(...(await measureMaskOverlap(page)).map((problem) => `${checkpoint.event} 투표: ${problem}`))
+        await page.screenshot({ path: path.join(dir, `voting_${checkpoint.event}_choices.png`) })
+        await sleep(MASK_SHIFT_MS + 300)
+        const { problems: found } = await measureDisplay(page)
+        problems.push(...found.map((problem) => `${checkpoint.event} 투표: ${problem}`))
+        problems.push(...(await measureMaskOverlap(page)).map((problem) => `${checkpoint.event} 투표 이후: ${problem}`).filter((problem) => !problem.endsWith('선택지 카드가 없다')))
+        await page.screenshot({ path: path.join(dir, `voting_${checkpoint.event}_after.png`) })
+      }
+    },
+  })
+
+  try {
+    expect(sawIntro, '탈이 있는 이벤트의 상황 제시를 보지 못했다').toBe(true)
+    expect(sawOverlook, '탈이 있는 이벤트의 투표를 보지 못했다').toBe(true)
+    expect(problems).toEqual([])
+    expect(result.violations, result.violations.map((v) => v.detail).join('\n')).toEqual([])
+  } finally {
+    await closeAll(result.game.devices)
+  }
 })

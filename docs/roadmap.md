@@ -434,6 +434,7 @@ tal-brothers-server/
 - [x] **M5-4 Controller 연출** — 붉은 메시지에 요괴화 탈(진짜·가짜 동일성 재통과), 전환, `prefers-reduced-motion`. `motion.spec` — 연출이 룰북 단계 시간 안에서 끝나고, 축소 모드에서 움직임 0
 - [x] **M5-5 배포 빌드** — `npm run build -w tal-brothers-server`(esbuild, shared 포함·npm 의존성 외부) → `npm run start`. 운영 번들 `/healthz` 확인, **번들된 e2e 서버로 회귀 통과**(`E2E_BUNDLED=1`)
 - [x] **M5-6 마감** — 전체 회귀, `docs/m5-notes.md`
+- [x] **M5-7 화면 연출 개선** — Display 탈 구도(글자 없는 3초 등장 → 위 제목·아래 자막, 투표부터 오른쪽 위 탈·왼쪽 세로 선택지, 판정 실패 시 다가옴), 공개 알림 최근 3건·새 알림 강조·지난 득표 알림 제거, Controller 귓속말 덮개(전 좌석 동일, 문장만 다름, 조작 비차단)·"속삭임 N" 보관함. `whisperVeil.spec` 신규, `layout.spec` 탈 구도 검사 추가 (m5-notes M5-7)
 - **M5 상태: 에셋·연출·배포 빌드 완료 · 세이브/불러오기·실제 배포는 후속** (m5-plan 4절)
 
 **원래 범위**

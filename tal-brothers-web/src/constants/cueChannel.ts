@@ -22,12 +22,16 @@ export const CUE_CHANNEL: Record<CueKind, CueChannel> = {
   [CUE_KIND.NOISE_LOCK]: 'overlay',
   [CUE_KIND.ENDING]: 'overlay',
 
-  [CUE_KIND.WHISPER_RECEIVED]: 'toast',
   [CUE_KIND.TUTORIAL_TALISMAN_GRANTED]: 'toast',
   [CUE_KIND.INTERVENTION_USED]: 'toast',
   [CUE_KIND.PRACTICE_EXPLAIN]: 'toast',
   [CUE_KIND.FORCE_SUCCESS_EXPLAIN]: 'toast',
 
+  /**
+   * 받은 귓속말은 cue로 연출하지 않는다. 수신자에게만 오는 cue로 띄우면 수신자만 시점이 달라진다.
+   * 덮개는 모든 좌석이 받는 공개 알림으로 띄우고(`WhisperVeil`), 문장은 스냅샷에 있다 (m5-notes 귓속말 연출)
+   */
+  [CUE_KIND.WHISPER_RECEIVED]: 'scene',
   [CUE_KIND.EVENT_INTRO]: 'scene',
   [CUE_KIND.PHASE_ENTERED]: 'scene',
   [CUE_KIND.DICE_ROLLED]: 'scene',

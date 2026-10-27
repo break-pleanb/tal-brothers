@@ -11,13 +11,18 @@ import { JUDGMENT_LABEL } from '@/constants/judgmentLabel'
  * - 담는 것: 문장, 판정 유형·속성 태그, 비공개 판정의 대가
  * - **담지 않는 것: 성공 기준·보상·페널티·변이 라벨.** 애초에 이 컴포넌트의 props에 들어오지 않는다
  * - 투표 중에는 **참여 인원 수만**, 마감 뒤에만 선택지별 득표 수를 보여준다 (룰북 §8)
+ * - `vertical`이면 왼쪽 열에 세로로 쌓는다. 탈이 오른쪽 위에서 내려다보는 구도에서 탈 얼굴과 겹치지 않게 한다
  */
 
-const props = defineProps<{
-  choices: ChoiceView[]
-  adoptedChoiceId: string | null
-  vote: VoteView | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    choices: ChoiceView[]
+    adoptedChoiceId: string | null
+    vote: VoteView | null
+    vertical?: boolean
+  }>(),
+  { vertical: false },
+)
 
 const closed = computed(() => props.vote?.closed === true)
 
@@ -37,7 +42,7 @@ function tagsOf(choice: ChoiceView): string[] {
 </script>
 
 <template>
-  <div class="choice-board">
+  <div class="choice-board" :class="{ 'choice-board--vertical': vertical }">
     <ul class="choice-board__list">
       <li
         v-for="choice in choices"
@@ -106,6 +111,22 @@ function tagsOf(choice: ChoiceView): string[] {
   font-size: var(--stage-choice);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+
+.choice-board--vertical {
+  align-items: flex-start;
+}
+
+.choice-board--vertical .choice-board__list {
+  flex-direction: column;
+  gap: 1cqh;
+}
+
+.choice-board--vertical .choice-board__card {
+  flex: none;
+  max-width: none;
+  padding: 1.2cqh 1.2cqw;
+  text-align: left;
 }
 
 .choice-board__participants {

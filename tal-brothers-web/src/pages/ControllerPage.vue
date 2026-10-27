@@ -20,6 +20,7 @@ import TalismanPanel from '@/components/controller/TalismanPanel.vue'
 import TrueSightSheet from '@/components/controller/TrueSightSheet.vue'
 import VotePanel from '@/components/controller/VotePanel.vue'
 import WhisperList from '@/components/controller/WhisperList.vue'
+import WhisperVeil from '@/components/controller/WhisperVeil.vue'
 import NoiseOverlay from '@/components/display/NoiseOverlay.vue'
 import { CONTROLLER_ASSETS, useAssetPreload } from '@/composables/useAssetPreload'
 import { useCountdown } from '@/composables/useCountdown'
@@ -286,6 +287,9 @@ function submitTalisman(): void {
       :choices="view?.choices ?? []"
       :variant-details="play.privateView?.variantDetails ?? null"
     />
+
+    <!-- 귓속말 덮개 — 모든 좌석이 같은 순간 같은 모양으로 본다. 조작을 막지 않는다 -->
+    <WhisperVeil />
 
     <RedMessageOverlay />
 

@@ -10,7 +10,7 @@ import { ASSET_URL } from '@/constants/assetUrl'
  *
  * 게임 중에 처음 보는 이미지를 받으면 화면이 끊긴다. 로비에서 **한꺼번에** 받아 디코드까지 마친다.
  *
- * - Display는 11종 전부, Controller는 아이템 2종 + 요괴화 탈(붉은 메시지)만 받는다
+ * - Display는 11종 전부, Controller는 아이템 2종 + 요괴화 탈(붉은 메시지) + 기본 광대탈(귓속말 덮개)만 받는다
  * - **이벤트 순서를 따라 받지 않는다.** 요청 순서로 다음 탈을 알 수 있기 때문이다 (m5-plan 2절)
  * - 실패해도 게임은 그대로 진행한다. 시작을 막지 않는다 (m4-plan 11.1 c)
  * - 받은 `Image`를 모듈에 붙잡아 둔다. 라우트가 바뀌어도 디코드한 결과가 버려지지 않게
@@ -22,6 +22,7 @@ export const CONTROLLER_ASSETS: AssetKey[] = [
   ASSET_KEY.ITEM_TALISMAN,
   ASSET_KEY.ITEM_JADE_HAIRPIN,
   ASSET_KEY.MASK_CORRUPTED,
+  ASSET_KEY.MASK_CLOWN,
 ]
 
 type Entry = { promise: Promise<boolean>; ok: boolean | null }

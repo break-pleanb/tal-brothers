@@ -54,6 +54,8 @@ export const CONTROLLER_TEST_IDS = [
   'talisman-discard',
   'talisman-submit',
   'whisper',
+  'whisper-toggle',
+  'whisper-veil',
   'cue-toast',
   'red-message',
   'reconnect-notice',

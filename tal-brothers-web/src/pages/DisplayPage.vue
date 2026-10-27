@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, toRef, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { COMMAND_TYPE, CUE_KIND, ENDING_ID, GAME_STEP } from 'tal-brothers-shared'
+import { COMMAND_TYPE, CUE_KIND, ENDING_ID, GAME_STEP, JUDGMENT_KIND } from 'tal-brothers-shared'
 import type { CueKind } from 'tal-brothers-shared'
 
 import ChoiceBoard from '@/components/display/ChoiceBoard.vue'
@@ -12,6 +12,7 @@ import HostBar from '@/components/display/HostBar.vue'
 import InterventionTrack from '@/components/display/InterventionTrack.vue'
 import LinkStatus from '@/components/display/LinkStatus.vue'
 import MaskApparition from '@/components/display/MaskApparition.vue'
+import type { MaskPose } from '@/components/display/MaskApparition.vue'
 import NarrationPanel from '@/components/display/NarrationPanel.vue'
 import NoiseOverlay from '@/components/display/NoiseOverlay.vue'
 import PauseCurtain from '@/components/display/PauseCurtain.vue'
@@ -137,12 +138,76 @@ const phaseNarration = computed(() => {
   return queued?.cue.kind === CUE_KIND.PHASE_ENTERED ? queued.cue.text : null
 })
 
+/**
+ * 탈 구도 (m5-notes 탈 구도). 탈이 있는 이벤트(서버가 `mask`를 보낸 이벤트)만 해당한다.
+ * 탈이 없는 이벤트는 지금까지의 가운데 구도를 그대로 쓴다.
+ */
+const hasMask = computed(() => (view.value?.mask ?? null) !== null)
+
+/** 이번 이벤트를 가리키는 값 */
+const eventKey = computed(() => `${view.value?.phase ?? ''}:${view.value?.eventNumber ?? ''}`)
+
+/** 상황 제시에서는 가운데에서 다가오고, 투표부터는 오른쪽 위에서 내려다본다 */
+const maskPose = computed<MaskPose>(() => (step.value === GAME_STEP.EVENT_INTRO ? 'intro' : 'overlook'))
+
+/**
+ * 상황 제시 첫머리 `maskApproachMs` 동안은 글자 없이 탈만 보인다.
+ * 단계 시작 시각은 스냅샷에 없어, 이 화면이 그 이벤트의 상황 제시를 처음 본 순간부터 잰다
+ * (새로고침하면 다시 처음부터다. 상황 제시 30초 안이라 진행에는 영향이 없다)
+ */
+const introHold = ref(false)
+let introHoldTimer: ReturnType<typeof setTimeout> | null = null
+let heldEventKey: string | null = null
+
+function clearIntroHold(): void {
+  if (introHoldTimer !== null) clearTimeout(introHoldTimer)
+  introHoldTimer = null
+  introHold.value = false
+}
+
+watch(
+  [eventKey, step, hasMask],
+  () => {
+    if (step.value !== GAME_STEP.EVENT_INTRO || !hasMask.value) {
+      clearIntroHold()
+      return
+    }
+    if (heldEventKey === eventKey.value) return
+    heldEventKey = eventKey.value
+    clearIntroHold()
+    introHold.value = true
+    introHoldTimer = setTimeout(clearIntroHold, MOTION_TIMING.maskApproachMs)
+  },
+  { immediate: true },
+)
+onBeforeUnmount(clearIntroHold)
+
+/** 공개 판정이 실패한 순간 탈이 다가온다. 비공개 판정은 성패가 오지 않으므로 해당이 없다 (룰북 §5.4) */
+const maskLunge = computed(
+  () =>
+    step.value === GAME_STEP.ROLL_REVEAL &&
+    view.value?.judgment?.kind !== JUDGMENT_KIND.HIDDEN &&
+    view.value?.judgment?.succeeded === false,
+)
+
+/**
+ * 본문 구도 — 탈이 없으면 null(가운데).
+ * 내려다보는 구도의 왼쪽 열은 높이가 좁아, 투표가 끝나면 상황 문장을 접고 제목만 남긴다.
+ * 그 자리는 개입 트랙·주사위·성패가 쓴다 (왼쪽 아래 공개 알림과 겹치지 않게)
+ */
+const maskLayout = computed<'intro' | 'overlook' | null>(() => (hasMask.value ? maskPose.value : null))
+
 </script>
 
 <template>
   <StageBackground :background="view?.background ?? null" :phase="view?.phase ?? null" />
 
-  <MaskApparition :mask="view?.mask ?? null" />
+  <MaskApparition
+    :mask="view?.mask ?? null"
+    :pose="maskPose"
+    :lunge="maskLunge"
+    :event-key="eventKey"
+  />
 
   <div class="stage-layer stage-layer--hud">
     <div class="stage-safe display-hud">
@@ -160,7 +225,12 @@ const phaseNarration = computed(() => {
 
       <!-- 왼쪽 아래에 모은다. 오른쪽 아래는 캠 자리다 (m4-plan 2.4) -->
       <div class="display-hud__bottom">
-        <PublicNoticeFeed :notices="view?.notices ?? []" />
+        <PublicNoticeFeed
+          v-if="view !== null"
+          :notices="view.notices"
+          :event-key="eventKey"
+          :vote-closed="view.vote?.closed === true"
+        />
         <SeatStrip :seat-names="play.seatNames" :connections="play.seatConnections" />
       </div>
     </div>
@@ -170,10 +240,15 @@ const phaseNarration = computed(() => {
   </div>
 
   <div class="stage-layer stage-layer--body">
-    <div class="stage-safe display-body">
+    <div
+      class="stage-safe display-body"
+      :class="maskLayout === null ? null : `display-body--mask-${maskLayout}`"
+      :data-mask-layout="maskLayout ?? ''"
+    >
       <p v-if="view === null" class="display-body__waiting">방 정보를 받는 중…</p>
 
-      <template v-else>
+      <!-- 탈이 다가오는 동안은 글자를 그리지 않는다 -->
+      <template v-else-if="!introHold">
         <TargetReveal
           v-if="view.phase3 !== null && ending === null"
           :phase3="view.phase3"
@@ -181,10 +256,16 @@ const phaseNarration = computed(() => {
         />
 
         <p v-if="phaseNarration !== null" class="display-body__phase">{{ phaseNarration }}</p>
-        <NarrationPanel v-else :title="view.eventTitle" :narration="view.narration" />
+        <NarrationPanel
+          v-else
+          :title="view.eventTitle"
+          :narration="maskLayout === 'overlook' && !showChoices ? null : view.narration"
+          :layout="maskLayout === 'intro' ? 'split' : maskLayout === 'overlook' ? 'compact' : 'center'"
+        />
 
         <ChoiceBoard
           v-if="showChoices"
+          :vertical="maskLayout === 'overlook'"
           :choices="view.choices"
           :adopted-choice-id="view.adoptedChoiceId"
           :vote="view.vote"
@@ -270,6 +351,20 @@ const phaseNarration = computed(() => {
   gap: 2cqh;
   text-align: center;
   pointer-events: none;
+}
+
+/*
+ * 탈이 오른쪽 위에서 내려다보는 구도 — 본문은 왼쪽 열에 위에서부터 쌓는다.
+ * 위는 시계 HUD 아래, 오른쪽은 탈 얼굴(세이프존 기준 약 68cqw부터) 앞에서 끝난다
+ */
+.display-body--mask-overlook {
+  align-items: flex-start;
+  justify-content: flex-start;
+  right: auto;
+  width: 54cqw;
+  padding-top: 9cqh;
+  gap: 1.6cqh;
+  text-align: left;
 }
 
 .display-body__waiting {
